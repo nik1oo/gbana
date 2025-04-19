@@ -65,11 +65,16 @@ _insert_bit:: proc(dst: ^$T, src: byte, index:uint) {
 	dst^ |= (T(src) << index) & mask }
 rotate_right:: proc { rotate_right8, rotate_right16, rotate_right32 }
 @(require_results)
-rotate_right8:: proc "contextless" (x: u8,  k: uint) -> u8 {
+rotate_right8:: proc "contextless"(x: u8,  k: uint) -> u8 {
 	return x >> k | x << (8 - k) }
 @(require_results)
-rotate_right16:: proc "contextless" (x: u16, k: uint) -> u16 {
+rotate_right16:: proc "contextless"(x: u16, k: uint) -> u16 {
 	return x >> k | x << (16 - k) }
 @(require_results)
-rotate_right32:: proc "contextless" (x: u32, k: uint) -> u32 {
+rotate_right32:: proc "contextless"(x: u32, k: uint) -> u32 {
 	return x >> k | x << (32 - k) }
+sign_extend_u32:: proc "contextless"(x: u32, k: uint) -> u32 {
+	W:: 32
+	sign_bit: = x & (0b1 << (k - 1)) >> (k - 1)
+	if sign_bit == 0 do return x
+	else do return transmute(u32)(transmute(i32)(u32(0b1) << (W - 1)) >> ((W - 1) - k)) }

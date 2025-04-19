@@ -54,8 +54,7 @@ gba_identify_instruction:: proc(ins: GBA_Instruction) -> (ins_ided: GBA_Instruct
 	case gba_instruction_is_MOV(ins):   return GBA_MOV_Instruction(ins),   true
 	case gba_instruction_is_MRC(ins):   return GBA_MRC_Instruction(ins),   true
 	case gba_instruction_is_MRS(ins):   return GBA_MRS_Instruction(ins),   true
-	case gba_instruction_is_MSRI(ins):  return GBA_MSRI_Instruction(ins),  true
-	case gba_instruction_is_MSRR(ins):  return GBA_MSRR_Instruction(ins),  true
+	case gba_instruction_is_MSR(ins):   return GBA_MSR_Instruction(ins),   true
 	case gba_instruction_is_MUL(ins):   return GBA_MUL_Instruction(ins),   true
 	case gba_instruction_is_MVN(ins):   return GBA_MVN_Instruction(ins),   true
 	case gba_instruction_is_ORR(ins):   return GBA_ORR_Instruction(ins),   true
