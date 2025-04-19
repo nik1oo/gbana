@@ -488,10 +488,107 @@ GBA_Addressing_Mode:: enum {
 	MODE_5 = LOAD_AND_STORE_COPROCESSOR }
 
 
+// ADDRESSING MODE 1 //
+// NOTE On operands:
+// - no memory transfers in decode stage
+// - register operands are read from registers
+// - registers are not updated
+// register                                0000 0000 xxxx
+// rotate right with extend                0000 0110 xxxx
+// logical shift left by register          xxxx 0001 xxxx
+// logical shift right by register         xxxx 0011 xxxx
+// arithmetic shift right by register      xxxx 0101 xxxx
+// rotate right by register                xxxx 0111 xxxx
+// logical shift left by immediate         xxxx x000 xxxx
+// logical shift right by immediate        xxxx x010 xxxx
+// arithmetic shift right by immediate     xxxx x100 xxxx
+// rotate right by immediate               xxxx x110 xxxx
+// immediate                               xxxx xxxx xxxx
+GBA_SHIFTER_MASK:: 0b_00000000_00000000_00001111_11111111
+gba_decode_shifter:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+	switch {
+	case bits.bitfield_extract(shifter_bits, 4, 8) == 0b_0000_0000: return gba_decode_shifter_register(shifter_bits)
+	case bits.bitfield_extract(shifter_bits, 4, 8) == 0b_0000_0110: return gba_decode_shifter_rotate_right_with_extend(shifter_bits)
+	case bits.bitfield_extract(shifter_bits, 4, 4) ==      0b_0001: return gba_decode_shifter_logical_shift_left_by_register(shifter_bits)
+	case bits.bitfield_extract(shifter_bits, 4, 4) ==      0b_0011: return gba_decode_shifter_logical_shift_right_by_register(shifter_bits)
+	case bits.bitfield_extract(shifter_bits, 4, 4) ==      0b_0101: return gba_decode_shifter_arithmetic_shift_right_by_register(shifter_bits)
+	case bits.bitfield_extract(shifter_bits, 4, 4) ==      0b_0111: return gba_decode_shifter_rotate_right_by_register(shifter_bits)
+	case bits.bitfield_extract(shifter_bits, 4, 3) ==       0b_000: return gba_decode_shifter_logical_shift_left_by_immediate(shifter_bits)
+	case bits.bitfield_extract(shifter_bits, 4, 3) ==       0b_010: return gba_decode_shifter_logical_shift_right_by_immediate(shifter_bits)
+	case bits.bitfield_extract(shifter_bits, 4, 3) ==       0b_100: return gba_decode_shifter_arithmetic_shift_right_by_immediate(shifter_bits)
+	case bits.bitfield_extract(shifter_bits, 4, 3) ==       0b_110: return gba_decode_shifter_rotate_right_by_immediate(shifter_bits)
+	case:                                                           return gba_decode_shifter_immediate(shifter_bits) }
+	return 0b0, false }
+gba_decode_shifter_immediate:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+	immediate: u32 = bits.bitfield_extract(shifter_bits, 0, 8)
+	rotate: u32 = bits.bitfield_extract(shifter_bits, 8, 4)
+	shifter_operand = rotate_right(immediate, uint(rotate))
+	if rotate == 0 do shifter_carry_out = gba_get_cpsr().carry
+	else do shifter_carry_out = bool(bits.bitfield_extract(shifter_operand, 31, 1))
+	return shifter_operand, shifter_carry_out }
+gba_decode_shifter_register:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+	return gba_core.logical_registers.array[shifter_bits]^, false }
+gba_decode_shifter_logical_shift_left_by_immediate:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
+	shift: = bits.bitfield_extract(shifter_bits, 7, 5)
+	return u32(rm) << shift, bool(bits.bitfield_extract(rm, uint(32 - shift), 1)) }
+gba_decode_shifter_logical_shift_left_by_register:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
+	shift: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 8, 4)]^ & 0b_00000000_11111111
+	return u32(rm) << shift, bool(bits.bitfield_extract(rm, uint(32 - shift), 1)) }
+gba_decode_shifter_logical_shift_right_by_immediate:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
+	shift: = bits.bitfield_extract(shifter_bits, 7, 5)
+	return u32(rm) >> shift, bool(bits.bitfield_extract(rm, uint(shift - 1), 1)) }
+gba_decode_shifter_logical_shift_right_by_register:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
+	shift: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 8, 4)]^ & 0b_00000000_11111111
+	return u32(rm) >> shift, bool(bits.bitfield_extract(rm, uint(shift - 1), 1)) }
+gba_decode_shifter_arithmetic_shift_right_by_immediate:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
+	shift: = bits.bitfield_extract(shifter_bits, 7, 5)
+	if shift == 0 do shift = 32
+	return u32(i32(rm) >> shift), bool(bits.bitfield_extract(rm, uint(shift - 1), 1)) }
+gba_decode_shifter_arithmetic_shift_right_by_register:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
+	shift: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 8, 4)]^ & 0b_00000000_11111111
+	if shift == 0 do shift = 32
+	return u32(i32(rm) >> shift), bool(bits.bitfield_extract(rm, uint(shift - 1), 1)) }
+gba_decode_shifter_rotate_right_by_immediate:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
+	shift: = bits.bitfield_extract(shifter_bits, 7, 5)
+	return rotate_right(rm, uint(shift)), bool(bits.bitfield_extract(rm, uint(shift - 1), 1)) }
+gba_decode_shifter_rotate_right_by_register:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
+	shift: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 8, 4)]^ & 0b_00000000_11111111
+	return rotate_right(rm, uint(shift)), bool(bits.bitfield_extract(rm, uint(shift - 1), 1)) }
+gba_decode_shifter_rotate_right_with_extend:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
+	return (u32(gba_get_cpsr().carry) << 31) | rm >> 1, bool(rm & 0b1) }
+
+
 // ADDRESSING MODE 2 //
-gba_decode_address:: proc(instruction: GBA_Instruction) -> (address: u32) {
-	return 0
-}
+gba_decode_address:: proc(ins: GBA_Instruction) -> (address: u32) {
+	bit_25: u32 = bits.bitfield_extract(ins, 25, 1)
+	p: bool = cast(bool)bits.bitfield_extract(ins, 24, 1)
+	w: bool = cast(bool)bits.bitfield_extract(ins, 24, 1)
+	scaled_bits: u32 = bits.bitfield_extract(ins, 5, 7)
+	if bit_25 == 0b_0 {
+		if p != w do return gba_decode_address_immediate_offset(ins)
+		else {
+			if p do return gba_decode_address_immediate_pre_indexed(ins)
+			else do return gba_decode_address_immediate_post_indexed(ins) } }
+	else if scaled_bits == 0b_0000_000 {
+		if p != w do return gba_decode_address_register_offset(ins)
+		else {
+			if p do return gba_decode_address_register_pre_indexed(ins)
+			else do return gba_decode_address_register_post_indexed(ins) } }
+	else {
+		if p != w do return gba_decode_address_scaled_register_offset(ins)
+		else {
+			if p do return gba_decode_address_scaled_register_pre_indexed(ins)
+			else do return gba_decode_address_scaled_register_post_indexed(ins) } }
+	return 0b0 }
 gba_decode_address_immediate_offset:: proc(ins: GBA_Instruction) -> (address: u32) {
 	u: bool = bool(bits.bitfield_extract(ins, 23, 1))
 	rn: u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]^
@@ -1840,85 +1937,6 @@ gba_decode_start_address:: proc(base_address: u32) -> (start_address: u32) {
 	return 0
 	// TODO
 }
-
-
-// ADDRESSING MODE 1 //
-// NOTE On operands:
-// - no memory transfers in decode stage
-// - register operands are read from registers
-// - registers are not updated
-// register                                0000 0000 xxxx
-// rotate right with extend                0000 0110 xxxx
-// logical shift left by register          xxxx 0001 xxxx
-// logical shift right by register         xxxx 0011 xxxx
-// arithmetic shift right by register      xxxx 0101 xxxx
-// rotate right by register                xxxx 0111 xxxx
-// logical shift left by immediate         xxxx x000 xxxx
-// logical shift right by immediate        xxxx x010 xxxx
-// arithmetic shift right by immediate     xxxx x100 xxxx
-// rotate right by immediate               xxxx x110 xxxx
-// immediate                               xxxx xxxx xxxx
-GBA_SHIFTER_MASK:: 0b_00000000_00000000_00001111_11111111
-gba_decode_shifter:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
-	switch {
-	case bits.bitfield_extract(shifter_bits, 4, 8) == 0b_0000_0000: return gba_decode_shifter_register(shifter_bits)
-	case bits.bitfield_extract(shifter_bits, 4, 8) == 0b_0000_0110: return gba_decode_shifter_rotate_right_with_extend(shifter_bits)
-	case bits.bitfield_extract(shifter_bits, 4, 4) ==      0b_0001: return gba_decode_shifter_logical_shift_left_by_register(shifter_bits)
-	case bits.bitfield_extract(shifter_bits, 4, 4) ==      0b_0011: return gba_decode_shifter_logical_shift_right_by_register(shifter_bits)
-	case bits.bitfield_extract(shifter_bits, 4, 4) ==      0b_0101: return gba_decode_shifter_arithmetic_shift_right_by_register(shifter_bits)
-	case bits.bitfield_extract(shifter_bits, 4, 4) ==      0b_0111: return gba_decode_shifter_rotate_right_by_register(shifter_bits)
-	case bits.bitfield_extract(shifter_bits, 4, 3) ==       0b_000: return gba_decode_shifter_logical_shift_left_by_immediate(shifter_bits)
-	case bits.bitfield_extract(shifter_bits, 4, 3) ==       0b_010: return gba_decode_shifter_logical_shift_right_by_immediate(shifter_bits)
-	case bits.bitfield_extract(shifter_bits, 4, 3) ==       0b_100: return gba_decode_shifter_arithmetic_shift_right_by_immediate(shifter_bits)
-	case bits.bitfield_extract(shifter_bits, 4, 3) ==       0b_110: return gba_decode_shifter_rotate_right_by_immediate(shifter_bits)
-	case:                                                           return gba_decode_shifter_immediate(shifter_bits) }
-	return 0b0, false }
-gba_decode_shifter_immediate:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
-	immediate: u32 = bits.bitfield_extract(shifter_bits, 0, 8)
-	rotate: u32 = bits.bitfield_extract(shifter_bits, 8, 4)
-	shifter_operand = rotate_right(immediate, uint(rotate))
-	if rotate == 0 do shifter_carry_out = gba_get_cpsr().carry
-	else do shifter_carry_out = bool(bits.bitfield_extract(shifter_operand, 31, 1))
-	return shifter_operand, shifter_carry_out }
-gba_decode_shifter_register:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
-	return gba_core.logical_registers.array[shifter_bits]^, false }
-gba_decode_shifter_logical_shift_left_by_immediate:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
-	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
-	shift: = bits.bitfield_extract(shifter_bits, 7, 5)
-	return u32(rm) << shift, bool(bits.bitfield_extract(rm, uint(32 - shift), 1)) }
-gba_decode_shifter_logical_shift_left_by_register:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
-	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
-	shift: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 8, 4)]^ & 0b_00000000_11111111
-	return u32(rm) << shift, bool(bits.bitfield_extract(rm, uint(32 - shift), 1)) }
-gba_decode_shifter_logical_shift_right_by_immediate:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
-	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
-	shift: = bits.bitfield_extract(shifter_bits, 7, 5)
-	return u32(rm) >> shift, bool(bits.bitfield_extract(rm, uint(shift - 1), 1)) }
-gba_decode_shifter_logical_shift_right_by_register:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
-	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
-	shift: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 8, 4)]^ & 0b_00000000_11111111
-	return u32(rm) >> shift, bool(bits.bitfield_extract(rm, uint(shift - 1), 1)) }
-gba_decode_shifter_arithmetic_shift_right_by_immediate:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
-	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
-	shift: = bits.bitfield_extract(shifter_bits, 7, 5)
-	if shift == 0 do shift = 32
-	return u32(i32(rm) >> shift), bool(bits.bitfield_extract(rm, uint(shift - 1), 1)) }
-gba_decode_shifter_arithmetic_shift_right_by_register:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
-	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
-	shift: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 8, 4)]^ & 0b_00000000_11111111
-	if shift == 0 do shift = 32
-	return u32(i32(rm) >> shift), bool(bits.bitfield_extract(rm, uint(shift - 1), 1)) }
-gba_decode_shifter_rotate_right_by_immediate:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
-	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
-	shift: = bits.bitfield_extract(shifter_bits, 7, 5)
-	return rotate_right(rm, uint(shift)), bool(bits.bitfield_extract(rm, uint(shift - 1), 1)) }
-gba_decode_shifter_rotate_right_by_register:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
-	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
-	shift: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 8, 4)]^ & 0b_00000000_11111111
-	return rotate_right(rm, uint(shift)), bool(bits.bitfield_extract(rm, uint(shift - 1), 1)) }
-gba_decode_shifter_rotate_right_with_extend:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
-	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
-	return (u32(gba_get_cpsr().carry) << 31) | rm >> 1, bool(rm & 0b1) }
 
 
 // DECODED INSTRUCTIONS //
