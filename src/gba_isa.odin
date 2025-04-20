@@ -568,42 +568,46 @@ gba_decode_address_mode_1_rotate_right_with_extend:: proc(shifter_bits: u32) -> 
 
 
 // ADDRESSING MODE 2 //
-gba_decode_address_mode_2:: proc(ins: GBA_Instruction) -> (address: u32) {
+gba_decode_address_mode_2:: proc(ins: GBA_Instruction) -> (address: u32, write_back_value: u32, unsigned_byte: bool, write_back: bool, write_back_register: GBA_Logical_Register_Name) {
 	bit_25: u32 = bits.bitfield_extract(ins, 25, 1)
 	p: bool = cast(bool)bits.bitfield_extract(ins, 24, 1)
-	w: bool = cast(bool)bits.bitfield_extract(ins, 24, 1)
+	write_back = cast(bool)bits.bitfield_extract(ins, 24, 1)
+	unsigned_byte = cast(bool)bits.bitfield_extract(ins, 22, 1)
 	scaled_bits: u32 = bits.bitfield_extract(ins, 5, 7)
+	write_back_register = cast(GBA_Logical_Register_Name)bits.bitfield_extract(ins, 16, 4)
 	if bit_25 == 0b_0 {
-		if p != w do return gba_decode_address_mode_2_immediate_offset(ins)
+		if p != write_back do address, write_back_value = gba_decode_address_mode_2_immediate_offset(ins)
 		else {
-			if p do return gba_decode_address_mode_2_immediate_pre_indexed(ins)
-			else do return gba_decode_address_mode_2_immediate_post_indexed(ins) } }
+			if p do address, write_back_value = gba_decode_address_mode_2_immediate_pre_indexed(ins)
+			else do address, write_back_value = gba_decode_address_mode_2_immediate_post_indexed(ins) } }
 	else if scaled_bits == 0b_0000_000 {
-		if p != w do return gba_decode_address_mode_2_register_offset(ins)
+		if p != write_back do address, write_back_value = gba_decode_address_mode_2_register_offset(ins)
 		else {
-			if p do return gba_decode_address_mode_2_register_pre_indexed(ins)
-			else do return gba_decode_address_mode_2_register_post_indexed(ins) } }
+			if p do address, write_back_value = gba_decode_address_mode_2_register_pre_indexed(ins)
+			else do address, write_back_value = gba_decode_address_mode_2_register_post_indexed(ins) } }
 	else {
-		if p != w do return gba_decode_address_mode_2_scaled_register_offset(ins)
+		if p != write_back do address, write_back_value = gba_decode_address_mode_2_scaled_register_offset(ins)
 		else {
-			if p do return gba_decode_address_mode_2_scaled_register_pre_indexed(ins)
-			else do return gba_decode_address_mode_2_scaled_register_post_indexed(ins) } }
-	return 0b0 }
-gba_decode_address_mode_2_immediate_offset:: proc(ins: GBA_Instruction) -> (address: u32) {
+			if p do address, write_back_value = gba_decode_address_mode_2_scaled_register_pre_indexed(ins)
+			else do address, write_back_value = gba_decode_address_mode_2_scaled_register_post_indexed(ins) } }
+	return address, write_back_value, unsigned_byte, write_back, write_back_register }
+gba_decode_address_mode_2_immediate_offset:: proc(ins: GBA_Instruction) -> (address: u32, write_back_value: u32) {
 	u: bool = bool(bits.bitfield_extract(ins, 23, 1))
 	rn: u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]^
 	offset: u32 = bits.bitfield_extract(ins, 0, 12)
 	if u do address = rn + offset
 	else do address = rn - offset
-	return address }
-gba_decode_address_mode_2_register_offset:: proc(ins: GBA_Instruction) -> (address: u32) {
+	write_back_value = 0b0
+	return address, write_back_value }
+gba_decode_address_mode_2_register_offset:: proc(ins: GBA_Instruction) -> (address: u32, write_back_value: u32) {
 	u: bool = bool(bits.bitfield_extract(ins, 23, 1))
 	rn: u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]^
 	rm: u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 0, 4)]^
 	if u do address = rn + rm
 	else do address = rn - rm
-	return address }
-gba_decode_address_mode_2_scaled_register_offset:: proc(ins: GBA_Instruction) -> (address: u32) {
+	write_back_value = 0b0
+	return address, write_back_value }
+gba_decode_address_mode_2_scaled_register_offset:: proc(ins: GBA_Instruction) -> (address: u32, write_back_value: u32) {
 	u: bool = bool(bits.bitfield_extract(ins, 23, 1))
 	rn: u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]^
 	rm: u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 0, 4)]^
@@ -622,35 +626,39 @@ gba_decode_address_mode_2_scaled_register_offset:: proc(ins: GBA_Instruction) ->
 		else do index = rotate_right(rm, uint(shift_immediate)) }
 	if u do address = rn + index
 	else do address = rn - index
-	return address }
-gba_decode_address_mode_2_immediate_pre_indexed:: proc(ins: GBA_Instruction) -> (address: u32) {
+	write_back_value = 0b0
+	return address, write_back_value }
+gba_decode_address_mode_2_immediate_pre_indexed:: proc(ins: GBA_Instruction) -> (address: u32, write_back_value: u32) {
 	// TODO This updates Rn. Make sure it is executed in the correct place.
-	address = gba_decode_address_mode_2_immediate_offset(ins)
-	gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]^ = address
-	return address }
-gba_decode_address_mode_2_register_pre_indexed:: proc(ins: GBA_Instruction) -> (address: u32) {
-	address = gba_decode_address_mode_2_register_offset(ins)
-	gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]^ = address
-	return address }
-gba_decode_address_mode_2_scaled_register_pre_indexed:: proc(ins: GBA_Instruction) -> (address: u32) {
-	address = gba_decode_address_mode_2_scaled_register_offset(ins)
-	gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]^ = address
-	return address }
-gba_decode_address_mode_2_immediate_post_indexed:: proc(ins: GBA_Instruction) -> (address: u32) {
+	address, _ = gba_decode_address_mode_2_immediate_offset(ins)
+	write_back_value = address
+	return address, write_back_value }
+gba_decode_address_mode_2_register_pre_indexed:: proc(ins: GBA_Instruction) -> (address: u32, write_back_value: u32) {
+	address, _ = gba_decode_address_mode_2_register_offset(ins)
+	write_back_value = address
+	return address, write_back_value }
+gba_decode_address_mode_2_scaled_register_pre_indexed:: proc(ins: GBA_Instruction) -> (address: u32, write_back_value: u32) {
+	address, _ = gba_decode_address_mode_2_scaled_register_offset(ins)
+	write_back_value = address
+	return address, write_back_value }
+gba_decode_address_mode_2_immediate_post_indexed:: proc(ins: GBA_Instruction) -> (address: u32, write_back_value: u32) {
 	rn: ^u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]
 	address = rn^
-	rn^ = gba_decode_address_mode_2_immediate_offset(ins)
-	return address }
-gba_decode_address_mode_2_register_post_indexed:: proc(ins: GBA_Instruction) -> (address: u32) {
+	write_back_value, _ = gba_decode_address_mode_2_immediate_offset(ins)
+	return address, write_back_value }
+gba_decode_address_mode_2_register_post_indexed:: proc(ins: GBA_Instruction) -> (address: u32, write_back_value: u32) {
 	rn: ^u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]
 	address = rn^
-	rn^ = gba_decode_address_mode_2_register_offset(ins)
-	return address }
-gba_decode_address_mode_2_scaled_register_post_indexed:: proc(ins: GBA_Instruction) -> (address: u32) {
+	write_back_value, _ = gba_decode_address_mode_2_register_offset(ins)
+	return address, write_back_value }
+gba_decode_address_mode_2_scaled_register_post_indexed:: proc(ins: GBA_Instruction) -> (address: u32, write_back_value: u32) {
 	rn: ^u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]
 	address = rn^
-	rn^ = gba_decode_address_mode_2_scaled_register_offset(ins)
-	return address }
+	write_back_value, _ = gba_decode_address_mode_2_scaled_register_offset(ins)
+	return address, write_back_value }
+// TODO Call this at the end of execution of every function that has a write_back flag set to TRUE in its decoded object. //
+gba_write_back:: proc(write_back_value: u32, write_back_register: GBA_Logical_Register_Name) {
+	gba_core.logical_registers.array[write_back_register]^ = write_back_value }
 
 
 // ADDRESSING MODE 3 //
@@ -2032,13 +2040,6 @@ gba_instruction_is_UMULL:: proc(ins: GBA_Instruction) -> bool {
 gba_execute_UMULL_instruction:: proc(ins: GBA_UMULL_Instruction) { }
 
 
-// START ADDRESS OPERAND //
-gba_decode_start_address:: proc(base_address: u32) -> (start_address: u32) {
-	return 0
-	// TODO
-}
-
-
 // DECODED INSTRUCTIONS //
 GBA_Address_Operand:: distinct u32
 GBA_Immediate_Operand:: distinct i32
@@ -2241,20 +2242,29 @@ GBA_LDM_Instruction_Decoded:: struct {
 	start_address: u32,
 	restore_status_register: bool }
 gba_decode_LDM:: proc(ins: GBA_LDM_Instruction) -> (decoded: GBA_LDM_Instruction_Decoded) {
-	decoded.start_address = gba_decode_start_address(gba_core.logical_registers.array[bits.bitfield_extract(u32(ins), 16, 4)]^)
+	decoded.start_address, _, decoded.destination_registers = gba_decode_address_mode_4(gba_core.logical_registers.array[bits.bitfield_extract(u32(ins), 16, 4)]^)
 	decoded.restore_status_register = bool(bits.bitfield_extract(u32(ins), 15, 1)) && bool(bits.bitfield_extract(u32(ins), 22, 1))
-	register_list: u32 = bits.bitfield_extract(u32(ins), 0, 15)
-	for i in 0 ..< 15 {
-		if bool(register_list & (0b1 << uint(i))) do decoded.destination_registers += { GBA_Logical_Register_Name(i) } }
 	return decoded }
 GBA_LDR_Instruction_Decoded:: struct {
-	source_address: u32,
-	destination: ^GBA_Register }
-gba_decode_LDR:: proc(ins: GBA_LDR_Instruction) -> (decoded: GBA_LDR_Instruction_Decoded) { return {} }
+	address: u32,
+	destination: ^GBA_Register,
+	unsigned_byte: bool,
+	write_back: bool,
+	write_back_value: u32,
+	write_back_register: GBA_Logical_Register_Name }
+gba_decode_LDR:: proc(ins: GBA_LDR_Instruction) -> (decoded: GBA_LDR_Instruction_Decoded) {
+	decoded.address, decoded.write_back_value, decoded.unsigned_byte, decoded.write_back, decoded.write_back_register = gba_decode_address_mode_2(u32(ins))
+	return decoded }
 GBA_LDRB_Instruction_Decoded:: struct {
-	source_address: u32,
-	destination: ^GBA_Register }
-gba_decode_LDRB:: proc(ins: GBA_LDRB_Instruction) -> (decoded: GBA_LDRB_Instruction_Decoded) { return {} }
+	address: u32,
+	destination: ^GBA_Register,
+	unsigned_byte: bool,
+	write_back: bool,
+	write_back_value: u32,
+	write_back_register: GBA_Logical_Register_Name }
+gba_decode_LDRB:: proc(ins: GBA_LDRB_Instruction) -> (decoded: GBA_LDRB_Instruction_Decoded) {
+	decoded.address, decoded.write_back_value, decoded.unsigned_byte, decoded.write_back, decoded.write_back_register = gba_decode_address_mode_2(u32(ins))
+	return decoded }
 GBA_LDRBT_Instruction_Decoded:: struct {
 	source_address: u32,
 	destination: ^GBA_Register }

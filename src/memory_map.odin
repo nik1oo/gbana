@@ -2,6 +2,7 @@ package gbana
 import "core:fmt"
 import "core:os"
 import "core:encoding/endian"
+import "core:mem"
 
 
 // NOTE Save data is Flash, not SRAM.
@@ -286,6 +287,21 @@ io_register_write_bytes:: proc(register: [2]int, value: []u8) {
 
 
 // MEMORY R/W //
+memory_read:: proc(address: u32, $T: typeid) -> (value: T) {
+	#assert((T == u8) || (T == u16) || (T == u32))
+	when T == u16 do assert(address & 0b_1 == 0b_0)
+	when T == u32 do assert(address & 0b_11 == 0b_00)
+	word_address: u32 = cast(u32)mem.align_backward_uint(uint(address), 4)
+	byte_index: = address - word_address
+	return 0
+}
+memory_read_u8:: proc(address: u32) -> (value: u8) {
+	word_address: u32 = cast(u32)mem.align_backward_uint(uint(address), 4)
+	byte_index: = address - word_address
+	word: = u32le(memory.data[word_address])
+	// DICK
+	return 0
+}
 bios_read:: proc(address: u32, $width: int) -> (value: [width]u8, cycles: int) {
 	#assert((width == 1) || (width == 2) || (width == 4))
 	return memory.bios_region[address : address + width - 1], 1 }
