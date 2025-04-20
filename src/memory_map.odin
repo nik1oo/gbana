@@ -1,8 +1,10 @@
 package gbana
+import "base:runtime"
 import "core:fmt"
 import "core:os"
 import "core:encoding/endian"
 import "core:mem"
+import "core:slice"
 
 
 // NOTE Save data is Flash, not SRAM.
@@ -20,21 +22,26 @@ import "core:mem"
 // MEMORY REGIONS [BYTES] //
 START:: 0
 END::   1
-SYSTEM_ROM_RANGE::             [2]int{ 0x00000000, 0x00003fff }
-BIOS_RANGE::                   [2]int{ 0x00000000, 0x00003fff } // boot rom
-EXTERNAL_WORK_RAM_RANGE::      [2]int{ 0x02000000, 0x0203ffff } // this is the slow RAM
-INTERNAL_WORK_RAM_RANGE::      [2]int{ 0x03000000, 0x03007fff } // this is the fast RAM
-INPUT_OUTPUT_RAM_RANGE::       [2]int{ 0x04000000, 0x040003fe }
-PALETTE_RAM_RANGE::            [2]int{ 0x05000000, 0x050003ff } // is this where sprites are stored?
-BACKGROUND_PALETTE_RAM_RANGE:: [2]int{ 0x05000000, 0x050003ff }
-SPRITES_PALETTE_RAM_RANGE::    [2]int{ 0x05002000, 0x050023ff }
-VIDEO_RAM_RANGE::              [2]int{ 0x06000000, 0x06017fff } // mainly for storing the framebuffer
-OAM_RANGE::                    [2]int{ 0x07000000, 0x070003ff } // object attribute memory, for sprites control
-CARTRIDGE_HEADER::             [2]int{ 0x08000000, 0x080000BF } // 192-byte cartridge header
-CARTRIDGE_GAME_DATA_0_RANGE::  [2]int{ 0x08000000, 0x09ffffff } // this is the game cartridge ROM
-CARTRIDGE_GAME_DATA_1_RANGE::  [2]int{ 0x0a000000, 0x0bffffff } // this is a mirror of game ROM
-CARTRIDGE_GAME_DATA_2_RANGE::  [2]int{ 0x0c000000, 0x0dffffff } // this is a mirror of game ROM
-CARTRIDGE_SAVE_DATA_RANGE::    [2]int{ 0x0e000000, 0x0e00ffff } // SRAM or flash ROM, used for game save data
+SYSTEM_ROM_RANGE::             [2]u32{ 0x00000000, 0x00003fff }
+BIOS_RANGE::                   [2]u32{ 0x00000000, 0x00003fff } // boot rom
+EXTERNAL_WORK_RAM_RANGE::      [2]u32{ 0x02000000, 0x0203ffff } // this is the slow RAM
+INTERNAL_WORK_RAM_RANGE::      [2]u32{ 0x03000000, 0x03007fff } // this is the fast RAM
+INPUT_OUTPUT_RAM_RANGE::       [2]u32{ 0x04000000, 0x040003ff }
+PALETTE_RAM_RANGE::            [2]u32{ 0x05000000, 0x050003ff } // is this where sprites are stored?
+BACKGROUND_PALETTE_RAM_RANGE:: [2]u32{ 0x05000000, 0x050003ff }
+SPRITES_PALETTE_RAM_RANGE::    [2]u32{ 0x05002000, 0x050023ff }
+VIDEO_RAM_RANGE::              [2]u32{ 0x06000000, 0x06017fff } // mainly for storing the framebuffer
+OAM_RANGE::                    [2]u32{ 0x07000000, 0x070003ff } // object attribute memory, for sprites control
+CARTRIDGE_HEADER::             [2]u32{ 0x08000000, 0x080000BF } // 192-byte cartridge header
+CARTRIDGE_GAME_DATA_0_RANGE::  [2]u32{ 0x08000000, 0x09ffffff } // this is the game cartridge ROM
+CARTRIDGE_GAME_DATA_1_RANGE::  [2]u32{ 0x0a000000, 0x0bffffff } // this is a mirror of game ROM
+CARTRIDGE_GAME_DATA_2_RANGE::  [2]u32{ 0x0c000000, 0x0dffffff } // this is a mirror of game ROM
+CARTRIDGE_SAVE_DATA_RANGE::    [2]u32{ 0x0e000000, 0x0e00ffff } // SRAM or flash ROM, used for game save data
+
+
+// memory_clone_convert:: proc(address: u32, count: uint, allocator: = context.allocator) -> []u8 {
+// 	return nil
+// }
 
 
 // I/O REGISTER LOCATIONS [BYTES] //
@@ -255,108 +262,142 @@ WIDTH:: 1
 
 
 // REGISTER R/W //
-io_register_read_u8:: proc(register: [2]int) -> (value: u8) {
-	assert(register[WIDTH] == 1)
-	return u8(memory.input_output_ram_region[register[START]]) }
-io_register_read_i8:: proc(register: [2]int) -> (value: i8) {
-	assert(register[WIDTH] == 1)
-	return i8(memory.input_output_ram_region[register[START]]) }
-io_register_read_u16:: proc(register: [2]int) -> (value: u16) {
-	assert(register[WIDTH] == 2)
-	return try(endian.get_u16(memory.input_output_ram_region[register[START] : register[START] + register[WIDTH] - 1], endian.Byte_Order.Little)) }
-io_register_read_i16:: proc(register: [2]int) -> (value: i16) {
-	assert(register[WIDTH] == 2)
-	return try(endian.get_i16(memory.input_output_ram_region[register[START] : register[START] + register[WIDTH] - 1], endian.Byte_Order.Little)) }
-io_register_read_f16:: proc(register: [2]int) -> (value: f16) {
-	assert(register[WIDTH] == 2)
-	return try(endian.get_f16(memory.input_output_ram_region[register[START] : register[START] + register[WIDTH] - 1], endian.Byte_Order.Little)) }
-io_register_read_u32:: proc(register: [2]int) -> (value: u32) {
-	assert(register[WIDTH] == 4)
-	return try(endian.get_u32(memory.input_output_ram_region[register[START] : register[START] + register[WIDTH] - 1], endian.Byte_Order.Little)) }
-io_register_read_i32:: proc(register: [2]int) -> (value: i32) {
-	assert(register[WIDTH] == 4)
-	return try(endian.get_i32(memory.input_output_ram_region[register[START] : register[START] + register[WIDTH] - 1], endian.Byte_Order.Little)) }
-io_register_read_f32:: proc(register: [2]int) -> (value: f32) {
-	assert(register[WIDTH] == 4)
-	return try(endian.get_f32(memory.input_output_ram_region[register[START] : register[START] + register[WIDTH] - 1], endian.Byte_Order.Little)) }
-io_register_read_bytes:: proc(register: [2]int) -> (value: []u8) {
-	return memory.input_output_ram_region[register[START] : register[START] + register[WIDTH] - 1] }
-io_register_write_bytes:: proc(register: [2]int, value: []u8) {
-	assert(register[WIDTH] == len(value))
-	copy_slice(memory.input_output_ram_region[register[START] : register[START] + register[WIDTH] - 1], value) }
+// io_register_read_u8:: proc(register: [2]int) -> (value: u8) {
+// 	assert(register[WIDTH] == 1)
+// 	return u8(memory.input_output_ram_region[register[START]]) }
+// io_register_read_i8:: proc(register: [2]int) -> (value: i8) {
+// 	assert(register[WIDTH] == 1)
+// 	return i8(memory.input_output_ram_region[register[START]]) }
+// io_register_read_u16:: proc(register: [2]int) -> (value: u16) {
+// 	assert(register[WIDTH] == 2)
+// 	return try(endian.get_u16(memory.input_output_ram_region[register[START] : register[START] + register[WIDTH] - 1], endian.Byte_Order.Little)) }
+// io_register_read_i16:: proc(register: [2]int) -> (value: i16) {
+// 	assert(register[WIDTH] == 2)
+// 	return try(endian.get_i16(memory.input_output_ram_region[register[START] : register[START] + register[WIDTH] - 1], endian.Byte_Order.Little)) }
+// io_register_read_f16:: proc(register: [2]int) -> (value: f16) {
+// 	assert(register[WIDTH] == 2)
+// 	return try(endian.get_f16(memory.input_output_ram_region[register[START] : register[START] + register[WIDTH] - 1], endian.Byte_Order.Little)) }
+// io_register_read_u32:: proc(register: [2]int) -> (value: u32) {
+// 	assert(register[WIDTH] == 4)
+// 	return try(endian.get_u32(memory.input_output_ram_region[register[START] : register[START] + register[WIDTH] - 1], endian.Byte_Order.Little)) }
+// io_register_read_i32:: proc(register: [2]int) -> (value: i32) {
+// 	assert(register[WIDTH] == 4)
+// 	return try(endian.get_i32(memory.input_output_ram_region[register[START] : register[START] + register[WIDTH] - 1], endian.Byte_Order.Little)) }
+// io_register_read_f32:: proc(register: [2]int) -> (value: f32) {
+// 	assert(register[WIDTH] == 4)
+// 	return try(endian.get_f32(memory.input_output_ram_region[register[START] : register[START] + register[WIDTH] - 1], endian.Byte_Order.Little)) }
+// io_register_read_bytes:: proc(register: [2]int) -> (value: []u8) {
+// 	return memory.input_output_ram_region[register[START] : register[START] + register[WIDTH] - 1] }
+// io_register_write_bytes:: proc(register: [2]int, value: []u8) {
+// 	assert(register[WIDTH] == len(value))
+// 	copy_slice(memory.input_output_ram_region[register[START] : register[START] + register[WIDTH] - 1], value) }
 
 
-// MEMORY R/W //
-memory_read:: proc(address: u32, $T: typeid) -> (value: T) {
-	#assert((T == u8) || (T == u16) || (T == u32))
-	when T == u16 do assert(address & 0b_1 == 0b_0)
-	when T == u32 do assert(address & 0b_11 == 0b_00)
-	word_address: u32 = cast(u32)mem.align_backward_uint(uint(address), 4)
-	byte_index: = address - word_address
-	return 0
-}
+// MEMORY ACCESS //
+// memory_get_ptr_u8:: proc(address: u32) -> ^u8 {
+// 	bytes: = slice.reinterpret([]u8, memory.data)
+// 	word_address: u32 = cast(u32)mem.align_backward_uint(uint(address), 4)
+// 	byte_index: = address - word_address
+// 	word: u32be = cast(u32be)transmute(u32le)(word_address)
+// 	return &bytes[word_address * 4 + 3 - byte_index] }
+// memory_get_ptr_u16:: proc(address: u32) -> ^u16 {
+// 	assert(address & 0b_1 == 0b_0)
+// 	bytes: = slice.reinterpret([]u16, memory.data)
+// 	word_address: u32 = cast(u32)mem.align_backward_uint(uint(address), 2)
+// 	halfword_index: = address - word_address
+// 	return &bytes[word_address * 4 + 3 - halfword_index] }
+// memory_read:: proc(address: u32, $T: typeid) -> (value: T) {
+// 	#assert((T == u8) || (T == u16) || (T == u32))
+// 	when T == u16 do assert(address & 0b_1 == 0b_0)
+// 	when T == u32 do assert(address & 0b_11 == 0b_00)
+// 	word_address: u32 = cast(u32)mem.align_backward_uint(uint(address), 4)
+// 	byte_index: = address - word_address
+// 	return 0
+// }
 memory_read_u8:: proc(address: u32) -> (value: u8) {
 	word_address: u32 = cast(u32)mem.align_backward_uint(uint(address), 4)
 	byte_index: = address - word_address
-	word: = u32le(memory.data[word_address])
-	// DICK
-	return 0
-}
-bios_read:: proc(address: u32, $width: int) -> (value: [width]u8, cycles: int) {
-	#assert((width == 1) || (width == 2) || (width == 4))
-	return memory.bios_region[address : address + width - 1], 1 }
-internal_work_ram_read:: proc(address: u32, $width: int) -> (value: [width]u8, cycles: int) {
-	#assert((width == 1) || (width == 2) || (width == 4))
-	return memory.internal_work_ram[address : address + width - 1], 1 }
-internal_work_ram_write:: proc(address: u32, $width: int, value: [width]u8) -> (cycles: int) {
-	#assert((width == 1) || (width == 2) || (width == 4))
-	memory.internal_work_ram[address : address + width - 1] = value[:]
-	return 1 }
-input_output_read:: proc(address: u32, $width: int) -> (value: [width]u8, cycles: int) {
-	#assert((width == 1) || (width == 2) || (width == 4))
-	return memory.input_output_region[address : address + width - 1], 1 }
-input_output_write:: proc(address: u32, $width: int, value: [width]u8) -> (cycles: int) {
-	#assert((width == 1) || (width == 2) || (width == 4))
-	memory.input_output_region[address : address + width - 1] = value[:]
-	return 1 }
-oam_read:: proc(address: u32, $width: int) -> (value: [width]u8, cycles: int) {
-	#assert((width == 1) || (width == 2) || (width == 4))
-	return memory.oam_region[address : address + width - 1], 1 }
-oam_write:: proc(address: u32, $width: int, value: [width]u8) -> (cycles: int) {
-	#assert((width == 2) || (width == 4))
-	memory.oam_region[address : address + width - 1] = value
-	return 1 }
-external_work_ram_read:: proc(address: u16, $width: int) -> (value: [width]u8, cycles: int) {
-	#assert((width == 1) || (width == 2) || (width == 4))
-	return memory.external_work_ram_region[address : address + width - 1], (width != 4) ? 3 : 6 }
-external_work_ram_write:: proc(address: u16, $width: int, value: [width]u8) -> (cycles: int) {
-	#assert((width == 1) || (width == 2) || (width == 4))
-	value = memory.external_work_ram_region[address : address + width - 1]
-	return (width != 4) ? 3 : 6 }
-sprites_palette_ram_read:: proc(address: u16, $width: int) -> (value: [width]u8, cycles: int) {
-	#assert((width == 1) || (width == 2) || (width == 4))
-	return memory.sprites_palette_ram_region[address : address + width - 1], (width != 4) ? 1 : 2 }
-sprites_palette_ram_write:: proc(address: u16, $width: int, value: [width]u8) -> (cycles: int) {
-	#assert((width == 2) || (width == 4))
-	memory.sprites_palette_ram_region[address : address + width - 1] = value
-	return (width != 4) ? 1 : 2 }
-video_ram_read:: proc(address: u16, $width: int) -> (value: [width]u8, cycles: int) {
-	#assert((width == 1) || (width == 2) || (width == 4))
-	return memory.video_ram_region[address : address + width - 1], (width != 4) ? 1 : 2 }
-video_ram_write:: proc(address: u16, $width: int, value: [width]u8) -> (cycles: int) {
-	#assert((width == 2) || (width == 4))
-	memory.video_ram_region[address : address + width - 1] = value
-	return (width != 4) ? 1 : 2 }
-cartridge_game_data_read:: proc(address: u16, $width: int) -> (value: [width]u8, cycles: int) {
-	#assert((width == 1) || (width == 2) || (width == 4))
-	return memory.cartridge_game_data_0_region[address : address + width - 1], (width != 4) ? 5 : 8 }
-cartridge_save_data_read:: proc(address: u16, $width: int) -> (value: [width]u8, cycles: int) {
-	#assert((width == 1) || (width == 2) || (width == 4))
-	return memory.cartridge_save_data_region[address : address + width - 1], (width != 4) ? 5 : 8 }
-cartridge_save_data_write:: proc(address: u16, $width: int, value: [width]u8) -> (cycles: int) {
-	#assert((width == 2) || (width == 4))
-	memory.cartridge_save_data_region[address : address + width - 1] = value
-	return (width != 4) ? 5 : 8 }
+	word: u32 = transmute(u32)cast(u32be)transmute(u32le)(memory.data[word_address / 4])
+	return cast(u8)((word >> (byte_index * 8)) & 0b_11111111) }
+memory_read_u16:: proc(address: u32) -> (value: u16) {
+	assert(address & 0b_1 == 0b_0)
+	word_address: u32 = cast(u32)mem.align_backward_uint(uint(address), 4)
+	byte_index: = address - word_address
+	word: u32 = transmute(u32)cast(u32be)transmute(u32le)(memory.data[word_address / 4])
+	return cast(u16)((word >> (byte_index * 8)) & 0b_11111111_11111111) }
+memory_read_u32:: proc(address: u32) -> (value: u32) {
+	assert(address & 0b_11 == 0b_00)
+	word: u32 = transmute(u32)cast(u32be)transmute(u32le)(memory.data[address / 4])
+	return word }
+memory_write_u8:: proc(address: u32, value: u8) {
+	bytes: = slice.reinterpret([]u8, memory.data)
+	word_address: u32 = cast(u32)mem.align_backward_uint(uint(address), 4)
+	byte_index: = address - word_address
+	bytes[word_address * 4 + 3 - byte_index] = value }
+memory_write_u16:: proc(address: u32, value: u16) {
+	assert(address & 0b_1 == 0b_0)
+	halfwords: = slice.reinterpret([]u16, memory.data)
+	word_address: u32 = cast(u32)mem.align_backward_uint(uint(address), 4)
+	halfword_index: = (address - word_address) / 2
+	halfwords[word_address * 2 + 1 - halfword_index] = transmute(u16)cast(u16le)transmute(u16be)value }
+memory_write_u32:: proc(address: u32, value: u32) {
+	assert(address & 0b_11 == 0b_00)
+	memory.data[address / 4] = cast(u32le)transmute(u32be)value }
+// bios_read:: proc(address: u32, $width: int) -> (value: [width]u8, cycles: int) {
+// 	#assert((width == 1) || (width == 2) || (width == 4))
+// 	return memory.bios_region[address : address + width - 1], 1 }
+// internal_work_ram_read:: proc(address: u32, $width: int) -> (value: [width]u8, cycles: int) {
+// 	#assert((width == 1) || (width == 2) || (width == 4))
+// 	return memory.internal_work_ram[address : address + width - 1], 1 }
+// internal_work_ram_write:: proc(address: u32, $width: int, value: [width]u8) -> (cycles: int) {
+// 	#assert((width == 1) || (width == 2) || (width == 4))
+// 	memory.internal_work_ram[address : address + width - 1] = value[:]
+// 	return 1 }
+// input_output_read:: proc(address: u32, $width: int) -> (value: [width]u8, cycles: int) {
+// 	#assert((width == 1) || (width == 2) || (width == 4))
+// 	return memory.input_output_region[address : address + width - 1], 1 }
+// input_output_write:: proc(address: u32, $width: int, value: [width]u8) -> (cycles: int) {
+// 	#assert((width == 1) || (width == 2) || (width == 4))
+// 	memory.input_output_region[address : address + width - 1] = value[:]
+// 	return 1 }
+// oam_read:: proc(address: u32, $width: int) -> (value: [width]u8, cycles: int) {
+// 	#assert((width == 1) || (width == 2) || (width == 4))
+// 	return memory.oam_region[address : address + width - 1], 1 }
+// oam_write:: proc(address: u32, $width: int, value: [width]u8) -> (cycles: int) {
+// 	#assert((width == 2) || (width == 4))
+// 	memory.oam_region[address : address + width - 1] = value
+// 	return 1 }
+// external_work_ram_read:: proc(address: u16, $width: int) -> (value: [width]u8, cycles: int) {
+// 	#assert((width == 1) || (width == 2) || (width == 4))
+// 	return memory.external_work_ram_region[address : address + width - 1], (width != 4) ? 3 : 6 }
+// external_work_ram_write:: proc(address: u16, $width: int, value: [width]u8) -> (cycles: int) {
+// 	#assert((width == 1) || (width == 2) || (width == 4))
+// 	value = memory.external_work_ram_region[address : address + width - 1]
+// 	return (width != 4) ? 3 : 6 }
+// sprites_palette_ram_read:: proc(address: u16, $width: int) -> (value: [width]u8, cycles: int) {
+// 	#assert((width == 1) || (width == 2) || (width == 4))
+// 	return memory.sprites_palette_ram_region[address : address + width - 1], (width != 4) ? 1 : 2 }
+// sprites_palette_ram_write:: proc(address: u16, $width: int, value: [width]u8) -> (cycles: int) {
+// 	#assert((width == 2) || (width == 4))
+// 	memory.sprites_palette_ram_region[address : address + width - 1] = value
+// 	return (width != 4) ? 1 : 2 }
+// video_ram_read:: proc(address: u16, $width: int) -> (value: [width]u8, cycles: int) {
+// 	#assert((width == 1) || (width == 2) || (width == 4))
+// 	return memory.video_ram_region[address : address + width - 1], (width != 4) ? 1 : 2 }
+// video_ram_write:: proc(address: u16, $width: int, value: [width]u8) -> (cycles: int) {
+// 	#assert((width == 2) || (width == 4))
+// 	memory.video_ram_region[address : address + width - 1] = value
+// 	return (width != 4) ? 1 : 2 }
+// cartridge_game_data_read:: proc(address: u16, $width: int) -> (value: [width]u8, cycles: int) {
+// 	#assert((width == 1) || (width == 2) || (width == 4))
+// 	return memory.cartridge_game_data_0_region[address : address + width - 1], (width != 4) ? 5 : 8 }
+// cartridge_save_data_read:: proc(address: u16, $width: int) -> (value: [width]u8, cycles: int) {
+// 	#assert((width == 1) || (width == 2) || (width == 4))
+// 	return memory.cartridge_save_data_region[address : address + width - 1], (width != 4) ? 5 : 8 }
+// cartridge_save_data_write:: proc(address: u16, $width: int, value: [width]u8) -> (cycles: int) {
+// 	#assert((width == 2) || (width == 4))
+// 	memory.cartridge_save_data_region[address : address + width - 1] = value
+// 	return (width != 4) ? 5 : 8 }
 
 
 // TRACK WIDTHS [BITS] //
@@ -388,22 +429,22 @@ CARTRIDGE_GAME_DATA_2_ENTRY_POINT::     0x0c000000
 
 
 Memory:: struct {
-	data:                                      []u8,
-	system_rom_region:                         []u8,
-	bios_region:                               []u8,
-	external_work_ram_region:                  []u8,
-	internal_work_ram_region:                  []u8,
-	input_output_ram_region:                   []u8,
-	palette_ram_region:                        []u8,
-	background_palette_ram_region:             []u8,
-	sprites_palette_ram_region:                []u8,
-	video_ram_region:                          []u8,
-	oam_region:                                []u8,
-	cartridge_header_region:                   []u8,
-	cartridge_game_data_0_region:              []u8,
-	cartridge_game_data_1_region:              []u8,
-	cartridge_game_data_2_region:              []u8,
-	cartridge_save_data_region:                []u8,
+	data:                                      []u32le,
+	system_rom_region:                         []u32le,
+	bios_region:                               []u32le,
+	external_work_ram_region:                  []u32le,
+	internal_work_ram_region:                  []u32le,
+	input_output_ram_region:                   []u32le,
+	palette_ram_region:                        []u32le,
+	background_palette_ram_region:             []u32le,
+	sprites_palette_ram_region:                []u32le,
+	video_ram_region:                          []u32le,
+	oam_region:                                []u32le,
+	cartridge_header_region:                   []u32le,
+	cartridge_game_data_0_region:              []u32le,
+	cartridge_game_data_1_region:              []u32le,
+	cartridge_game_data_2_region:              []u32le,
+	cartridge_save_data_region:                []u32le,
 	io_registers: struct {
 		channel_1_sweep:                       ^SOUND1CNT_L,
 		channel_1_duty_length_envelope:        ^SOUND1CNT_H,
@@ -473,7 +514,7 @@ memory: ^Memory
 
 init_memory:: proc() {
 	memory= new(Memory)
-	memory.data= make([]u8, 0x0e00ffff+1); assert(memory.data != nil)
+	memory.data=                          runtime.make_aligned([]u32le, len = 0x0e00ffff/4+1, alignment = 4); assert(memory.data != nil)
 	memory.system_rom_region=             make_memslice(SYSTEM_ROM_RANGE)
 	memory.bios_region=                   make_memslice(BIOS_RANGE)
 	memory.external_work_ram_region=      make_memslice(EXTERNAL_WORK_RAM_RANGE)
@@ -512,20 +553,29 @@ print_memory_regions::proc() {
 	print_memslice("cartridge_save_data_region    ", memory.cartridge_save_data_region) }
 
 
-make_memslice:: proc(range: [2]int)-> []u8 {
-	return memory.data[range[START]:range[END]+1] }
-print_memslice:: proc(name: string, memslice: []u8) {
-	fmt.printfln("%s | %x - %x | %s ", name, memslice_region_start(memslice), memslice_region_end(memslice), fmt_units(len(memslice))) }
-memslice_region:: proc(memslice: []u8)-> (region: [2]uint) {
-	return { memslice_region_start(memslice), memslice_region_end(memslice) } }
-memslice_region_start:: proc(memslice: []u8)-> uint {
-	return uint(uintptr(&memslice[0]) - uintptr(&memory.data[0])) }
-memslice_region_end:: proc(memslice: []u8)-> uint {
-	return uint(uintptr(&memslice[len(memslice)-1]) - uintptr(&memory.data[0])) }
-
-
+// BYTE ORDERING //
+is_aligned:: proc(x: u32, $align: int) -> bool {
+	when align == 2 do return x & 0b_1 == 0b_0
+	when align == 4 do return x & 0b_11 == 0b_00 }
 align_byte:: proc(addr: uintptr)-> uintptr {
 	return bool(0b1&addr) ? addr+1 : addr }
+le_to_be:: proc(le: u32) -> u32 {
+	return transmute(u32)cast(u32be)transmute(u32le)le }
+be_to_le:: proc(be: u32) -> u32 {
+	return transmute(u32)cast(u32le)transmute(u32be)be }
+
+
+make_memslice:: proc(range: [2]u32, loc: = #caller_location)-> []u32le {
+	assert(is_aligned(range[START], 4) && is_aligned(range[END]+1, 4), loc = loc)
+	return memory.data[range[START]/4:range[END]/4+1] }
+print_memslice:: proc(name: string, memslice: []u32le) {
+	fmt.printfln("%s | %x - %x | %s ", name, memslice_region_start(memslice), memslice_region_end(memslice), fmt_units(len(memslice))) }
+memslice_region:: proc(memslice: []u32le)-> (region: [2]uint) {
+	return { memslice_region_start(memslice), memslice_region_end(memslice) } }
+memslice_region_start:: proc(memslice: []u32le)-> uint {
+	return uint(uintptr(&memslice[0]) - uintptr(&memory.data[0])) }
+memslice_region_end:: proc(memslice: []u32le)-> uint {
+	return uint(uintptr(&memslice[len(memslice)-1]) - uintptr(&memory.data[0])) }
 
 
 Memory_Cycle_Type:: enum {
@@ -539,15 +589,17 @@ Instruction_Set:: enum {
 
 
 load_bios:: proc(filename: string)-> bool {
-	bios, success: = os.read_entire_file_from_filename(filename)
+	bios_bytes, success: = os.read_entire_file_from_filename(filename)
+	bios: []u32le = slice.reinterpret([]u32le, bios_bytes)
 	if ! success do return false
 	n: = len(bios)
-	assert(n <= len(memory.bios_region))
+	assert(n <= len(memory.bios_region) * 4)
 	fmt.println("bios loaded | ", fmt_units(n), "/", fmt_units(len(memory.bios_region)))
 	copy_slice(memory.bios_region[0:n], bios[0:n])
 	return true }
 load_cartridge:: proc(filename: string)-> bool {
-	cartridge, success: = os.read_entire_file_from_filename(filename)
+	cartridge_bytes, success: = os.read_entire_file_from_filename(filename)
+	cartridge: []u32le = slice.reinterpret([]u32le, cartridge_bytes)
 	if ! success do return false
 	n: = len(cartridge)
 	assert(n <= len(memory.cartridge_game_data_0_region))
