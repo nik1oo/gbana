@@ -657,7 +657,7 @@ gba_decode_address_mode_2_scaled_register_post_indexed:: proc(ins: GBA_Instructi
 gba_decode_address_mode_3:: proc(ins: GBA_Instruction) -> (address: u32) {
 	bit_22: u32 = bits.bitfield_extract(ins, 22, 1)
 	p: bool = cast(bool)bits.bitfield_extract(ins, 24, 1)
-	w: bool = cast(bool)bits.bitfield_extract(ins, 24, 1)
+	w: bool = cast(bool)bits.bitfield_extract(ins, 21, 1)
 	scaled_bits: u32 = bits.bitfield_extract(ins, 5, 7)
 	if bit_22 == 0b_1 {
 		if p != w do return gba_decode_address_mode_3_immediate_offset(ins)
@@ -707,6 +707,51 @@ gba_decode_address_mode_3_register_post_indexed:: proc(ins: GBA_Instruction) -> 
 	address = rn^
 	rn^ = gba_decode_address_mode_3_register_offset(ins)
 	return address }
+
+
+// ADDRESSING MODE 4 //
+gba_decode_address_mode_4:: proc(ins: GBA_Instruction) -> (start_address: u32, end_address: u32, registers: bit_set[GBA_Logical_Register_Name]) {
+	bit_22: u32 = bits.bitfield_extract(ins, 22, 1)
+	p: bool = cast(bool)bits.bitfield_extract(ins, 24, 1)
+	u: bool = cast(bool)bits.bitfield_extract(ins, 23, 1)
+	switch {
+	case [2]bool{p, u} == [2]bool{false, true}:  return gba_decode_address_mode_4_increment_after(ins)
+	case [2]bool{p, u} == [2]bool{true, true}:   return gba_decode_address_mode_4_increment_before(ins)
+	case [2]bool{p, u} == [2]bool{false, false}: return gba_decode_address_mode_4_decrement_after(ins)
+	case [2]bool{p, u} == [2]bool{true, false}:  return gba_decode_address_mode_4_decrement_before(ins)  }
+	return 0, 0, {} }
+gba_decode_address_mode_4_increment_after:: proc(ins: GBA_Instruction) -> (start_address: u32, end_address: u32, registers: bit_set[GBA_Logical_Register_Name]) {
+	rn: ^u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]
+	start_address = rn^
+	register_list: u32 = bits.bitfield_extract(u32(ins), 0, 15)
+	for i in 0 ..< 15 {
+		if bool(register_list & (0b1 << uint(i))) do registers += { GBA_Logical_Register_Name(i) } }
+	end_address = start_address + cast(u32)(card(registers) - 1) * 4
+	return start_address, end_address, registers }
+gba_decode_address_mode_4_increment_before:: proc(ins: GBA_Instruction) -> (start_address: u32, end_address: u32, registers: bit_set[GBA_Logical_Register_Name]) {
+	rn: ^u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]
+	start_address = rn^ + 4
+	register_list: u32 = bits.bitfield_extract(u32(ins), 0, 15)
+	for i in 0 ..< 15 {
+		if bool(register_list & (0b1 << uint(i))) do registers += { GBA_Logical_Register_Name(i) } }
+	end_address = start_address + cast(u32)card(registers) * 4
+	return start_address, end_address, registers }
+gba_decode_address_mode_4_decrement_after:: proc(ins: GBA_Instruction) -> (start_address: u32, end_address: u32, registers: bit_set[GBA_Logical_Register_Name]) {
+	rn: ^u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]
+	start_address = rn^ - cast(u32)(card(registers) - 1) * 4
+	register_list: u32 = bits.bitfield_extract(u32(ins), 0, 15)
+	for i in 0 ..< 15 {
+		if bool(register_list & (0b1 << uint(i))) do registers += { GBA_Logical_Register_Name(i) } }
+	end_address = rn^
+	return start_address, end_address, registers }
+gba_decode_address_mode_4_decrement_before:: proc(ins: GBA_Instruction) -> (start_address: u32, end_address: u32, registers: bit_set[GBA_Logical_Register_Name]) {
+	rn: ^u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]
+	start_address = rn^ - cast(u32)card(registers) * 4
+	register_list: u32 = bits.bitfield_extract(u32(ins), 0, 15)
+	for i in 0 ..< 15 {
+		if bool(register_list & (0b1 << uint(i))) do registers += { GBA_Logical_Register_Name(i) } }
+	end_address = rn^ - 4
+	return start_address, end_address, registers }
 
 
 // CONDITION //
