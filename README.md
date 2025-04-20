@@ -22,7 +22,7 @@ make
 
 # Roadmap
 
-- [ ] Identify the first instruction in the BIOS.
+- [x] Identify the first instruction in the BIOS.
 - [ ] Execute the BIOS.
 - [ ] Render the boot animation.
 - [ ] Play the boot animation sound.

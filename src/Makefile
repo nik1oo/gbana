@@ -1,5 +1,5 @@
 main:
-	odin check . -debug -max-error-count:8
+	odin run . -debug -max-error-count:8
 
 release:
 	odin build . -subsystem:windows
