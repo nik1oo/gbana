@@ -2,9 +2,9 @@
 
 GBA emulator.
 
-# Installation
+<!-- # Installation -->
 
-Download exe from [Releases](https://github.com/nik1oo/gbana/releases/latest).
+<!-- Download exe from [Releases](https://github.com/nik1oo/gbana/releases/latest). -->
 
 # Usage
 
