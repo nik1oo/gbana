@@ -63,7 +63,6 @@ gba_identify_instruction:: proc(ins: GBA_Instruction) -> (ins_ided: GBA_Instruct
 	case gba_instruction_is_SBC(ins):   return GBA_SBC_Instruction(ins),   true
 	case gba_instruction_is_SMLAL(ins): return GBA_SMLAL_Instruction(ins), true
 	case gba_instruction_is_SMULL(ins): return GBA_SMULL_Instruction(ins), true
-	case gba_instruction_is_STC(ins):   return GBA_STC_Instruction(ins),   true
 	case gba_instruction_is_STM(ins):   return GBA_STM_Instruction(ins),   true
 	case gba_instruction_is_STR(ins):   return GBA_STR_Instruction(ins),   true
 	case gba_instruction_is_STRB(ins):  return GBA_STRB_Instruction(ins),  true
