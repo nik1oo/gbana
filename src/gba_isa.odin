@@ -505,105 +505,105 @@ GBA_Addressing_Mode:: enum {
 // rotate right by immediate               xxxx x110 xxxx
 // immediate                               xxxx xxxx xxxx
 GBA_SHIFTER_MASK:: 0b_00000000_00000000_00001111_11111111
-gba_decode_shifter:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+gba_decode_address_mode_1:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
 	switch {
-	case bits.bitfield_extract(shifter_bits, 4, 8) == 0b_0000_0000: return gba_decode_shifter_register(shifter_bits)
-	case bits.bitfield_extract(shifter_bits, 4, 8) == 0b_0000_0110: return gba_decode_shifter_rotate_right_with_extend(shifter_bits)
-	case bits.bitfield_extract(shifter_bits, 4, 4) ==      0b_0001: return gba_decode_shifter_logical_shift_left_by_register(shifter_bits)
-	case bits.bitfield_extract(shifter_bits, 4, 4) ==      0b_0011: return gba_decode_shifter_logical_shift_right_by_register(shifter_bits)
-	case bits.bitfield_extract(shifter_bits, 4, 4) ==      0b_0101: return gba_decode_shifter_arithmetic_shift_right_by_register(shifter_bits)
-	case bits.bitfield_extract(shifter_bits, 4, 4) ==      0b_0111: return gba_decode_shifter_rotate_right_by_register(shifter_bits)
-	case bits.bitfield_extract(shifter_bits, 4, 3) ==       0b_000: return gba_decode_shifter_logical_shift_left_by_immediate(shifter_bits)
-	case bits.bitfield_extract(shifter_bits, 4, 3) ==       0b_010: return gba_decode_shifter_logical_shift_right_by_immediate(shifter_bits)
-	case bits.bitfield_extract(shifter_bits, 4, 3) ==       0b_100: return gba_decode_shifter_arithmetic_shift_right_by_immediate(shifter_bits)
-	case bits.bitfield_extract(shifter_bits, 4, 3) ==       0b_110: return gba_decode_shifter_rotate_right_by_immediate(shifter_bits)
-	case:                                                           return gba_decode_shifter_immediate(shifter_bits) }
+	case bits.bitfield_extract(shifter_bits, 4, 8) == 0b_0000_0000: return gba_decode_address_mode_1_register(shifter_bits)
+	case bits.bitfield_extract(shifter_bits, 4, 8) == 0b_0000_0110: return gba_decode_address_mode_1_rotate_right_with_extend(shifter_bits)
+	case bits.bitfield_extract(shifter_bits, 4, 4) ==      0b_0001: return gba_decode_address_mode_1_logical_shift_left_by_register(shifter_bits)
+	case bits.bitfield_extract(shifter_bits, 4, 4) ==      0b_0011: return gba_decode_address_mode_1_logical_shift_right_by_register(shifter_bits)
+	case bits.bitfield_extract(shifter_bits, 4, 4) ==      0b_0101: return gba_decode_address_mode_1_arithmetic_shift_right_by_register(shifter_bits)
+	case bits.bitfield_extract(shifter_bits, 4, 4) ==      0b_0111: return gba_decode_address_mode_1_rotate_right_by_register(shifter_bits)
+	case bits.bitfield_extract(shifter_bits, 4, 3) ==       0b_000: return gba_decode_address_mode_1_logical_shift_left_by_immediate(shifter_bits)
+	case bits.bitfield_extract(shifter_bits, 4, 3) ==       0b_010: return gba_decode_address_mode_1_logical_shift_right_by_immediate(shifter_bits)
+	case bits.bitfield_extract(shifter_bits, 4, 3) ==       0b_100: return gba_decode_address_mode_1_arithmetic_shift_right_by_immediate(shifter_bits)
+	case bits.bitfield_extract(shifter_bits, 4, 3) ==       0b_110: return gba_decode_address_mode_1_rotate_right_by_immediate(shifter_bits)
+	case:                                                           return gba_decode_address_mode_1_immediate(shifter_bits) }
 	return 0b0, false }
-gba_decode_shifter_immediate:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+gba_decode_address_mode_1_immediate:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
 	immediate: u32 = bits.bitfield_extract(shifter_bits, 0, 8)
 	rotate: u32 = bits.bitfield_extract(shifter_bits, 8, 4)
 	shifter_operand = rotate_right(immediate, uint(rotate))
 	if rotate == 0 do shifter_carry_out = gba_get_cpsr().carry
 	else do shifter_carry_out = bool(bits.bitfield_extract(shifter_operand, 31, 1))
 	return shifter_operand, shifter_carry_out }
-gba_decode_shifter_register:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+gba_decode_address_mode_1_register:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
 	return gba_core.logical_registers.array[shifter_bits]^, false }
-gba_decode_shifter_logical_shift_left_by_immediate:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+gba_decode_address_mode_1_logical_shift_left_by_immediate:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
 	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
 	shift: = bits.bitfield_extract(shifter_bits, 7, 5)
 	return u32(rm) << shift, bool(bits.bitfield_extract(rm, uint(32 - shift), 1)) }
-gba_decode_shifter_logical_shift_left_by_register:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+gba_decode_address_mode_1_logical_shift_left_by_register:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
 	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
 	shift: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 8, 4)]^ & 0b_00000000_11111111
 	return u32(rm) << shift, bool(bits.bitfield_extract(rm, uint(32 - shift), 1)) }
-gba_decode_shifter_logical_shift_right_by_immediate:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+gba_decode_address_mode_1_logical_shift_right_by_immediate:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
 	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
 	shift: = bits.bitfield_extract(shifter_bits, 7, 5)
 	return u32(rm) >> shift, bool(bits.bitfield_extract(rm, uint(shift - 1), 1)) }
-gba_decode_shifter_logical_shift_right_by_register:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+gba_decode_address_mode_1_logical_shift_right_by_register:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
 	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
 	shift: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 8, 4)]^ & 0b_00000000_11111111
 	return u32(rm) >> shift, bool(bits.bitfield_extract(rm, uint(shift - 1), 1)) }
-gba_decode_shifter_arithmetic_shift_right_by_immediate:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+gba_decode_address_mode_1_arithmetic_shift_right_by_immediate:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
 	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
 	shift: = bits.bitfield_extract(shifter_bits, 7, 5)
 	if shift == 0 do shift = 32
 	return u32(i32(rm) >> shift), bool(bits.bitfield_extract(rm, uint(shift - 1), 1)) }
-gba_decode_shifter_arithmetic_shift_right_by_register:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+gba_decode_address_mode_1_arithmetic_shift_right_by_register:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
 	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
 	shift: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 8, 4)]^ & 0b_00000000_11111111
 	if shift == 0 do shift = 32
 	return u32(i32(rm) >> shift), bool(bits.bitfield_extract(rm, uint(shift - 1), 1)) }
-gba_decode_shifter_rotate_right_by_immediate:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+gba_decode_address_mode_1_rotate_right_by_immediate:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
 	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
 	shift: = bits.bitfield_extract(shifter_bits, 7, 5)
 	return rotate_right(rm, uint(shift)), bool(bits.bitfield_extract(rm, uint(shift - 1), 1)) }
-gba_decode_shifter_rotate_right_by_register:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+gba_decode_address_mode_1_rotate_right_by_register:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
 	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
 	shift: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 8, 4)]^ & 0b_00000000_11111111
 	return rotate_right(rm, uint(shift)), bool(bits.bitfield_extract(rm, uint(shift - 1), 1)) }
-gba_decode_shifter_rotate_right_with_extend:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
+gba_decode_address_mode_1_rotate_right_with_extend:: proc(shifter_bits: u32) -> (shifter_operand: u32, shifter_carry_out: bool) {
 	rm: = gba_core.logical_registers.array[bits.bitfield_extract(shifter_bits, 0, 4)]^
 	return (u32(gba_get_cpsr().carry) << 31) | rm >> 1, bool(rm & 0b1) }
 
 
 // ADDRESSING MODE 2 //
-gba_decode_address:: proc(ins: GBA_Instruction) -> (address: u32) {
+gba_decode_address_mode_2:: proc(ins: GBA_Instruction) -> (address: u32) {
 	bit_25: u32 = bits.bitfield_extract(ins, 25, 1)
 	p: bool = cast(bool)bits.bitfield_extract(ins, 24, 1)
 	w: bool = cast(bool)bits.bitfield_extract(ins, 24, 1)
 	scaled_bits: u32 = bits.bitfield_extract(ins, 5, 7)
 	if bit_25 == 0b_0 {
-		if p != w do return gba_decode_address_immediate_offset(ins)
+		if p != w do return gba_decode_address_mode_2_immediate_offset(ins)
 		else {
-			if p do return gba_decode_address_immediate_pre_indexed(ins)
-			else do return gba_decode_address_immediate_post_indexed(ins) } }
+			if p do return gba_decode_address_mode_2_immediate_pre_indexed(ins)
+			else do return gba_decode_address_mode_2_immediate_post_indexed(ins) } }
 	else if scaled_bits == 0b_0000_000 {
-		if p != w do return gba_decode_address_register_offset(ins)
+		if p != w do return gba_decode_address_mode_2_register_offset(ins)
 		else {
-			if p do return gba_decode_address_register_pre_indexed(ins)
-			else do return gba_decode_address_register_post_indexed(ins) } }
+			if p do return gba_decode_address_mode_2_register_pre_indexed(ins)
+			else do return gba_decode_address_mode_2_register_post_indexed(ins) } }
 	else {
-		if p != w do return gba_decode_address_scaled_register_offset(ins)
+		if p != w do return gba_decode_address_mode_2_scaled_register_offset(ins)
 		else {
-			if p do return gba_decode_address_scaled_register_pre_indexed(ins)
-			else do return gba_decode_address_scaled_register_post_indexed(ins) } }
+			if p do return gba_decode_address_mode_2_scaled_register_pre_indexed(ins)
+			else do return gba_decode_address_mode_2_scaled_register_post_indexed(ins) } }
 	return 0b0 }
-gba_decode_address_immediate_offset:: proc(ins: GBA_Instruction) -> (address: u32) {
+gba_decode_address_mode_2_immediate_offset:: proc(ins: GBA_Instruction) -> (address: u32) {
 	u: bool = bool(bits.bitfield_extract(ins, 23, 1))
 	rn: u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]^
 	offset: u32 = bits.bitfield_extract(ins, 0, 12)
 	if u do address = rn + offset
 	else do address = rn - offset
 	return address }
-gba_decode_address_register_offset:: proc(ins: GBA_Instruction) -> (address: u32) {
+gba_decode_address_mode_2_register_offset:: proc(ins: GBA_Instruction) -> (address: u32) {
 	u: bool = bool(bits.bitfield_extract(ins, 23, 1))
 	rn: u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]^
 	rm: u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 0, 4)]^
 	if u do address = rn + rm
 	else do address = rn - rm
 	return address }
-gba_decode_address_scaled_register_offset:: proc(ins: GBA_Instruction) -> (address: u32) {
+gba_decode_address_mode_2_scaled_register_offset:: proc(ins: GBA_Instruction) -> (address: u32) {
 	u: bool = bool(bits.bitfield_extract(ins, 23, 1))
 	rn: u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]^
 	rm: u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 0, 4)]^
@@ -623,35 +623,90 @@ gba_decode_address_scaled_register_offset:: proc(ins: GBA_Instruction) -> (addre
 	if u do address = rn + index
 	else do address = rn - index
 	return address }
-gba_decode_address_immediate_pre_indexed:: proc(ins: GBA_Instruction) -> (address: u32) {
+gba_decode_address_mode_2_immediate_pre_indexed:: proc(ins: GBA_Instruction) -> (address: u32) {
 	// TODO This updates Rn. Make sure it is executed in the correct place.
-	address = gba_decode_address_immediate_offset(ins)
+	address = gba_decode_address_mode_2_immediate_offset(ins)
 	gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]^ = address
 	return address }
-gba_decode_address_register_pre_indexed:: proc(ins: GBA_Instruction) -> (address: u32) {
-	address = gba_decode_address_register_offset(ins)
+gba_decode_address_mode_2_register_pre_indexed:: proc(ins: GBA_Instruction) -> (address: u32) {
+	address = gba_decode_address_mode_2_register_offset(ins)
 	gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]^ = address
 	return address }
-gba_decode_address_scaled_register_pre_indexed:: proc(ins: GBA_Instruction) -> (address: u32) {
-	address = gba_decode_address_scaled_register_offset(ins)
+gba_decode_address_mode_2_scaled_register_pre_indexed:: proc(ins: GBA_Instruction) -> (address: u32) {
+	address = gba_decode_address_mode_2_scaled_register_offset(ins)
 	gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]^ = address
 	return address }
-gba_decode_address_immediate_post_indexed:: proc(ins: GBA_Instruction) -> (address: u32) {
+gba_decode_address_mode_2_immediate_post_indexed:: proc(ins: GBA_Instruction) -> (address: u32) {
 	rn: ^u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]
 	address = rn^
-	rn^ = gba_decode_address_immediate_offset(ins)
+	rn^ = gba_decode_address_mode_2_immediate_offset(ins)
 	return address }
-gba_decode_address_register_post_indexed:: proc(ins: GBA_Instruction) -> (address: u32) {
+gba_decode_address_mode_2_register_post_indexed:: proc(ins: GBA_Instruction) -> (address: u32) {
 	rn: ^u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]
 	address = rn^
-	rn^ = gba_decode_address_register_offset(ins)
+	rn^ = gba_decode_address_mode_2_register_offset(ins)
 	return address }
-gba_decode_address_scaled_register_post_indexed:: proc(ins: GBA_Instruction) -> (address: u32) {
+gba_decode_address_mode_2_scaled_register_post_indexed:: proc(ins: GBA_Instruction) -> (address: u32) {
 	rn: ^u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]
 	address = rn^
-	rn^ = gba_decode_address_scaled_register_offset(ins)
+	rn^ = gba_decode_address_mode_2_scaled_register_offset(ins)
 	return address }
 
+
+// ADDRESSING MODE 3 //
+gba_decode_address_mode_3:: proc(ins: GBA_Instruction) -> (address: u32) {
+	bit_22: u32 = bits.bitfield_extract(ins, 22, 1)
+	p: bool = cast(bool)bits.bitfield_extract(ins, 24, 1)
+	w: bool = cast(bool)bits.bitfield_extract(ins, 24, 1)
+	scaled_bits: u32 = bits.bitfield_extract(ins, 5, 7)
+	if bit_22 == 0b_1 {
+		if p != w do return gba_decode_address_mode_3_immediate_offset(ins)
+		else {
+			if p do return gba_decode_address_mode_3_immediate_pre_indexed(ins)
+			else do return gba_decode_address_mode_3_immediate_post_indexed(ins) } }
+	else {
+		if p != w do return gba_decode_address_mode_3_register_offset(ins)
+		else {
+			if p do return gba_decode_address_mode_3_register_pre_indexed(ins)
+			else do return gba_decode_address_mode_3_register_post_indexed(ins) } }
+	return 0b0 }
+gba_decode_address_mode_3_immediate_offset:: proc(ins: GBA_Instruction) -> (address: u32) {
+	u: bool = bool(bits.bitfield_extract(ins, 23, 1))
+	rn: u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]^
+	// TODO Load/Store instructions should have these signed/halfword flags in their decoded struct. //
+	// signed: bool = bool(bits.bitfield_extract(ins, 6, 1))
+	// halfword: bool = bool(bits.bitfield_extract(ins, 5, 1))
+	immed_l: u32 = bits.bitfield_extract(ins, 0, 4)
+	immed_h: u32 = bits.bitfield_extract(ins, 8, 4)
+	offset: u32 = (immed_h << 4) | immed_l
+	if u do address = rn + offset
+	else do address = rn - offset
+	return address }
+gba_decode_address_mode_3_register_offset:: proc(ins: GBA_Instruction) -> (address: u32) {
+	u: bool = bool(bits.bitfield_extract(ins, 23, 1))
+	rn: u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]^
+	rm: u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 0, 4)]^
+	if u do address = rn + rm
+	else do address = rn - rm
+	return address }
+gba_decode_address_mode_3_immediate_pre_indexed:: proc(ins: GBA_Instruction) -> (address: u32) {
+	address = gba_decode_address_mode_3_immediate_offset(ins)
+	gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]^ = address
+	return address }
+gba_decode_address_mode_3_register_pre_indexed:: proc(ins: GBA_Instruction) -> (address: u32) {
+	address = gba_decode_address_mode_3_register_offset(ins)
+	gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]^ = address
+	return address }
+gba_decode_address_mode_3_immediate_post_indexed:: proc(ins: GBA_Instruction) -> (address: u32) {
+	rn: ^u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]
+	address = rn^
+	rn^ = gba_decode_address_mode_3_immediate_offset(ins)
+	return address }
+gba_decode_address_mode_3_register_post_indexed:: proc(ins: GBA_Instruction) -> (address: u32) {
+	rn: ^u32 = gba_core.logical_registers.array[bits.bitfield_extract(ins, 16, 4)]
+	address = rn^
+	rn^ = gba_decode_address_mode_3_register_offset(ins)
+	return address }
 
 
 // CONDITION //
@@ -2044,7 +2099,7 @@ GBA_ADC_Instruction_Decoded:: struct {
 	set_condition_codes: bool }
 gba_decode_ADC:: proc(ins: GBA_ADC_Instruction) -> (decoded: GBA_ADC_Instruction_Decoded) {
 	decoded.operand = transmute(i32)(gba_core.logical_registers.array[bits.bitfield_extract(u32(ins), 16, 4)]^)
-	shifter_unsigned, _: = gba_decode_shifter(u32(ins) & GBA_SHIFTER_MASK)
+	shifter_unsigned, _: = gba_decode_address_mode_1(u32(ins) & GBA_SHIFTER_MASK)
 	decoded.shifter_operand = transmute(i32)(shifter_unsigned)
 	decoded.destination = gba_core.logical_registers.array[bits.bitfield_extract(u32(ins), 12, 4)]
 	decoded.set_condition_codes = bool(bits.bitfield_extract(u32(ins), 20, 1))
@@ -2056,7 +2111,7 @@ GBA_ADD_Instruction_Decoded:: struct {
 	set_condition_codes: bool }
 gba_decode_ADD:: proc(ins: GBA_ADD_Instruction) -> (decoded: GBA_ADD_Instruction_Decoded) {
 	decoded.operand = transmute(i32)(gba_core.logical_registers.array[bits.bitfield_extract(u32(ins), 16, 4)]^)
-	shifter_unsigned, _: = gba_decode_shifter(u32(ins) & GBA_SHIFTER_MASK)
+	shifter_unsigned, _: = gba_decode_address_mode_1(u32(ins) & GBA_SHIFTER_MASK)
 	decoded.shifter_operand = transmute(i32)(shifter_unsigned)
 	decoded.destination = gba_core.logical_registers.array[bits.bitfield_extract(u32(ins), 12, 4)]
 	decoded.set_condition_codes = bool(bits.bitfield_extract(u32(ins), 20, 1))
@@ -2068,7 +2123,7 @@ GBA_AND_Instruction_Decoded:: struct {
 	set_condition_codes: bool }
 gba_decode_AND:: proc(ins: GBA_AND_Instruction) -> (decoded: GBA_AND_Instruction_Decoded) {
 	decoded.operand = gba_core.logical_registers.array[bits.bitfield_extract(u32(ins), 16, 4)]^
-	decoded.shifter_operand, _ = gba_decode_shifter(u32(ins) & GBA_SHIFTER_MASK)
+	decoded.shifter_operand, _ = gba_decode_address_mode_1(u32(ins) & GBA_SHIFTER_MASK)
 	decoded.destination = gba_core.logical_registers.array[bits.bitfield_extract(u32(ins), 12, 4)]
 	decoded.set_condition_codes = bool(bits.bitfield_extract(u32(ins), 20, 1))
 	return decoded }
@@ -2097,7 +2152,7 @@ GBA_BIC_Instruction_Decoded:: struct {
 	set_condition_codes: bool }
 gba_decode_BIC:: proc(ins: GBA_BIC_Instruction) -> (decoded: GBA_BIC_Instruction_Decoded) {
 	decoded.operand = gba_core.logical_registers.array[bits.bitfield_extract(u32(ins), 16, 4)]^
-	decoded.shifter_operand, _ = gba_decode_shifter(u32(ins) & GBA_SHIFTER_MASK)
+	decoded.shifter_operand, _ = gba_decode_address_mode_1(u32(ins) & GBA_SHIFTER_MASK)
 	decoded.destination = gba_core.logical_registers.array[bits.bitfield_extract(u32(ins), 12, 4)]
 	decoded.set_condition_codes = bool(bits.bitfield_extract(u32(ins), 20, 1))
 	return decoded }
@@ -2114,7 +2169,7 @@ GBA_CMN_Instruction_Decoded:: struct {
 	shifter_operand: i32 }
 gba_decode_CMN:: proc(ins: GBA_CMN_Instruction) -> (decoded: GBA_CMN_Instruction_Decoded) {
 	decoded.operand = transmute(i32)(gba_core.logical_registers.array[bits.bitfield_extract(u32(ins), 16, 4)]^)
-	shifter_unsigned, _: = gba_decode_shifter(u32(ins) & GBA_SHIFTER_MASK)
+	shifter_unsigned, _: = gba_decode_address_mode_1(u32(ins) & GBA_SHIFTER_MASK)
 	decoded.shifter_operand = transmute(i32)(shifter_unsigned)
 	return decoded }
 GBA_CMP_Instruction_Decoded:: struct {
@@ -2122,7 +2177,7 @@ GBA_CMP_Instruction_Decoded:: struct {
 	shifter_operand: i32 }
 gba_decode_CMP:: proc(ins: GBA_CMP_Instruction) -> (decoded: GBA_CMP_Instruction_Decoded) {
 	decoded.operand = transmute(i32)(gba_core.logical_registers.array[bits.bitfield_extract(u32(ins), 16, 4)]^)
-	shifter_unsigned, _: = gba_decode_shifter(u32(ins) & GBA_SHIFTER_MASK)
+	shifter_unsigned, _: = gba_decode_address_mode_1(u32(ins) & GBA_SHIFTER_MASK)
 	decoded.shifter_operand = transmute(i32)(shifter_unsigned)
 	return decoded }
 GBA_EOR_Instruction_Decoded:: struct {
@@ -2132,7 +2187,7 @@ GBA_EOR_Instruction_Decoded:: struct {
 	set_condition_codes: bool }
 gba_decode_EOR:: proc(ins: GBA_EOR_Instruction) -> (decoded: GBA_EOR_Instruction_Decoded) {
 	decoded.operand = gba_core.logical_registers.array[bits.bitfield_extract(u32(ins), 16, 4)]^
-	decoded.shifter_operand, _ = gba_decode_shifter(u32(ins) & GBA_SHIFTER_MASK)
+	decoded.shifter_operand, _ = gba_decode_address_mode_1(u32(ins) & GBA_SHIFTER_MASK)
 	decoded.destination = gba_core.logical_registers.array[bits.bitfield_extract(u32(ins), 12, 4)]
 	decoded.set_condition_codes = bool(bits.bitfield_extract(u32(ins), 20, 1))
 	return decoded }
