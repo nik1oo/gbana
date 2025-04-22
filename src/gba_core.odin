@@ -2,6 +2,7 @@
 package gbana
 import "core:container/queue"
 import "core:math/bits"
+import "core:math/rand"
 
 
 ALU:: struct {
@@ -208,104 +209,260 @@ gba_execute_EOR:: proc(ins: GBA_EOR_Instruction_Decoded) {
 		cpsr.zero = (ins.destination^ == 0)
 		cpsr.carry = ins.shifter_carry_out } }
 gba_execute_LDM:: proc(ins: GBA_LDM_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	address: = ins.start_address
+	for register in GBA_Logical_Register_Name(0) ..< GBA_Logical_Register_Name(15) {
+		if register in ins.destination_registers {
+			gba_core.logical_registers.array[register]^ = memory_read_u32(address)
+			address += 4 } }
+	if ins.restore_status_register do gba_pop_psr() }
 gba_execute_LDR:: proc(ins: GBA_LDR_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	tail_bits: = bits.bitfield_extract(ins.address, 0, 2)
+	switch tail_bits {
+	case 0b00: ins.destination^ = memory_read_u32(ins.address)
+	case 0b01: ins.destination^ = rotate_right(memory_read_u32(ins.address), 8)
+	case 0b10: ins.destination^ = rotate_right(memory_read_u32(ins.address), 16)
+	case 0b11: ins.destination^ = rotate_right(memory_read_u32(ins.address), 24) } }
 gba_execute_LDRB:: proc(ins: GBA_LDRB_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	ins.destination^ = cast(u32)memory_read_u8(ins.address) }
 gba_execute_LDRBT:: proc(ins: GBA_LDRBT_Instruction_Decoded) {
-
-}
+	// TODO Do the write-back on all instructions. //
+	if ! gba_condition_passed(ins.cond) do return
+	ins.destination^ = cast(u32)memory_read_u8(ins.address) }
 gba_execute_LDRH:: proc(ins: GBA_LDRH_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	ins.destination^ = cast(u32)memory_read_u16(ins.address) }
 gba_execute_LDRSB:: proc(ins: GBA_LDRSB_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	ins.destination^ = transmute(u32)gba_sign_extend(cast(u32)memory_read_u8(ins.address), 8) }
 gba_execute_LDRSH:: proc(ins: GBA_LDRSH_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	ins.destination^ = transmute(u32)gba_sign_extend(cast(u32)memory_read_u16(ins.address), 16) }
 gba_execute_LDRT:: proc(ins: GBA_LDRT_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	tail_bits: = bits.bitfield_extract(ins.address, 0, 2)
+	switch tail_bits {
+	case 0b00: ins.destination^ = memory_read_u32(ins.address)
+	case 0b01: ins.destination^ = rotate_right(memory_read_u32(ins.address), 8)
+	case 0b10: ins.destination^ = rotate_right(memory_read_u32(ins.address), 16)
+	case 0b11: ins.destination^ = rotate_right(memory_read_u32(ins.address), 24) } }
 gba_execute_MLA:: proc(ins: GBA_MLA_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	ins.destination^ = transmute(u32)(ins.operand * ins.multiplicand + ins.addend)
+	if ins.set_condition_codes {
+		cpsr.negative = bool(bits.bitfield_extract(ins.destination^, 31, 1))
+		cpsr.zero = (ins.destination^ == 0)
+		cpsr.carry = bool(rand.int_max(2)) } }
 gba_execute_MOV:: proc(ins: GBA_MOV_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	if ins.set_condition_codes && ins.destination == gba_core.logical_registers.array[GBA_Logical_Register_Name.PC] {
+		gba_pop_psr() }
+	ins.destination^ = ins.shifter_operand
+	if ins.set_condition_codes {
+		cpsr.negative = bool(bits.bitfield_extract(ins.destination^, 31, 1))
+		cpsr.zero = (ins.destination^ == 0)
+		cpsr.carry = ins.shifter_carry_out } }
 gba_execute_MRS:: proc(ins: GBA_MRS_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	ins.source^ = ins.destination^ }
 gba_execute_MSR:: proc(ins: GBA_MSR_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr, spsr: = gba_get_cpsr(), gba_get_spsr()
+	#partial switch ins.destination {
+	case .CPSR:
+		if 0 in ins.field_mask && gba_in_a_privileged_mode() {
+			cpsr^ = auto_cast bits.bitfield_insert(cast(u32)cpsr^, bits.bitfield_extract(ins.operand, 0, 8), 0, 8) }
+		if 1 in ins.field_mask && gba_in_a_privileged_mode() {
+			cpsr^ = auto_cast bits.bitfield_insert(cast(u32)cpsr^, bits.bitfield_extract(ins.operand, 8, 8), 8, 8) }
+		if 2 in ins.field_mask && gba_in_a_privileged_mode() {
+			cpsr^ = auto_cast bits.bitfield_insert(cast(u32)cpsr^, bits.bitfield_extract(ins.operand, 16, 8), 16, 8) }
+		if 3 in ins.field_mask {
+			cpsr^ = auto_cast bits.bitfield_insert(cast(u32)cpsr^, bits.bitfield_extract(ins.operand, 24, 8), 24, 8) }
+	case .SPSR:
+		if 0 in ins.field_mask && gba_current_mode_has_spsr() {
+			spsr^ = auto_cast bits.bitfield_insert(cast(u32)spsr^, bits.bitfield_extract(ins.operand, 0, 8), 0, 8) }
+		if 1 in ins.field_mask && gba_current_mode_has_spsr() {
+			spsr^ = auto_cast bits.bitfield_insert(cast(u32)spsr^, bits.bitfield_extract(ins.operand, 8, 8), 8, 8) }
+		if 2 in ins.field_mask && gba_current_mode_has_spsr() {
+			spsr^ = auto_cast bits.bitfield_insert(cast(u32)spsr^, bits.bitfield_extract(ins.operand, 16, 8), 16, 8) }
+		if 3 in ins.field_mask && gba_current_mode_has_spsr() {
+			spsr^ = auto_cast bits.bitfield_insert(cast(u32)spsr^, bits.bitfield_extract(ins.operand, 24, 8), 24, 8) } } }
 gba_execute_MUL:: proc(ins: GBA_MUL_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	ins.destination^ = transmute(u32)(ins.operand * ins.multiplicand)
+	if ins.set_condition_codes {
+		cpsr.negative = bool(bits.bitfield_extract(ins.destination^, 31, 1))
+		cpsr.zero = (ins.destination^ == 0)
+		cpsr.carry = bool(rand.int_max(2)) } }
 gba_execute_MVN:: proc(ins: GBA_MVN_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	ins.destination^ = ~ ins.shifter_operand
+	if ins.set_condition_codes && ins.destination == gba_core.logical_registers.array[GBA_Logical_Register_Name.PC] {
+		gba_pop_psr() }
+	if ins.set_condition_codes {
+		cpsr.negative = bool(bits.bitfield_extract(ins.destination^, 31, 1))
+		cpsr.zero = (ins.destination^ == 0)
+		cpsr.carry = ins.shifter_carry_out } }
 gba_execute_ORR:: proc(ins: GBA_ORR_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	ins.destination^ = ins.operand | ins.shifter_operand
+	if ins.set_condition_codes && ins.destination == gba_core.logical_registers.array[GBA_Logical_Register_Name.PC] {
+		gba_pop_psr() }
+	else if ins.set_condition_codes {
+		cpsr.negative = bool(bits.bitfield_extract(ins.destination^, 31, 1))
+		cpsr.zero = (ins.destination^ == 0)
+		cpsr.carry = ins.shifter_carry_out } }
 gba_execute_RSB:: proc(ins: GBA_RSB_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	ins.destination^ = transmute(u32)(ins.shifter_operand - ins.operand)
+	if ins.set_condition_codes && ins.destination == gba_core.logical_registers.array[GBA_Logical_Register_Name.PC] {
+		gba_pop_psr() }
+	else if ins.set_condition_codes {
+		cpsr.negative = bool(bits.bitfield_extract(ins.destination^, 31, 1))
+		cpsr.zero = (ins.destination^ == 0)
+		cpsr.carry = ! gba_borrow_from(ins.shifter_operand, ins.operand)
+		cpsr.overflow = gba_overflow_from_sub(ins.shifter_operand, ins.operand) } }
 gba_execute_RSC:: proc(ins: GBA_RSC_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	ins.destination^ = transmute(u32)(ins.shifter_operand - (ins.operand + i32(! cpsr.carry)))
+	if ins.set_condition_codes && ins.destination == gba_core.logical_registers.array[GBA_Logical_Register_Name.PC] {
+		gba_pop_psr() }
+	else if ins.set_condition_codes {
+		cpsr.negative = bool(bits.bitfield_extract(ins.destination^, 31, 1))
+		cpsr.zero = (ins.destination^ == 0)
+		cpsr.carry = ! gba_borrow_from(ins.shifter_operand, (ins.operand + i32(! cpsr.carry)))
+		cpsr.overflow = gba_overflow_from_sub(ins.shifter_operand, (ins.operand + i32(! cpsr.carry))) } }
 gba_execute_SBC:: proc(ins: GBA_SBC_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	ins.destination^ = transmute(u32)(ins.operand - (ins.shifter_operand + i32(! cpsr.carry)))
+	if ins.set_condition_codes && ins.destination == gba_core.logical_registers.array[GBA_Logical_Register_Name.PC] {
+		gba_pop_psr() }
+	else if ins.set_condition_codes {
+		cpsr.negative = bool(bits.bitfield_extract(ins.destination^, 31, 1))
+		cpsr.zero = (ins.destination^ == 0)
+		cpsr.carry = ! gba_borrow_from(ins.operand, (ins.shifter_operand + i32(! cpsr.carry)))
+		cpsr.overflow = gba_overflow_from_sub(ins.operand, (ins.shifter_operand + i32(! cpsr.carry))) } }
 gba_execute_SMLAL:: proc(ins: GBA_SMLAL_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	accumulator: i64 = transmute(i64)(u64(ins.destinations[0]^) | (u64(ins.destinations[1]^) << 32))
+	product: i64 = i64(ins.multiplicands[0]) * i64(ins.multiplicands[1])
+	accumulated_product: i64 = accumulator + product
+	ins.destinations[0]^ = cast(u32)(transmute(u64)(accumulated_product & 0xFFFFFFFF))
+	ins.destinations[1]^ = cast(u32)(transmute(u64)(accumulated_product >> 32))
+	if ins.set_condition_codes {
+		cpsr.negative = bool(bits.bitfield_extract(ins.destinations[1]^, 31, 1))
+		cpsr.zero = ((ins.destinations[0]^ == 0) && (ins.destinations[1]^ == 0))
+		cpsr.carry = bool(rand.int_max(2))
+		cpsr.overflow = bool(rand.int_max(2)) } }
 gba_execute_SMULL:: proc(ins: GBA_SMULL_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	product: i64 = i64(ins.multiplicands[0]) * i64(ins.multiplicands[1])
+	ins.destinations[0]^ = cast(u32)(transmute(u64)(product & 0xFFFFFFFF))
+	ins.destinations[1]^ = cast(u32)(transmute(u64)(product >> 32))
+	if ins.set_condition_codes {
+		cpsr.negative = bool(bits.bitfield_extract(ins.destinations[1]^, 31, 1))
+		cpsr.zero = ((ins.destinations[0]^ == 0) && (ins.destinations[1]^ == 0))
+		cpsr.carry = bool(rand.int_max(2))
+		cpsr.overflow = bool(rand.int_max(2)) } }
 gba_execute_STM:: proc(ins: GBA_STM_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	address: = ins.start_address
+	for register in GBA_Logical_Register_Name(0) ..< GBA_Logical_Register_Name(15) {
+		if register in ins.source_registers {
+			memory_write_u32(address, gba_core.logical_registers.array[register]^)
+			address += 4 } }
+	if ins.restore_status_register do gba_pop_psr() }
 gba_execute_STR:: proc(ins: GBA_STR_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	memory_write_u32(ins.address, ins.source^) }
 gba_execute_STRB:: proc(ins: GBA_STRB_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	memory_write_u8(ins.address, cast(u8)(ins.source^ & 0xFF)) }
 gba_execute_STRBT:: proc(ins: GBA_STRBT_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	memory_write_u8(ins.address, cast(u8)(ins.source^ & 0xFF)) }
 gba_execute_STRH:: proc(ins: GBA_STRH_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	memory_write_u16(ins.address, cast(u16)(ins.source^ & 0xFFFF)) }
 gba_execute_STRT:: proc(ins: GBA_STRT_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	memory_write_u32(ins.address, ins.source^) }
 gba_execute_SUB:: proc(ins: GBA_SUB_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	ins.destination^ = transmute(u32)(ins.operand - ins.shifter_operand)
+	if ins.set_condition_codes && ins.destination == gba_core.logical_registers.array[GBA_Logical_Register_Name.PC] {
+		gba_pop_psr() }
+	else if ins.set_condition_codes {
+		cpsr.negative = bool(bits.bitfield_extract(ins.destination^, 31, 1))
+		cpsr.zero = (ins.destination^ == 0)
+		cpsr.carry = ! gba_borrow_from(ins.operand, ins.shifter_operand)
+		cpsr.overflow = gba_overflow_from_sub(ins.operand, ins.shifter_operand) } }
 gba_execute_SWI:: proc(ins: GBA_SWI_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	gba_core.physical_registers.array[GBA_Physical_Register_Name.R14_SVC] = ins.instruction_address + 4
+	gba_core.physical_registers.array[GBA_Physical_Register_Name.SPSR_SVC] = cast(u32)cpsr^
+	cpsr^ = auto_cast bits.bitfield_insert(cast(u32)cpsr^, 0b010011, 0, 6)
+	cpsr^ = auto_cast bits.bitfield_insert(cast(u32)cpsr^, 0b1, 7, 1)
+	gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^ = 0x08 }
 gba_execute_SWP:: proc(ins: GBA_SWP_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	temp: u32 = memory_read_u32(ins.address)
+	memory_write_u32(ins.address, ins.source_register^)
+	ins.destination_register^ = temp }
 gba_execute_SWPB:: proc(ins: GBA_SWPB_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	temp: u8 = memory_read_u8(ins.address)
+	memory_write_u8(ins.address, cast(u8)(ins.source_register^ & 0xFF))
+	ins.destination_register^ = u32(temp) }
 gba_execute_TEQ:: proc(ins: GBA_TEQ_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	alu_out: u32 = ins.operand ~ ins.shifter_operand
+	cpsr.negative = bool(bits.bitfield_extract(alu_out, 31, 1))
+	cpsr.zero = (alu_out == 0)
+	cpsr.carry = ins.shifter_carry_out }
 gba_execute_TST:: proc(ins: GBA_TST_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	alu_out: u32 = ins.operand & ins.shifter_operand
+	cpsr.negative = bool(bits.bitfield_extract(alu_out, 31, 1))
+	cpsr.zero = (alu_out == 0)
+	cpsr.carry = ins.shifter_carry_out }
 gba_execute_UMLAL:: proc(ins: GBA_UMLAL_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	accumulator: u64 = u64(ins.destinations[0]^) | (u64(ins.destinations[1]^) << 32)
+	product: u64 = u64(ins.multiplicands[0]) * u64(ins.multiplicands[1])
+	accumulated_product: u64 = accumulator + product
+	ins.destinations[0]^ = cast(u32)(accumulated_product & 0xFFFFFFFF)
+	ins.destinations[1]^ = cast(u32)(accumulated_product >> 32)
+	if ins.set_condition_codes {
+		cpsr.negative = bool(bits.bitfield_extract(ins.destinations[1]^, 31, 1))
+		cpsr.zero = ((ins.destinations[0]^ == 0) && (ins.destinations[1]^ == 0))
+		cpsr.carry = bool(rand.int_max(2))
+		cpsr.overflow = bool(rand.int_max(2)) } }
 gba_execute_UMULL:: proc(ins: GBA_UMULL_Instruction_Decoded) {
-
-}
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	product: u64 = u64(ins.multiplicands[0]) * u64(ins.multiplicands[1])
+	ins.destinations[0]^ = cast(u32)(product & 0xFFFFFFFF)
+	ins.destinations[1]^ = cast(u32)(product >> 32)
+	if ins.set_condition_codes {
+		cpsr.negative = bool(bits.bitfield_extract(ins.destinations[1]^, 31, 1))
+		cpsr.zero = ((ins.destinations[0]^ == 0) && (ins.destinations[1]^ == 0))
+		cpsr.carry = bool(rand.int_max(2))
+		cpsr.overflow = bool(rand.int_max(2)) } }

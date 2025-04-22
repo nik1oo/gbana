@@ -320,13 +320,13 @@ memory_read_u8:: proc(address: u32) -> (value: u8) {
 	word: u32 = transmute(u32)cast(u32be)transmute(u32le)(memory.data[word_address / 4])
 	return cast(u8)((word >> (byte_index * 8)) & 0b_11111111) }
 memory_read_u16:: proc(address: u32) -> (value: u16) {
-	assert(address & 0b_1 == 0b_0)
+	address: = address & (~ u32(0b_1))
 	word_address: u32 = cast(u32)mem.align_backward_uint(uint(address), 4)
 	byte_index: = address - word_address
 	word: u32 = transmute(u32)cast(u32be)transmute(u32le)(memory.data[word_address / 4])
 	return cast(u16)((word >> (byte_index * 8)) & 0b_11111111_11111111) }
 memory_read_u32:: proc(address: u32) -> (value: u32) {
-	assert(address & 0b_11 == 0b_00)
+	address: = address & (~ u32(0b_11))
 	word: u32 = transmute(u32)cast(u32be)transmute(u32le)(memory.data[address / 4])
 	return word }
 memory_write_u8:: proc(address: u32, value: u8) {
@@ -335,13 +335,13 @@ memory_write_u8:: proc(address: u32, value: u8) {
 	byte_index: = address - word_address
 	bytes[word_address * 4 + 3 - byte_index] = value }
 memory_write_u16:: proc(address: u32, value: u16) {
-	assert(address & 0b_1 == 0b_0)
+	address: = address & (~ u32(0b_1))
 	halfwords: = slice.reinterpret([]u16, memory.data)
 	word_address: u32 = cast(u32)mem.align_backward_uint(uint(address), 4)
 	halfword_index: = (address - word_address) / 2
 	halfwords[word_address * 2 + 1 - halfword_index] = transmute(u16)cast(u16le)transmute(u16be)value }
 memory_write_u32:: proc(address: u32, value: u32) {
-	assert(address & 0b_11 == 0b_00)
+	address: = address & (~ u32(0b_11))
 	memory.data[address / 4] = cast(u32le)transmute(u32be)value }
 // bios_read:: proc(address: u32, $width: int) -> (value: [width]u8, cycles: int) {
 // 	#assert((width == 1) || (width == 2) || (width == 4))
