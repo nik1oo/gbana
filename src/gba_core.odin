@@ -38,6 +38,7 @@ R13_DEFAULT_USER_SYSTEM:: 0x03007f00
 R13_DEFAULT_IRQ::         0x03007fa0
 R13_DEFAULT_SUPERVISOR::  0x03007fe0
 GBA_Core:: struct {
+	mode: GBA_Processor_Mode,
 	logical_registers: GBA_Logical_Registers,
 	physical_registers: GBA_Physical_Registers,
 	using clocks_and_timing: ^GBA_Clocks_And_Timing_Interface,
@@ -114,271 +115,197 @@ Software_Interrupt:: enum {
 	MULTI_BOOT=              0x25,
 	SOUND_DRIVER_VSYNC_OFF=  0x28,
 	SOUND_DRIVER_VSYNC_ON=   0x29 }
-// Each instrction falls into one of these classes.
-// The instruction decoder should be able to determine which class an instruction belongs to based on
-// the id bits.
-// In thumb mode, instructions are 16-bit wide, for memory efficiency.
-// ins_class_ids:map[typeid]i32= {
-// 	Instruction_Class_MU=INS_CLASS_MU_ID,
-// 	Instruction_Class_ML=INS_CLASS_ML_ID,
-// 	Instruction_Class_BE=INS_CLASS_BE_ID,
-// 	Instruction_Class_DS=INS_CLASS_DS_ID,
-// 	Instruction_Class_TR=INS_CLASS_TR_ID,
-// 	Instruction_Class_TI=INS_CLASS_TI_ID,
-// 	Instruction_Class_ST=INS_CLASS_ST_ID,
-// 	Instruction_Class_PT=INS_CLASS_PT_ID,
-// 	Instruction_Class_LS=INS_CLASS_LS_ID,
-// 	Instruction_Class_UD=INS_CLASS_UD_ID,
-// 	Instruction_Class_BT=INS_CLASS_BT_ID,
-// 	Instruction_Class_BR=INS_CLASS_BR_ID,
-// 	Instruction_Class_CT=INS_CLASS_CT_ID,
-// 	Instruction_Class_CO=INS_CLASS_CO_ID,
-// 	Instruction_Class_CR=INS_CLASS_CR_ID,
-// 	Instruction_Class_SI=INS_CLASS_SI_ID }
-// ins_class_id_masks:map[typeid]i32= {
-// 	Instruction_Class_MU=INS_CLASS_MU_ID_MASK,
-// 	Instruction_Class_ML=INS_CLASS_ML_ID_MASK,
-// 	Instruction_Class_BE=INS_CLASS_BE_ID_MASK,
-// 	Instruction_Class_DS=INS_CLASS_DS_ID_MASK,
-// 	Instruction_Class_TR=INS_CLASS_TR_ID_MASK,
-// 	Instruction_Class_TI=INS_CLASS_TI_ID_MASK,
-// 	Instruction_Class_ST=INS_CLASS_ST_ID_MASK,
-// 	Instruction_Class_PT=INS_CLASS_PT_ID_MASK,
-// 	Instruction_Class_LS=INS_CLASS_LS_ID_MASK,
-// 	Instruction_Class_UD=INS_CLASS_UD_ID_MASK,
-// 	Instruction_Class_BT=INS_CLASS_BT_ID_MASK,
-// 	Instruction_Class_BR=INS_CLASS_BR_ID_MASK,
-// 	Instruction_Class_CT=INS_CLASS_CT_ID_MASK,
-// 	Instruction_Class_CO=INS_CLASS_CO_ID_MASK,
-// 	Instruction_Class_CR=INS_CLASS_CR_ID_MASK,
-// 	Instruction_Class_SI=INS_CLASS_SI_ID_MASK }
-// idcheck_ins_class:: proc {
-// 	idcheck_ins_class_MU,
-// 	idcheck_ins_class_ML,
-// 	idcheck_ins_class_BE,
-// 	idcheck_ins_class_DS,
-// 	idcheck_ins_class_TR,
-// 	idcheck_ins_class_TI,
-// 	idcheck_ins_class_ST,
-// 	idcheck_ins_class_PT,
-// 	idcheck_ins_class_LS,
-// 	idcheck_ins_class_UD,
-// 	idcheck_ins_class_BT,
-// 	idcheck_ins_class_BR,
-// 	idcheck_ins_class_CT,
-// 	idcheck_ins_class_CO,
-// 	idcheck_ins_class_CR,
-// 	idcheck_ins_class_SI }
 
 
-// TODO Where are the condition flags? Define a proc that checks the condition flags and determines if
-// a given condition is met.
-Instruction_Cond:: enum i8 {
-	EQ=    0b0000, // Equal
-	NE=    0b0001, // Not equal
-	CS_HS= 0b0010, // Carry set / unsigned greater than or equal
-	CC_LO= 0b0011, // Carry clear / unsigned lesser than
-	MI=    0b0100, // Minus / negative
-	PL=    0b0101, // Plus / positive or zero
-	VS=    0b0110, // Overflow
-	VC=    0b0111, // No overflow
-	HI=    0b1000, // Unsigned greater than
-	LS=    0b1001, // Unsigned lesser than or equal
-	GE=    0b1010, // Signed greater than or equal
-	LT=    0b1011, // Signed lesser than
-	GT=    0b1100, // Signed greater than
-	LE=    0b1101, // Signed lelsser than or equal
-	AL=    0b1110, // Always (ie, true)
-	NV=    0b1111 }// Never (ie, false)
-// NOTE Instruction is executed only if this returns true.
-// ins_condcheck:: proc(ins: i32)-> (condition_met: bool) {
-// 	return inscond_check(Instruction_Cond(ins>>28)) }
-// inscond_check:: proc(cond: Instruction_Cond)-> (condition_met: bool) {
-// 	if cond==.EQ {
-// 		return gba_core.cpsr.zero_equal==true
-// 	} else if cond==.NE {
-// 		return gba_core.cpsr.zero_equal==false
-// 	} else if cond==.CS_HS {
-// 		return gba_core.cpsr.carry_borrow_extend==true
-// 	} else if cond==.CC_LO {
-// 		return gba_core.cpsr.carry_borrow_extend==false
-// 	} else if cond==.MI {
-// 		return gba_core.cpsr.negative_lesser==true
-// 	} else if cond==.PL {
-// 		return gba_core.cpsr.negative_lesser==false
-// 	} else if cond==.VS {
-// 		return gba_core.cpsr.overflow==true
-// 	} else if cond==.VC {
-// 		return gba_core.cpsr.overflow==false
-// 	} else if cond==.HI {
-// 		return (gba_core.cpsr.carry_borrow_extend==true) && (gba_core.cpsr.zero_equal==false)
-// 	} else if cond==.LS {
-// 		return (gba_core.cpsr.carry_borrow_extend==false) && (gba_core.cpsr.zero_equal==true)
-// 	} else if cond==.GE {
-// 		return gba_core.cpsr.negative_lesser==gba_core.cpsr.overflow
-// 	} else if cond==.LT {
-// 		return gba_core.cpsr.negative_lesser!=gba_core.cpsr.overflow
-// 	} else if cond==.GT {
-// 		return (gba_core.cpsr.zero_equal==false) && (gba_core.cpsr.negative_lesser==gba_core.cpsr.overflow)
-// 	} else if cond==.LE {
-// 		return (gba_core.cpsr.zero_equal==true) && (gba_core.cpsr.negative_lesser!=gba_core.cpsr.overflow)
-// 	} else if cond==.AL {
-// 		return true
-// 	} else if cond==.NV {
-// 		return false
-// 	} else {
-// 		return false } }
-// What is a shifter operand?
-OPERAND_2_MASK:: 0b00000000_00000000_00001111_11111111
-parse_immediate_operand:: proc(operand: i32) {
-	assert(operand & ~i32(OPERAND_2_MASK) != 0) }
-// Immediate Operand                                     | I
-// Register Operand                                      | R
-// Register Operand, Logical Shift Left by Immediate     | R_LSL_I
-// Register Operand, Logical Shift Left by Register      | R_LSL_R
-// Register Operand, Logical Shift Right by Immediate    | R_LSR_I
-// Register Operand, Logical Shift Right by Register     | R_LSR_R
-// Register Operand, Arithmetic Shift Right by Immediate | R_ASR_I
-// Register Operand, Arithmetic Shift Right by Register  | R_ASR_R
-// Register Operand, Rotate Right by Immediate           | R_RR_I
-// Register Operand, Rotate Right by Register            | R_RR_R
-// Register Operand, Rotate Right with Extend            | R_RRX
-idcheck_operand:: proc {
-	idcheck_operand_I,
-	idcheck_operand_R,
-	idcheck_operand_R_LSL_I,
-	idcheck_operand_R_LSL_R,
-	idcheck_operand_R_LSR_I,
-	idcheck_operand_R_LSR_R,
-	idcheck_operand_R_ASR_I,
-	idcheck_operand_R_ASR_R,
-	idcheck_operand_R_RR_I,
-	idcheck_operand_R_RR_R,
-	idcheck_operand_R_RRX }
-Operand_I:: bit_field i16 { // NOTE Immediate Operand //
-	immediate: i16 | 8,
-	rotate:    i16 | 4 }
-OPERAND_I_ID::   0b0000_00000000
-OPERAND_I_MASK:: 0b0000_00000000
-idcheck_operand_I:: proc(operand: Operand_I)-> bool {
-	return (i16(operand) & OPERAND_I_MASK) == OPERAND_I_ID }
-address_operand_I:: proc(operand: Operand_I, Rn: ^i32, $pre_indexed: bool)-> (address: u32) { // NOTE Rn is base register.
-	// Why is it "+/-" in the spec? Where does the sign originate?
-	address= u32(Rn^) + u32(rotate_right(i32(operand.immediate), operand.rotate))
-	when pre_indexed { Rn^= address }
-	return address }
-//TODO Write fetch operand proc.
-Operand_R:: bit_field i16 { // NOTE Register Operand //
-	Rm: i8 | 4,
-	id: i8 | 8 }
-OPERAND_R_ID::   0b0000_00000000
-OPERAND_R_MASK:: 0b1111_11110000
-idcheck_operand_R:: proc(operand: Operand_R)-> bool {
-	return (i16(operand) & OPERAND_R_MASK) == OPERAND_R_ID }
-address_operand_R:: proc(operand: Operand_R, Rn: ^i32, $pre_indexed: bool)-> (address: u32) {
-	address= u32(Rn^) + u32(cpu_register_by_index(operand.Rm)^)
-	when pre_indexed { Rn^= address }
-	return address }
-Operand_R_LSL_I:: bit_field i16 { // NOTE Register Operand, Logical Shift Left by Immediate //
-	Rm:              i8 | 4,
-	id:              i8 | 3,
-	shift_immediate: i8 | 5 }
-OPERAND_R_LSL_I_ID::   0b0000_00000000
-OPERAND_R_LSL_I_MASK:: 0b0000_01110000
-idcheck_operand_R_LSL_I:: proc(operand: Operand_R_LSL_I)-> bool {
-	return (i16(operand) & OPERAND_R_LSL_I_MASK) == OPERAND_R_LSL_I_ID }
-address_operand_R_LSL_I:: proc(operand: Operand_R_LSL_I, Rn: ^i32, $pre_indexed: bool)-> (address: u32) {
-	address= u32(Rn^) + u32((cpu_register_by_index(operand.Rm)^)<<u8(operand.shift_immediate))
-	when pre_indexed { Rn^= address }
-	return address }
-Operand_R_LSL_R:: bit_field i16 { // NOTE Register Operand, Logical Shift Left by Register //
-	Rm: i8 | 4,
-	id: i8 | 4,
-	Rs: i8 | 4 }
-OPERAND_R_LSL_R_ID::   0b0000_00010000
-OPERAND_R_LSL_R_MASK:: 0b0000_11110000
-idcheck_operand_R_LSL_R:: proc(operand: Operand_R_LSL_R)-> bool {
-	return (i16(operand) & OPERAND_R_LSL_R_MASK) == OPERAND_R_LSL_R_ID }
-address_operand_R_LSL_R:: proc(operand: Operand_R_LSL_R, Rn: ^i32, $pre_indexed: bool)-> (address: u32) {
-	address= u32(Rn^) + u32((cpu_register_by_index(operand.Rm)^)<<u32((cpu_register_by_index(operand.Rs)^)))
-	when pre_indexed { Rn^= address }
-	return address }
-Operand_R_LSR_I:: bit_field i16 { // NOTE Register Operand, Logical Shift Right by Immediate //
-	Rm:              i8 | 4,
-	id:              i8 | 3,
-	shift_immediate: i8 | 5 }
-OPERAND_R_LSR_I_ID::   0b0000_00100000
-OPERAND_R_LSR_I_MASK:: 0b0000_01110000
-idcheck_operand_R_LSR_I:: proc(operand: Operand_R_LSR_I)-> bool {
-	return (i16(operand) & OPERAND_R_LSR_I_MASK) == OPERAND_R_LSR_I_ID }
-address_operand_R_LSR_I:: proc(operand: Operand_R_LSR_I, Rn: ^i32, $pre_indexed: bool)-> (address: u32) {
-	address= u32(Rn^) + u32((cpu_register_by_index(operand.Rm)^)>>u8(operand.shift_immediate))
-	when pre_indexed { Rn^= address }
-	return address }
-Operand_R_LSR_R:: bit_field i16 { // NOTE Register Operand, Logical Shift Right by Register //
-	Rm: i8 | 4,
-	id: i8 | 4,
-	Rs: i8 | 4 }
-OPERAND_R_LSR_R_ID::   0b0000_00110000
-OPERAND_R_LSR_R_MASK:: 0b0000_11110000
-idcheck_operand_R_LSR_R:: proc(operand: Operand_R_LSR_R)-> bool {
-	return (i16(operand) & OPERAND_R_LSR_R_MASK) == OPERAND_R_LSR_R_ID }
-address_operand_R_LSR_R:: proc(operand: Operand_R_LSR_R, Rn: ^i32, $pre_indexed: bool)-> (address: u32) {
-	address= u32(Rn^) + u32((cpu_register_by_index(operand.Rm)^)>>u32((cpu_register_by_index(operand.Rs)^)))
-	when pre_indexed { Rn^= address }
-	return address }
-Operand_R_ASR_I:: bit_field i16 { // NOTE Register Operand, Arithmetic Shift Right by Immediate //
-	Rm:              i8 | 4,
-	id:              i8 | 3,
-	shift_immediate: i8 | 5 }
-OPERAND_R_ASR_I_ID::   0b0000_01000000
-OPERAND_R_ASR_I_MASK:: 0b0000_01110000
-idcheck_operand_R_ASR_I:: proc(operand: Operand_R_ASR_I)-> bool {
-	return (i16(operand) & OPERAND_R_ASR_I_MASK) == OPERAND_R_ASR_I_ID }
-address_operand_R_ASR_I:: proc(operand: Operand_R_ASR_I, Rn: ^i32, $pre_indexed: bool)-> (address: u32) {
-	address= u32(Rn^) + u32(i32(cpu_register_by_index(operand.Rm)^)>>u8(operand.shift_immediate))
-	when pre_indexed { Rn^= address }
-	return address }
-Operand_R_ASR_R:: bit_field i16 { // NOTE Register Operand, Arithmetic Shift Right by Register //
-	Rm: i8 | 4,
-	id: i8 | 4,
-	Rs: i8 | 4 }
-OPERAND_R_ASR_R_ID::   0b0000_01010000
-OPERAND_R_ASR_R_MASK:: 0b0000_11110000
-idcheck_operand_R_ASR_R:: proc(operand: Operand_R_ASR_R)-> bool {
-	return (i16(operand) & OPERAND_R_ASR_R_MASK) == OPERAND_R_ASR_R_ID }
-address_operand_R_ASR_R:: proc(operand: Operand_R_ASR_R, Rn: ^i32, $pre_indexed: bool)-> (address: u32) {
-	address= u32(Rn^) + u32(i32(cpu_register_by_index(operand.Rm)^)>>u32((cpu_register_by_index(operand.Rs)^)))
-	when pre_indexed { Rn^= address }
-	return address }
-Operand_R_RR_I:: bit_field i16 { // NOTE Register Operand, Rotate Right by Immediate //
-	Rm:              i8 | 4,
-	id:              i8 | 3,
-	shift_immediate: i8 | 5 }
-OPERAND_R_RR_I_ID::   0b0000_01100000
-OPERAND_R_RR_I_MASK:: 0b0000_01110000
-idcheck_operand_R_RR_I:: proc(operand: Operand_R_RR_I)-> bool {
-	return (i16(operand) & OPERAND_R_RR_I_MASK) == OPERAND_R_RR_I_ID }
-address_operand_R_RR_I:: proc(operand: Operand_R_RR_I, Rn: ^i32, $pre_indexed: bool)-> (address: u32) {
-	address= u32(Rn^) + u32(rotate_right(cpu_register_by_index(operand.Rm)^, u8(operand.shift_immediate)))
-	when pre_indexed { Rn^= address }
-	return address }
-Operand_R_RR_R:: bit_field i16 { // NOTE Register Operand, Rotate Right by Register //
-	Rm: i8 | 4,
-	id: i8 | 4,
-	Rs: i8 | 4 }
-OPERAND_R_RR_R_ID::   0b0000_01110000
-OPERAND_R_RR_R_MASK:: 0b0000_11110000
-idcheck_operand_R_RR_R:: proc(operand: Operand_R_RR_R)-> bool {
-	return (i16(operand) & OPERAND_R_RR_R_MASK) == OPERAND_R_RR_R_ID }
-address_operand_R_RR_R:: proc(operand: Operand_R_RR_R, Rn: ^i32, $pre_indexed: bool)-> (address: u32) {
-	address= u32(Rn^) + u32(rotate_right(cpu_register_by_index(operand.Rm)^, (cpu_register_by_index(operand.Rs)^)))
-	when pre_indexed { Rn^= address }
-	return address }
-Operand_R_RRX:: bit_field i16 { // NOTE Register Operand, Rotate Right with Extend //
-	Rm: i8 | 4,
-	id: i8 | 8 }
-OPERAND_R_RRX_ID::   0b0000_01100000
-OPERAND_R_RRX_MASK:: 0b1111_11110000
-idcheck_operand_R_RRX:: proc(operand: Operand_R_RRX)-> bool {
-	return (i16(operand) & OPERAND_R_RRX_MASK) == OPERAND_R_RRX_ID }
+// PROGRAM COUNTER //
+// NOTE These depend on how I emulate and syncronize instruction pipelining. //
+// gba_address_of_current_instruction:: proc() -> u32 {
+// 	return gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
+// }
+// gba_address_of_next_instruction:: proc() -> u32 {
+// }
+
+
+// INSTRUCTIONS //
+gba_execute_ADC:: proc(ins: GBA_ADC_Instruction_Decoded) {
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	ins.destination^ = transmute(u32)(ins.operand + ins.shifter_operand + i32(cpsr.carry))
+	if ins.set_condition_codes && ins.destination == gba_core.logical_registers.array[GBA_Logical_Register_Name.PC] {
+		gba_pop_psr() }
+	else if ins.set_condition_codes {
+		cpsr.negative = bool(bits.bitfield_extract(ins.destination^, 31, 1))
+		cpsr.zero = (ins.destination^ == 0)
+		cpsr.carry = gba_carry_from_add(ins.operand, ins.shifter_operand, u32(cpsr.carry))
+		cpsr.overflow = gba_overflow_from_add(ins.operand, ins.shifter_operand, u32(cpsr.carry)) } }
+gba_execute_ADD:: proc(ins: GBA_ADD_Instruction_Decoded) {
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	ins.destination^ = transmute(u32)(ins.operand + ins.shifter_operand)
+	if ins.set_condition_codes && ins.destination == gba_core.logical_registers.array[GBA_Logical_Register_Name.PC] {
+		gba_pop_psr() }
+	else if ins.set_condition_codes {
+		cpsr.negative = bool(bits.bitfield_extract(ins.destination^, 31, 1))
+		cpsr.zero = (ins.destination^ == 0)
+		cpsr.carry = gba_carry_from_add(ins.operand, ins.shifter_operand)
+		cpsr.overflow = gba_overflow_from_add(ins.operand, ins.shifter_operand) } }
+gba_execute_AND:: proc(ins: GBA_AND_Instruction_Decoded) {
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	ins.destination^ = ins.operand & ins.shifter_operand
+	if ins.set_condition_codes && ins.destination == gba_core.logical_registers.array[GBA_Logical_Register_Name.PC] {
+		gba_pop_psr() }
+	else if ins.set_condition_codes {
+		cpsr.negative = bool(bits.bitfield_extract(ins.destination^, 31, 1))
+		cpsr.zero = (ins.destination^ == 0)
+		cpsr.carry = ins.shifter_carry_out } }
+gba_execute_B:: proc(ins: GBA_B_Instruction_Decoded) {
+	if ! gba_condition_passed(ins.cond) do return
+	gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^ = ins.target_address }
+gba_execute_BL:: proc(ins: GBA_BL_Instruction_Decoded) {
+	if ! gba_condition_passed(ins.cond) do return
+	gba_core.logical_registers.array[GBA_Logical_Register_Name.LR]^ = ins.instruction_address + 4
+	gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^ = ins.target_address }
+gba_execute_BIC:: proc(ins: GBA_BIC_Instruction_Decoded) {
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	ins.destination^ = ins.operand & (~ ins.shifter_operand)
+	if ins.set_condition_codes && ins.destination == gba_core.logical_registers.array[GBA_Logical_Register_Name.PC] {
+		gba_pop_psr() }
+	else if ins.set_condition_codes {
+		cpsr.negative = bool(bits.bitfield_extract(ins.destination^, 31, 1))
+		cpsr.zero = (ins.destination^ == 0)
+		cpsr.carry = ins.shifter_carry_out } }
+gba_execute_BX:: proc(ins: GBA_BX_Instruction_Decoded) {
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^ = ins.target_address
+	cpsr.thumb_state = true }
+gba_execute_CMN:: proc(ins: GBA_CMN_Instruction_Decoded) {
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	alu_out: i32 = ins.operand + ins.shifter_operand
+	cpsr.negative = bool(bits.bitfield_extract(alu_out, 31, 1))
+	cpsr.zero = (alu_out == 0)
+	cpsr.carry = gba_carry_from_add(ins.operand, ins.shifter_operand)
+	cpsr.overflow = gba_overflow_from_add(ins.operand, ins.shifter_operand) }
+gba_execute_CMP:: proc(ins: GBA_CMP_Instruction_Decoded) {
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	alu_out: i32 = ins.operand - ins.shifter_operand
+	cpsr.negative = bool(bits.bitfield_extract(alu_out, 31, 1))
+	cpsr.zero = (alu_out == 0)
+	cpsr.carry = gba_borrow_from(ins.operand, ins.shifter_operand)
+	cpsr.overflow = gba_overflow_from_sub(ins.operand, ins.shifter_operand) }
+gba_execute_EOR:: proc(ins: GBA_EOR_Instruction_Decoded) {
+	if ! gba_condition_passed(ins.cond) do return
+	cpsr: = gba_get_cpsr()
+	ins.destination^ = ins.operand ~ ins.shifter_operand
+	if ins.set_condition_codes && ins.destination == gba_core.logical_registers.array[GBA_Logical_Register_Name.PC] {
+		gba_pop_psr() }
+	else if ins.set_condition_codes {
+		cpsr.negative = bool(bits.bitfield_extract(ins.destination^, 31, 1))
+		cpsr.zero = (ins.destination^ == 0)
+		cpsr.carry = ins.shifter_carry_out } }
+gba_execute_LDM:: proc(ins: GBA_LDM_Instruction_Decoded) {
+
+}
+gba_execute_LDR:: proc(ins: GBA_LDR_Instruction_Decoded) {
+
+}
+gba_execute_LDRB:: proc(ins: GBA_LDRB_Instruction_Decoded) {
+
+}
+gba_execute_LDRBT:: proc(ins: GBA_LDRBT_Instruction_Decoded) {
+
+}
+gba_execute_LDRH:: proc(ins: GBA_LDRH_Instruction_Decoded) {
+
+}
+gba_execute_LDRSB:: proc(ins: GBA_LDRSB_Instruction_Decoded) {
+
+}
+gba_execute_LDRSH:: proc(ins: GBA_LDRSH_Instruction_Decoded) {
+
+}
+gba_execute_LDRT:: proc(ins: GBA_LDRT_Instruction_Decoded) {
+
+}
+gba_execute_MLA:: proc(ins: GBA_MLA_Instruction_Decoded) {
+
+}
+gba_execute_MOV:: proc(ins: GBA_MOV_Instruction_Decoded) {
+
+}
+gba_execute_MRS:: proc(ins: GBA_MRS_Instruction_Decoded) {
+
+}
+gba_execute_MSR:: proc(ins: GBA_MSR_Instruction_Decoded) {
+
+}
+gba_execute_MUL:: proc(ins: GBA_MUL_Instruction_Decoded) {
+
+}
+gba_execute_MVN:: proc(ins: GBA_MVN_Instruction_Decoded) {
+
+}
+gba_execute_ORR:: proc(ins: GBA_ORR_Instruction_Decoded) {
+
+}
+gba_execute_RSB:: proc(ins: GBA_RSB_Instruction_Decoded) {
+
+}
+gba_execute_RSC:: proc(ins: GBA_RSC_Instruction_Decoded) {
+
+}
+gba_execute_SBC:: proc(ins: GBA_SBC_Instruction_Decoded) {
+
+}
+gba_execute_SMLAL:: proc(ins: GBA_SMLAL_Instruction_Decoded) {
+
+}
+gba_execute_SMULL:: proc(ins: GBA_SMULL_Instruction_Decoded) {
+
+}
+gba_execute_STM:: proc(ins: GBA_STM_Instruction_Decoded) {
+
+}
+gba_execute_STR:: proc(ins: GBA_STR_Instruction_Decoded) {
+
+}
+gba_execute_STRB:: proc(ins: GBA_STRB_Instruction_Decoded) {
+
+}
+gba_execute_STRBT:: proc(ins: GBA_STRBT_Instruction_Decoded) {
+
+}
+gba_execute_STRH:: proc(ins: GBA_STRH_Instruction_Decoded) {
+
+}
+gba_execute_STRT:: proc(ins: GBA_STRT_Instruction_Decoded) {
+
+}
+gba_execute_SUB:: proc(ins: GBA_SUB_Instruction_Decoded) {
+
+}
+gba_execute_SWI:: proc(ins: GBA_SWI_Instruction_Decoded) {
+
+}
+gba_execute_SWP:: proc(ins: GBA_SWP_Instruction_Decoded) {
+
+}
+gba_execute_SWPB:: proc(ins: GBA_SWPB_Instruction_Decoded) {
+
+}
+gba_execute_TEQ:: proc(ins: GBA_TEQ_Instruction_Decoded) {
+
+}
+gba_execute_TST:: proc(ins: GBA_TST_Instruction_Decoded) {
+
+}
+gba_execute_UMLAL:: proc(ins: GBA_UMLAL_Instruction_Decoded) {
+
+}
+gba_execute_UMULL:: proc(ins: GBA_UMULL_Instruction_Decoded) {
+
+}

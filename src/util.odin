@@ -78,3 +78,7 @@ sign_extend_u32:: proc "contextless"(x: u32, k: uint) -> u32 {
 	sign_bit: = x & (0b1 << (k - 1)) >> (k - 1)
 	if sign_bit == 0 do return x
 	else do return transmute(u32)(transmute(i32)(u32(0b1) << (W - 1)) >> ((W - 1) - k)) }
+sign_bit:: proc { sign_bit_i8, sign_bit_i16, sign_bit_i32 }
+sign_bit_i8:: proc(x: i8) -> u8 { return u8((x & 0b1 << 7) >> 7) }
+sign_bit_i16:: proc(x: i16) -> u8 { return u8((x & 0b1 << 15) >> 15) }
+sign_bit_i32:: proc(x: i32) -> u8 { return u8((x & 0b1 << 31) >> 31) }

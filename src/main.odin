@@ -26,14 +26,16 @@ main:: proc() {
 	init_gba_core()
 	init_gpu()
 	init_display()
-	insert_cartridge("C:\\Games\\GBA Roms\\chessmaster.gba")
-	ins: = cast(GBA_Instruction)memory_read_u32(0)
-	fmt.printfln("%b", ins)
+	// insert_cartridge("C:\\Games\\GBA Roms\\chessmaster.gba")
+	// ins: = cast(GBA_Instruction)memory_read_u32(0)
+	ins: = cast(GBA_Instruction)memory.data[0]
+	// fmt.printfln("%b", ins)
 	ins_ident, ok: = gba_identify_instruction(ins)
 	assert(ok)
-	fmt.println(ins_ident)
-	ins_dec, defined: = gba_decode_instruction(ins_ident)
-	assert(defined)
-	fmt.println(ins_dec)
-	for (glfw.WindowShouldClose(window) == false) {
-		draw_display() } }
+	fmt.println("identified instruction |", ins_ident)
+	// ins_dec, defined: = gba_decode_instruction(ins_ident)
+	// assert(defined)
+	// // fmt.println(ins_dec)
+	// for (glfw.WindowShouldClose(window) == false) {
+	// 	draw_display() }
+}
