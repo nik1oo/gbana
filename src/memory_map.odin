@@ -7,6 +7,40 @@ import "core:mem"
 import "core:slice"
 
 
+// ENDIANNESS //
+// endian.Byte_Order
+Endian_Word:: union { Little_Endian_Word, Big_Endian_Word }
+Little_Endian_Word:: struct #raw_union {
+	using words: struct { word_0: u32 },
+	using halfwords: struct { halfword_0: u16, halfword_1: u16 },
+	using bytes: struct { byte_0: u8, byte_1: u8, byte_2: u8, byte_3: u8 } }
+Big_Endian_Word:: struct #raw_union {
+	using words: struct { word_0: u32 },
+	using halfwords: struct { halfword_1: u16, halfword_0: u16 },
+	using bytes: struct { byte_3: u8, byte_2: u8, byte_1: u8, byte_0: u8 } }
+endian_word_get_word_0:: proc(word: $T) -> u32 {
+	#assert((T == Little_Endian_Word) || (T == Big_Endian_Word))
+	return word.word_0 }
+endian_word_get_halfword_0:: proc(word: $T) -> u16 {
+	#assert((T == Little_Endian_Word) || (T == Big_Endian_Word))
+	return word.halfword_0 }
+endian_word_get_halfword_1:: proc(word: $T) -> u16 {
+	#assert((T == Little_Endian_Word) || (T == Big_Endian_Word))
+	return word.halfword_1 }
+endian_word_get_byte_0:: proc(word: $T) -> u8 {
+	#assert((T == Little_Endian_Word) || (T == Big_Endian_Word))
+	return word.byte_0 }
+endian_word_get_byte_1:: proc(word: $T) -> u8 {
+	#assert((T == Little_Endian_Word) || (T == Big_Endian_Word))
+	return word.byte_1 }
+endian_word_get_byte_2:: proc(word: $T) -> u8 {
+	#assert((T == Little_Endian_Word) || (T == Big_Endian_Word))
+	return word.byte_2 }
+endian_word_get_byte_3:: proc(word: $T) -> u8 {
+	#assert((T == Little_Endian_Word) || (T == Big_Endian_Word))
+	return word.byte_3 }
+
+
 // NOTE Save data is Flash, not SRAM.
 // NOTE Data format is always little-endian.
 

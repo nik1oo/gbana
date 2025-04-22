@@ -4,6 +4,9 @@ import "core:math/rand"
 import "core:math/bits"
 
 
+// NOTE I have implemented the entire ISA. //
+
+
 // register file -- an array of processor registers
 // load-store architecture -- instructions only operate on registers
 

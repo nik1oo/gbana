@@ -1,6 +1,11 @@
 package gbana
 
 
+// SIGNAL //
+Signal:: enum u8 { LOW, HIGH }
+
+
+// BUS //
 Bus_Data:: struct($WIDTH: int) {
 	data:              [WIDTH]u8,
 	latency: int }
@@ -8,8 +13,6 @@ Bus:: struct($WIDTH: int) {
 	data_output: [WIDTH]u8,
 	data_queue:  queue.Queue(Bus_Data(WIDTH)),
 	latency:      int }
-
-
 bus_init:: proc(bus: ^Bus($WIDTH), latency: int = 1) {
 	bus.data_output = {}
 	bus.latency = latency }

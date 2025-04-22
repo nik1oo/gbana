@@ -3,6 +3,7 @@ package gbana
 import "core:container/queue"
 import "core:math/bits"
 import "core:math/rand"
+import "core:encoding/endian"
 
 
 ALU:: struct {
@@ -11,14 +12,80 @@ ALU:: struct {
 
 
 // INTERFACES //
+// Reference: Figure 1-4 ARM7TDMI processor functional diagram //
+// NOTE: A prefix of `n` before a signal means logical negation, eg nM is the negation of M. //
+GBA_Core_Interface:: struct {
+	using gba_clocks_and_timing_interface: GBA_Clocks_And_Timing_Interface,
+	using gba_interrupts_interface:        GBA_Interrupts_Interface,
+	using gba_bus_controls_interface:      GBA_Bus_Controls_Interface,
+	using gba_processor_mode_interface:    GBA_Processor_Mode_Interface,
+	using gba_processor_state_interface:   GBA_Processor_State_Interface,
+	using gba_memory_interface:            GBA_Memory_Interface }
 GBA_Clocks_And_Timing_Interface:: struct {
-	MCLK:  GBA_Clock,
-	nWAIT: GBA_Clock,
-	ECLK:  GBA_Clock }
+	using _: struct #raw_union { MCLK:    bool,               main_clock:                     bool               },
+	using _: struct #raw_union { WAIT:    bool,               wait:                           bool               },
+	using _: struct #raw_union { ECLK:    bool,               external_clock:                 bool               } }
 GBA_Interrupts_Interface:: struct {
-	nIRQ:  byte,
-	nFIQ:  byte,
-	ISYNC: byte }
+	using _: struct #raw_union { IRQ:     bool,               interrupt_request:              bool               },
+	using _: struct #raw_union { FIQ:     bool,               fast_interrupt_request:         bool               },
+	using _: struct #raw_union { ISYNC:   bool,               synchronous_interrupts_enabled: bool               } }
+GBA_Bus_Controls_Interface:: struct {
+	using _: struct #raw_union { RESET:   bool,               reset:                          bool               },
+	using _: struct #raw_union { BUSEN:   bool,               bus_enable:                     bool               },
+	using _: struct #raw_union { BIGEND:  bool,               big_endian:                     bool               },
+	using _: struct #raw_union { ENIN:    bool,               input_enabled:                  bool               },
+	using _: struct #raw_union { ENOUT:   bool,               output_enabled:                 bool               },
+	using _: struct #raw_union { ABE:     bool,               address_bus_enabled:            bool               },
+	using _: struct #raw_union { ALE:     bool,               address_latch_enable:           bool               },
+	using _: struct #raw_union { APE:     bool,               address_pipeline_enabled:       bool               },
+	using _: struct #raw_union { OPC:     bool,               op_code_fetch:                  bool               },
+	using _: struct #raw_union { DBE:     bool,               data_bus_enabled:               bool               },
+	using _: struct #raw_union { TBE:     bool,               test_bus_enable:                bool               },
+	using _: struct #raw_union { BUSDIS:  bool,               bus_disabled:                   bool               },
+	using _: struct #raw_union { ECAPCLK: bool,               external_test_capture_clock:    bool               } }
+GBA_Processor_Mode_Interface:: struct {
+	using _: struct #raw_union { M:       GBA_Processor_Mode, processor_mode:                 GBA_Processor_Mode } }
+GBA_Processor_State_Interface:: struct {
+	using _: struct #raw_union { TBIT:    bool,               executing_thumb:                bool               } }
+GBA_Memory_Interface:: struct {
+	using _: struct #raw_union { A:       u32,                addresses:                      u32                },
+	using _: struct #raw_union { DOUT:    u32,                data_output_bus:                u32                },
+	using _: struct #raw_union { D:       u32,                data_bus:                       u32                },
+	using _: struct #raw_union { DIN:     u32,                data_input_bus:                 u32                },
+	using _: struct #raw_union { MREQ:    bool,               memory_request:                 bool               },
+	using _: struct #raw_union { SEQ:     bool,               sequential_address:             bool               },
+	using _: struct #raw_union { RW:      bool,               read_write:                     bool               },
+	using _: struct #raw_union { MAS:     uint,               memory_access_size:             uint               },
+	using _: struct #raw_union { BL:      u8,                 byte_latch_control:             u8                 },
+	using _: struct #raw_union { LOCK:    bool,               locked_operation:               bool               } }
+
+
+// SIGNALS //
+HIGH:: true
+LOW::  false
+gba_watch_signals:: proc() {
+	if gba_core_states[CURRENT_STATE].RESET != gba_core_states[PREVIOUS_STATE].RESET do gba_signal_callback_reset() }
+gba_signal_callback_reset:: proc() {
+	switch gba_core_states[CURRENT_STATE].RESET {
+	case HIGH:
+		for i in uint(GBA_Physical_Register_Name.R0) ..< uint(GBA_Physical_Register_Name.CPSR) do gba_core.physical_registers.array[i] = rand.uint32()
+		// TODO More information is provided in Reset sequence after power up on page 3-33. //
+	case LOW:
+		gba_core.physical_registers.array[GBA_Physical_Register_Name.R14_SVC] = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
+		gba_core.physical_registers.array[GBA_Physical_Register_Name.SPSR_SVC] = gba_core.logical_registers.array[GBA_Logical_Register_Name.CPSR]^
+		gba_core.processor_mode = GBA_Processor_Mode.Supervisor
+		cpsr: = gba_get_cpsr()
+		cpsr.irq_interrupt_disable = true
+		cpsr.fiq_interrupt_disable = true
+		cpsr.thumb_state = false
+		gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^ = 0b0 } }
+gba_data_bus_configuration:: proc() {
+	/* TODO */ }
+// NOTE Ignore the bounary-scan circuit stuff and the TAP controller. Those are for hardware circuit testing. //
+// DICK
+
+
+// TODO 3-1 Memory Interface
 
 
 // CLOCK //
@@ -42,30 +109,14 @@ GBA_Core:: struct {
 	mode: GBA_Processor_Mode,
 	logical_registers: GBA_Logical_Registers,
 	physical_registers: GBA_Physical_Registers,
-	using clocks_and_timing: ^GBA_Clocks_And_Timing_Interface,
-	using interrupts: struct {
-		nIRQ:  byte,
-		nFIQ:  byte,
-		ISYNC: byte },
-	using bus_controls: struct {
-		nRESET:  byte,
-		BUSEN:   byte,
-		HIGHZ:   byte,
-		BIGEND:  byte,
-		nENIN:   byte,
-		nENOUT:  byte,
-		nENOUTI: byte,
-		ABE:     byte,
-		ALE:     byte,
-		APE:     byte,
-		DBE:     byte,
-		TBE:     byte,
-		BUSDIS:  byte,
-		ECAPCLK: byte }
-}
+	using interface: GBA_Core_Interface }
 gba_core: ^GBA_Core
+CURRENT_STATE:: 0
+PREVIOUS_STATE:: 1
+gba_core_states: [2]^GBA_Core
 init_gba_core:: proc() {
-	gba_core= new(GBA_Core) }
+	gba_core_states[CURRENT_STATE], gba_core_states[PREVIOUS_STATE] = new(GBA_Core), new(GBA_Core)
+	gba_core = gba_core_states[CURRENT_STATE] }
 Hardware_Interrupt:: enum {
 	V_BLANK,
 	H_BLANK,
@@ -466,3 +517,5 @@ gba_execute_UMULL:: proc(ins: GBA_UMULL_Instruction_Decoded) {
 		cpsr.zero = ((ins.destinations[0]^ == 0) && (ins.destinations[1]^ == 0))
 		cpsr.carry = bool(rand.int_max(2))
 		cpsr.overflow = bool(rand.int_max(2)) } }
+
+
