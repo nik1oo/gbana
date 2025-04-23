@@ -38,4 +38,6 @@ main:: proc() {
 	// // fmt.println(ins_dec)
 	// for (glfw.WindowShouldClose(window) == false) {
 	// 	draw_display() }
-}
+	for i in 0 ..< 100 {
+		tick_gba_core_interface()
+		fmt.println(gba_core.MCLK.output ? " |" : "| ") } }

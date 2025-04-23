@@ -1,5 +1,6 @@
 #+feature dynamic-literals
 package gbana
+import "core:fmt"
 import "core:container/queue"
 import "core:math/bits"
 import "core:math/rand"
@@ -59,8 +60,101 @@ GBA_Memory_Interface:: struct {
 	using _: struct #raw_union { BL:      Bus(u8),                 byte_latch_control:             Bus(u8)                 },
 	using _: struct #raw_union { LOCK:    Line,                    locked_operation:               Line                    } }
 init_gba_core_interface:: proc() {
-	// DICK
-}
+	line_init(&gba_core.MCLK,    2, gba_MCLK_callback); line_put(&gba_core.MCLK, true)
+	line_init(&gba_core.WAIT,    1, gba_WAIT_callback)
+	line_init(&gba_core.ECLK,    1, gba_ECLK_callback)
+	line_init(&gba_core.IRQ,     1, gba_IRQ_callback)
+	line_init(&gba_core.FIQ,     1, gba_FIQ_callback)
+	line_init(&gba_core.ISYNC,   1, gba_ISYNC_callback)
+	line_init(&gba_core.RESET,   1, gba_RESET_callback)
+	line_init(&gba_core.BUSEN,   1, gba_BUSEN_callback)
+	line_init(&gba_core.BIGEND,  1, gba_BIGEND_callback)
+	line_init(&gba_core.ENIN,    1, gba_ENIN_callback)
+	line_init(&gba_core.ENOUT,   1, gba_ENOUT_callback)
+	line_init(&gba_core.ABE,     1, gba_ABE_callback)
+	line_init(&gba_core.ALE,     1, gba_ALE_callback)
+	line_init(&gba_core.APE,     1, gba_APE_callback)
+	line_init(&gba_core.OPC,     1, gba_OPC_callback)
+	line_init(&gba_core.DBE,     1, gba_DBE_callback)
+	line_init(&gba_core.TBE,     1, gba_TBE_callback)
+	line_init(&gba_core.BUSDIS,  1, gba_BUSDIS_callback)
+	line_init(&gba_core.ECAPCLK, 1, gba_ECAPCLK_callback)
+	bus_init(&gba_core.M,        1, gba_M_callback)
+	line_init(&gba_core.TBIT,    1, gba_TBIT_callback)
+	bus_init(&gba_core.A,        1, gba_A_callback)
+	bus_init(&gba_core.DOUT,     1, gba_DOUT_callback)
+	bus_init(&gba_core.D,        1, gba_D_callback)
+	bus_init(&gba_core.DIN,      1, gba_DIN_callback)
+	bus_init(&gba_core.MREQ,     1, gba_MREQ_callback)
+	bus_init(&gba_core.SEQ,      1, gba_SEQ_callback)
+	bus_init(&gba_core.RW,       1, gba_RW_callback)
+	bus_init(&gba_core.MAS,      1, gba_MAS_callback)
+	bus_init(&gba_core.BL,       1, gba_BL_callback)
+	bus_init(&gba_core.LOCK,     1, gba_LOCK_callback) }
+gba_MCLK_callback::    proc(self: ^Line, new_output: bool) {
+	line_put(self, ! new_output) }
+gba_WAIT_callback::    proc(self: ^Line, new_output: bool) { }
+gba_ECLK_callback::    proc(self: ^Line, new_output: bool) { }
+gba_IRQ_callback::     proc(self: ^Line, new_output: bool) { }
+gba_FIQ_callback::     proc(self: ^Line, new_output: bool) { }
+gba_ISYNC_callback::   proc(self: ^Line, new_output: bool) { }
+gba_RESET_callback::   proc(self: ^Line, new_output: bool) { }
+gba_BUSEN_callback::   proc(self: ^Line, new_output: bool) { }
+gba_BIGEND_callback::  proc(self: ^Line, new_output: bool) { }
+gba_ENIN_callback::    proc(self: ^Line, new_output: bool) { }
+gba_ENOUT_callback::   proc(self: ^Line, new_output: bool) { }
+gba_ABE_callback::     proc(self: ^Line, new_output: bool) { }
+gba_ALE_callback::     proc(self: ^Line, new_output: bool) { }
+gba_APE_callback::     proc(self: ^Line, new_output: bool) { }
+gba_OPC_callback::     proc(self: ^Line, new_output: bool) { }
+gba_DBE_callback::     proc(self: ^Line, new_output: bool) { }
+gba_TBE_callback::     proc(self: ^Line, new_output: bool) { }
+gba_BUSDIS_callback::  proc(self: ^Line, new_output: bool) { }
+gba_ECAPCLK_callback:: proc(self: ^Line, new_output: bool) { }
+gba_M_callback::       proc(self: ^Bus(GBA_Processor_Mode), new_output: GBA_Processor_Mode) {  }
+gba_TBIT_callback::    proc(self: ^Line, new_output: bool) { }
+gba_A_callback::       proc(self: ^Bus(u32), new_output: u32) {  }
+gba_DOUT_callback::    proc(self: ^Bus(u32), new_output: u32) {  }
+gba_D_callback::       proc(self: ^Bus(u32), new_output: u32) {  }
+gba_DIN_callback::     proc(self: ^Bus(u32), new_output: u32) {  }
+gba_MREQ_callback::    proc(self: ^Line, new_output: bool) { }
+gba_SEQ_callback::     proc(self: ^Line, new_output: bool) { }
+gba_RW_callback::      proc(self: ^Line, new_output: bool) { }
+gba_MAS_callback::     proc(self: ^Bus(uint), new_output: uint) {  }
+gba_BL_callback::      proc(self: ^Bus(u8), new_output: u8) {  }
+gba_LOCK_callback::    proc(self: ^Line, new_output: bool) { }
+tick_gba_core_interface:: proc() {
+	line_tick(&gba_core.MCLK)
+	line_tick(&gba_core.WAIT)
+	line_tick(&gba_core.ECLK)
+	line_tick(&gba_core.IRQ)
+	line_tick(&gba_core.FIQ)
+	line_tick(&gba_core.ISYNC)
+	line_tick(&gba_core.RESET)
+	line_tick(&gba_core.BUSEN)
+	line_tick(&gba_core.BIGEND)
+	line_tick(&gba_core.ENIN)
+	line_tick(&gba_core.ENOUT)
+	line_tick(&gba_core.ABE)
+	line_tick(&gba_core.ALE)
+	line_tick(&gba_core.APE)
+	line_tick(&gba_core.OPC)
+	line_tick(&gba_core.DBE)
+	line_tick(&gba_core.TBE)
+	line_tick(&gba_core.BUSDIS)
+	line_tick(&gba_core.ECAPCLK)
+	bus_tick(&gba_core.M)
+	line_tick(&gba_core.TBIT)
+	bus_tick(&gba_core.A)
+	bus_tick(&gba_core.DOUT)
+	bus_tick(&gba_core.D)
+	bus_tick(&gba_core.DIN)
+	bus_tick(&gba_core.MREQ)
+	bus_tick(&gba_core.SEQ)
+	bus_tick(&gba_core.RW)
+	bus_tick(&gba_core.MAS)
+	bus_tick(&gba_core.BL)
+	bus_tick(&gba_core.LOCK) }
 
 
 // SIGNALS //
@@ -117,7 +211,8 @@ PREVIOUS_STATE:: 1
 gba_core_states: [2]^GBA_Core
 init_gba_core:: proc() {
 	gba_core_states[CURRENT_STATE], gba_core_states[PREVIOUS_STATE] = new(GBA_Core), new(GBA_Core)
-	gba_core = gba_core_states[CURRENT_STATE] }
+	gba_core = gba_core_states[CURRENT_STATE]
+	init_gba_core_interface() }
 Hardware_Interrupt:: enum {
 	V_BLANK,
 	H_BLANK,
