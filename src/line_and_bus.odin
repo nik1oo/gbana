@@ -24,8 +24,11 @@ bus_init:: proc(bus: ^Bus($T), latency: int = 1, callback: proc(self: ^Bus(T), n
 	bus.output = {}
 	bus.latency = latency
 	bus.callback = callback }
-bus_put:: proc(bus: ^Bus($T), data: T) {
-	queue.push_front(&bus._queue, Bus_Data(T) { data = data, latency = bus.latency - 1 }) }
+bus_put:: proc(bus: ^Bus($T), data: T, latency_override: int = -1) {
+	queue.push_front(&bus._queue, Bus_Data(T) { data = data, latency = (latency_override == -1) ? (bus.latency - 1) : latency_override }) }
+bus_force:: proc(bus: ^Bus($T), data: T) {
+	bus.output = data
+	bus.queue = {} }
 bus_tick:: proc(bus: ^Bus($T)) {
 	for queue.len(bus._queue) > 0 {
 		bus_data: = queue.back(&bus._queue)

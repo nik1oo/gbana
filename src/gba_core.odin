@@ -92,6 +92,7 @@ init_gba_core_interface:: proc() {
 	bus_init(&gba_core.BL,       1, gba_BL_callback)
 	bus_init(&gba_core.LOCK,     1, gba_LOCK_callback) }
 gba_MCLK_callback::    proc(self: ^Line, new_output: bool) {
+	line_put(&gba_core.ECLK, new_output)
 	line_put(self, ! new_output) }
 gba_WAIT_callback::    proc(self: ^Line, new_output: bool) { }
 gba_ECLK_callback::    proc(self: ^Line, new_output: bool) { }
@@ -117,7 +118,9 @@ gba_A_callback::       proc(self: ^Bus(u32), new_output: u32) {  }
 gba_DOUT_callback::    proc(self: ^Bus(u32), new_output: u32) {  }
 gba_D_callback::       proc(self: ^Bus(u32), new_output: u32) {  }
 gba_DIN_callback::     proc(self: ^Bus(u32), new_output: u32) {  }
-gba_MREQ_callback::    proc(self: ^Line, new_output: bool) { }
+gba_MREQ_callback::    proc(self: ^Line, new_output: bool) {
+	
+}
 gba_SEQ_callback::     proc(self: ^Line, new_output: bool) { }
 gba_RW_callback::      proc(self: ^Line, new_output: bool) { }
 gba_MAS_callback::     proc(self: ^Bus(uint), new_output: uint) {  }
