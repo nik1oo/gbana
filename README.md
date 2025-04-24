@@ -2,14 +2,12 @@
 
 GBA emulator.
 
-<!-- # Installation -->
-
-<!-- Download exe from [Releases](https://github.com/nik1oo/gbana/releases/latest). -->
-
 # Usage
 
 1. Run emulator.
+
 2. Drag and drop GBA BIOS.
+
 3. Drag and drop game.
 
 # Compiling from source
@@ -23,8 +21,13 @@ make
 # Roadmap
 
 - [x] Identify the first instruction in the BIOS.
+
 - [ ] Execute the BIOS.
+
 - [ ] Render the boot animation.
+
 - [ ] Play the boot animation sound.
+
 - [ ] Render at least one frame from a game cartridge.
+
 - [ ] Play a game without crashing.
