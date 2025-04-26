@@ -1,52 +1,4 @@
-# SIGNALS
-
-Clocking and clock control signals —
-
-- `MCLK` — The main clock. Has two phases: a low phase and a high phase. Procedures can be constrained to any combination of these four: (1) the _start_ of the low phase, (2) the _interior_ of the low phase, (3) the _start_ of the high phase, and (4) the _interior_ of the high phase.
-
-- `WAIT` — This signal is used to insert wait cycles. Different memory regions have different access latency, which determines how many wait cycles need to be inserted.
-
-- `ECLK` — `MCLK` exported from the core, for debugging. Has a small latency. Irrelevant for the emulator.
-
-- `RESET` — Used to start the processor. Must be held _high_ for at least 2 cycles, with `WAIT` set to _low_.
-
-Address signals —
-
-- `A` — The 32-bit address bus. The CPU writes an address to this but, for memory access requests.
-
-- `RW` — This signal is used to distinguish between memory read and memory write. Set to _high_ for read requests, set to _low_ for write requests.
-
-- `MAS` — Memory access size.
-
-- `OPC` —  This signal is used to distinguish between next-instruction-fetch and data-read/data-write. Set to _high_ for instruction fetch request, set to _low_ for data read/write requests.
-
-- `TRANS` — This signal is used to enable address translation in the memory management system. Irrelevant for the emulator.
-
-- `LOCK` — Locks the memory, giving exclusive access to it to the CPU. This is effectively a mutex.
-
-- `TBIT` — Set to _high_ for Thumb mode, set to _low_ for ARM mode.
-
-Memory request signals —
-
-- `MREQ` — Set to _high_ to indicate that the next cycle will be used to execute a memory request.
-
-- `SEQ` — Set to _high_ to indicate that the address of the next memory request will be in the same word that was accessed in the previous memory access or the word immediately after it. Sequential reads require fewer memory cycles.
-
-Data signals —
-
-- `D` — The bidirectional tri-state data bus of the GBA.
-
-- `DIN` — Unidirectional input data bus. Irrelevant for the emulator.
-
-- `DOUT` — Unidirectional output data bus. Irrelevant for the emulator.
-
-- `ABORT` — The memory sets this to _high_ to tell the CPU that the memory access request cannot be fulfilled.
-
-- `BL` — Byte latch control. A 4-bit bus where each bit corresponds to one of the bytes in a word. Used to indicate which part of the requested word is to be read/written.
-
 # TIMINGS
-
-The timings are derived from the original timing diagrams from the `ARM DDI 0210C`, but they have been adjusted such that all transitions occur at tick boundaries, ie at the transitions of `MCLK`. Each cycle corresponds to 2 ticks of the emulator.
 
 There are 3 reasons a line / bus might change:
 
@@ -64,85 +16,11 @@ These are indicated in the timing diagrams in the following ways, respsectively:
 
 3. The region within the cycle where the transition is expected to be effected is shaded in. If the procedure that effected the transition depends on some preceding transition of another signal, an arrow is drawn from that transition to the shaded region.
 
-An time interval is a half-open interval, composed of two parts: a _start_ and an _interior_. Read/write rules of the tick immediately after an interval are independent of the type of said interval and instead depend on the type of the succeeding interval. Every component has a `tick_phase_one` procedure and a `tick_phase_two` procedure.
-
-Types of intervals in a timing diagram (source: ARM DDI 0210C xviii):
-
-- _Open Unshaded_ - The line/bus is expected to remain stable throughout this interval.
-
-  - _Writing_ occurs at the _start_ and is prohibited in the _interior_.
-
-  - _Reading_ is allowed at the _start_ (by signals succeding it in the tick order) and in the _interior_.
-
-- _Open Shaded_ - The line/bus is expected to change at an arbitrary time during this interval.
-
-  - _Writing_ is prohibited at the _start_ and allowed in the _interior_.
-
-  - Reading is allowed at the _start_ and prohibited in the _interior_.
-
-- _Closed_ - The line/bus is disabled.
-
-  - _Writing_ is prohibited at the _start_ and prohibited in the _interior_.
-
-  - _Reading_ is prohibited at the _start_ and in the _interior_. 
-
-## Simple Memory Cycle
-
-![simple-memory-cycle-timings](img/simple-memory-cycle-timings.png)
-
-The memory request control signals (`MREQ` and `SEQ`) are set during the _interior_ of phase 1 of cycle 1 and must remain stable until-and-including the _start_ of phase 1 of cycle 2. The address must be put on the address bus (`A`) during the _interior_ of phase 2 of cycle 1 and must remain stable until-and-including the _start_ of phase 2 of cycle 2. The data is put on the data bus (`D`) during phase 2 of cycle 2 and must remain stable until-and-including the _start_ of phase 1 of cycle 3.
-
-Source: ARM DDI 0210C 3-4
-
- 
-
-## Nonsequential Memory Cycle
-
-![nonsequential-memory-cycle-timings](img/nonsequential-memory-cycle-timings.png)
-
-Interior logic implemented by: `Bus_Controller`
-
- 
-
-A memory request is initiated during phase 1 of cycle 1 by setting `MREQ` to _high_. In phase 2 of cycle 1 the address is put on the address bus. During phase 2 of cycle 2 the memory will put the data on the data bus. At the start of cycle 3 the data will be read from the data bus. The memory might extend phase 1 (literally delaying the rise) of cycle 2 to give itself enough time to fulfill the request, by using the `WAIT` signal. The type of the cycle is determined at the _start_ of phase 1.
-
-- `MCLK` — The main clock, with an optionally extended phase 1.
-
-- `A` — The address bus. Readable at the _start_ of phase 1 and 2 and during the _interior_ of phase 1.
-
-- `MREQ` — The memory request signal. Set during phase 1 of the preceding cycle. Stable all throughout the memory cycle and at the _start_ of the next cycle.
-
-- `SEQ — The sequential access signal. Set during phase 1 of the preceding cycle. Stable at the _start_ of the memory cycle.
-
-- `RAS`, `CAS` — DRAM signals. Irrelevant for the emulator.
-
-- `D` — The data bus. Readable at the _start_ of the cycle after the memory cycle.
-
-Source: ARM DDI 0210C 3-6
-
-## Sequential Memory Cycle 
-
-![sequential-memory-cycle-timings](img/sequential-memory-cycle-timings.png)
-
-Interior logic implemented by: `Bus_Controller`
-
-Sequential transfer mode is for burst transfer, which is faster. Can access words of halfwords (but not bytes) sequentially, incrementing the address by 4 or 2, respectively. Must be preceded by a nonsequential cycle. `MREQ` remains _high_. `A` is incremented by 2 or 4 during the _interior_ of phase 2 of each cycle. The data is put on the data bus during phase 2 of each cycle and it is read at the _start_ of the next cycle. Only Thumb instructions perform halfword requests.
-
-Source: ARM DDI 0210C 3-7
-
-## Internal Cycle
-
-![internal-cycle-timings](img/internal-cycle-timings.png)
-
-Interior logic implemented by: `Bus_Controller`
-
-Internal cycles don't involve any memory requests, but only transfers among registers.
-
 ## General Timings
 
 ![general-timings-original](img/general-timings-original.png)
 
-The delay to `ECLK` is removed, but this is irrelevant. Signals `MREQ`, `SEQ`, `EXEC`, and `INSTRVALID` are expected to change at some point during phase 1, thus they must be stable at the _start_ of both phases and must be mutable in the _interior_ of phase 1. Signals `A`, RW`, `MAS`, `LOCK`, `M`, `TRANS`, `TBIT`, and `OPC` are expected to change at some point during phase 2, thus they must be stable at the _start_ of both phases and must be mutable in the _interior_ of phase 2. There are no dependencies here, only stability/mutability constraints for different parts of the cycle.
+The delay to `ECLK` is removed, but this is irrelevant. Signals `MREQ`, `SEQ`, `EXEC`, and `INSTRVALID` are expected to change at some point during phase 1, thus they must be stable at the _start_ of both phases and must be mutable in the _interior_ of phase 1. Signals `A`, `RW`, `MAS`, `LOCK`, `M`, `TRANS`, `TBIT`, and `OPC` are expected to change at some point during phase 2, thus they must be stable at the _start_ of both phases and must be mutable in the _interior_ of phase 2. There are no dependencies here, only stability/mutability constraints for different parts of the cycle.
 
 ![general-timings](img/general-timings.png)
 
@@ -180,7 +58,7 @@ The lines `MREQ`, `SEQ`, `EXEC`, and `INSTRVALID` are allowed to be updated d
 
 ![abe-address-control-timings](img/abe-address-control-timings.png)
 
-`ABE` is allowed to go low at the _start_ of phase 1 (_or in the interior of phase 2 of the previous cycle, maybe_). This must enable `A`, `RW`, `LOCK`, `OPC`, `TRANS`, and `MAS`. If `ABE` is _low_ at the _start_ of phase 2, it must go _high_. This must disable 
+`ABE` is allowed to go low at the _start_ of phase 1 (_or in the interior of phase 2 of the previous cycle, maybe_). This must enable `A`, `RW`, `LOCK`, `OPC`, `TRANS`, and `MAS`. If `ABE` is _low_ at the _start_ of phase 2, it must go _high_. This must disable
 
 - `MCLK` - The main clock.
 

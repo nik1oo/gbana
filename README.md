@@ -21,13 +21,10 @@ make
 # Roadmap
 
 - [x] Identify the first instruction in the BIOS.
-
+- [ ] Emulate reset sequence.
+- [ ] Emulate timing logic.
 - [ ] Execute the BIOS.
-
 - [ ] Render the boot animation.
-
 - [ ] Play the boot animation sound.
-
 - [ ] Render at least one frame from a game cartridge.
-
 - [ ] Play a game without crashing.

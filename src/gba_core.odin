@@ -17,43 +17,43 @@ ALU:: struct {
 // NOTE: A prefix of `n` before a signal means logical negation, eg nM is the negation of M. //
 GBA_Core_Interface:: struct {
 	// Clocks And Timing //
-	using _: struct #raw_union { MCLK:    Line,                    main_clock:                     Line                    },
-	using _: struct #raw_union { WAIT:    Line,                    wait:                           Line                    },
+	main_clock:                     Line,                    // MCLK
+	wait:                           Line,                    // WAIT
 	// Interrupts //
-	using _: struct #raw_union { IRQ:     Line,                    interrupt_request:              Line                    },
-	using _: struct #raw_union { FIQ:     Line,                    fast_interrupt_request:         Line                    },
-	using _: struct #raw_union { ISYNC:   Line,                    synchronous_interrupts_enable:  Line                    },
+	interrupt_request:              Line,                    // IRQ
+	fast_interrupt_request:         Line,                    // FIQ
+	synchronous_interrupts_enable:  Line,                    // ISYNC
 	// Bus Controls //
-	using _: struct #raw_union { RESET:   Line,                    reset:                          Line                    },
-	using _: struct #raw_union { BUSEN:   Line,                    bus_enable:                     Line                    },
-	using _: struct #raw_union { BIGEND:  Line,                    big_endian:                     Line                    },
-	using _: struct #raw_union { ENIN:    Line,                    input_enable:                   Line                    },
-	using _: struct #raw_union { ENOUT:   Line,                    output_enable:                  Line                    },
-	using _: struct #raw_union { ABE:     Line,                    address_bus_enable:             Line                    },
-	using _: struct #raw_union { ALE:     Line,                    address_latch_enable:           Line                    },
-	using _: struct #raw_union { APE:     Line,                    address_pipeline_enable:        Line                    },
-	using _: struct #raw_union { OPC:     Line,                    op_code_fetch:                  Line                    },
-	using _: struct #raw_union { DBE:     Line,                    data_bus_enable:                Line                    },
-	using _: struct #raw_union { TBE:     Line,                    test_bus_enable:                Line                    },
-	using _: struct #raw_union { BUSDIS:  Line,                    bus_disable:                    Line                    },
-	using _: struct #raw_union { ECAPCLK: Line,                    external_test_capture_clock:    Line                    },
+	reset:                          Line,                    // RESET
+	bus_enable:                     Line,                    // BUSEN
+	big_endian:                     Line,                    // BIGEND
+	input_enable:                   Line,                    // ENIN
+	output_enable:                  Line,                    // ENOUT
+	address_bus_enable:             Line,                    // ABE
+	address_latch_enable:           Line,                    // ALE
+	address_pipeline_enable:        Line,                    // APE
+	op_code_fetch:                  Line,                    // OPC
+	data_bus_enable:                Line,                    // DBE
+	test_bus_enable:                Line,                    // TBE
+	bus_disable:                    Line,                    // BUSDIS
+	external_test_capture_clock:    Line,                    // ECAPCLK
 	// Processor Mode //
-	using _: struct #raw_union { M:       Bus(GBA_Processor_Mode), processor_mode:                 Bus(GBA_Processor_Mode) },
+	processor_mode:                 Bus(GBA_Processor_Mode), // M
 	// Processor State //
-	using _: struct #raw_union { TBIT:    Line,                    executing_thumb:                Line                    },
+	executing_thumb:                Line,                    // TBIT
 	// Memory //
-	using _: struct #raw_union { A:       Bus(u32),                addresses:                      Bus(u32)                },
-	using _: struct #raw_union { DOUT:    Bus(u32),                data_output_bus:                Bus(u32)                },
-	using _: struct #raw_union { D:       Bus(u32),                data_bus:                       Bus(u32)                },
-	using _: struct #raw_union { DIN:     Bus(u32),                data_input_bus:                 Bus(u32)                },
-	using _: struct #raw_union { MREQ:    Line,                    memory_request:                 Line                    },
-	using _: struct #raw_union { SEQ:     Line,                    sequential_address:             Line                    },
-	using _: struct #raw_union { RW:      Line,                    read_write:                     Line                    },
-	using _: struct #raw_union { MAS:     Bus(uint),               memory_access_size:             Bus(uint)               },
-	using _: struct #raw_union { BL:      Bus(u8),                 byte_latch_control:             Bus(u8)                 },
-	using _: struct #raw_union { LOCK:    Line,                    locked_operation:               Line                    } }
+	addresses:                      Bus(u32),                // A
+	data_output_bus:                Bus(u32),                // DOUT
+	data_bus:                       Bus(u32),                // D
+	data_input_bus:                 Bus(u32),                // DIN
+	memory_request:                 Line,                    // MREQ
+	sequential_cycle:               Line,                    // SEQ
+	read_write:                     Line,                    // RW
+	memory_access_size:             Bus(uint),               // MAS
+	byte_latch_control:             Bus(u8),                 // BL
+	locked_operation:               Line }                   // LOCK
 init_gba_core_interface:: proc() {
-	line_init(&gba_core.MCLK,    2, gba_MCLK_callback); line_put(&gba_core.MCLK, true)
+	line_init(&gba_core.main_clock,    2, gba_main_clock_callback); line_put(&gba_core.main_clock, true)
 	line_init(&gba_core.WAIT,    1, gba_WAIT_callback)
 	line_init(&gba_core.IRQ,     1, gba_IRQ_callback)
 	line_init(&gba_core.FIQ,     1, gba_FIQ_callback)
@@ -78,13 +78,13 @@ init_gba_core_interface:: proc() {
 	bus_init(&gba_core.D,        1, gba_D_callback)
 	bus_init(&gba_core.DIN,      1, gba_DIN_callback)
 	bus_init(&gba_core.MREQ,     1, gba_MREQ_callback)
-	bus_init(&gba_core.SEQ,      1, gba_SEQ_callback)
+	bus_init(&gba_core.sequential_cycle,      1, gba_sequential_cycle_callback)
 	bus_init(&gba_core.RW,       1, gba_RW_callback)
 	bus_init(&gba_core.MAS,      1, gba_MAS_callback)
 	bus_init(&gba_core.BL,       1, gba_BL_callback)
 	bus_init(&gba_core.LOCK,     1, gba_LOCK_callback) }
 tick_gba_core_interface:: proc() {
-	line_tick(&gba_core.MCLK)
+	line_tick(&gba_core.main_clock)
 	line_tick(&gba_core.WAIT)
 	line_tick(&gba_core.IRQ)
 	line_tick(&gba_core.FIQ)
@@ -109,7 +109,7 @@ tick_gba_core_interface:: proc() {
 	bus_tick(&gba_core.D)
 	bus_tick(&gba_core.DIN)
 	bus_tick(&gba_core.MREQ)
-	bus_tick(&gba_core.SEQ)
+	bus_tick(&gba_core.sequential_cycle)
 	bus_tick(&gba_core.RW)
 	bus_tick(&gba_core.MAS)
 	bus_tick(&gba_core.BL)
@@ -142,118 +142,9 @@ gba_signal_callback_reset:: proc() {
 
 
 // TIMING //
-GBA_Clock:: byte
-UNDEFINED:: -1
-GBA_T_ABE::   0 // Address bus enable time
-GBA_T_ABTH::  UNDEFINED // ABORT hold time from MCLKf
-GBA_T_ABTS::  UNDEFINED // ABORT set up time to MCLKf
-GBA_T_ABZ::   0 // Address bus disable time
-GBA_T_ADDR::  1 // MCLKr to address valid
-GBA_T_AH::    0 // Address hold time from MCLKr
-GBA_T_ALD::   UNDEFINED // Address group latch time
-GBA_T_ALE::   UNDEFINED // Address group latch open output delay
-GBA_T_ALEH::  UNDEFINED // Address group latch output hold time
-GBA_T_APE::   UNDEFINED // MCLKf to address group valid
-GBA_T_APEH::  UNDEFINED // Address group output hold time from MCLKf
-GBA_T_APH::   UNDEFINED // APE hold time from MCLKf
-GBA_T_APS::   UNDEFINED // APE set up time to MCLKr
-GBA_T_BCEMS:: UNDEFINED // BREAKPT to nCPI, nEXEC, nMREQ, SEQ delay
-GBA_T_BLD::   1 // MCLKr to MAS[1:0] and LOCK
-GBA_T_BLH::   0 // MAS[1:0] and LOCK hold from MCLKr
-GBA_T_BRKH::  UNDEFINED // Hold time of BREAKPT from MCLKr
-GBA_T_BRKS::  UNDEFINED // Set up time of BREAKPT to MCLKr
-GBA_T_BSCH::  UNDEFINED // TCK high period
-GBA_T_BSCL::  UNDEFINED // TCK low period
-GBA_T_BSDD::  UNDEFINED // TCK to data output valid
-GBA_T_BSDH::  UNDEFINED // Data output hold time from TCK
-GBA_T_BSE::   UNDEFINED // Output enable time
-GBA_T_BSIH::  UNDEFINED // TDI, TMS hold from TCKr
-GBA_T_BSIS::  UNDEFINED // TDI, TMS setup to TCKr
-GBA_T_BSOD::  UNDEFINED // TCKf to TDO valid
-GBA_T_BSOH::  UNDEFINED // TDO hold time from TCKf
-GBA_T_BSR::   UNDEFINED // nTRST reset period
-GBA_T_BSSH::  UNDEFINED // I/O signal setup from TCKr
-GBA_T_BSSS::  UNDEFINED // I/O signal setup to TCKr,
-GBA_T_BSZ::   UNDEFINED // Output disable time
-GBA_T_BYLH::  0 // BL[3:0] hold time from MCLKf
-GBA_T_BYLS::  0 // BL[3:0] set up to from MCLKr
-GBA_T_CDEL::  0 // MCLK to ECLK delay
-GBA_T_CLKBS:: UNDEFINED // TCK to boundary scan clocks
-GBA_T_COMMD:: UNDEFINED // MCLKr to COMMRX, COMMTX valid
-GBA_T_CPH::   UNDEFINED // CPA,CPB hold time from MCLKr
-GBA_T_CPI::   UNDEFINED // MCLKf to nCPI valid
-GBA_T_CPIH::  UNDEFINED // nCPI hold time from MCLKf
-GBA_T_CPMS::  UNDEFINED // CPA, CPB to nMREQ, SEQ
-GBA_T_CPS::   UNDEFINED // CPA, CPB setup to MCLKr
-GBA_T_CTDEL:: UNDEFINED // TCK to ECLK delay
-GBA_T_CTH::   UNDEFINED // Config hold time
-GBA_T_CTS::   UNDEFINED // Config setup time
-GBA_T_DBE::   UNDEFINED // Data bus enable time from DBEr
-GBA_T_DBGD::  UNDEFINED // MCLKr to DBGACK valid
-GBA_T_DBGH::  UNDEFINED // DGBACK hold time from MCLKr
-GBA_T_DBGRQ:: UNDEFINED // DBGRQ to DBGRQI valid
-GBA_T_DBNEN:: 0 // DBE to nENOUT valid
-GBA_T_DBZ::   UNDEFINED // Data bus disable time from DBEf
-GBA_T_DCKF::  UNDEFINED // DCLK induced, TCKf to various outputs valid
-GBA_T_DCKFH:: UNDEFINED // DCLK induced, various outputs hold from TCKf
-GBA_T_DCKR::  UNDEFINED // DCLK induced, TCKr to various outputs valid
-GBA_T_DCKRH:: UNDEFINED // DCLK induced, various outputs hold from TCKr
-GBA_T_DIH::   0 // DIN[31:0] hold time from MCLKf
-GBA_T_DIHU::  UNDEFINED // DIN[31:0] hold time from MCLKf
-GBA_T_DIS::   1 // DIN[31:0] setup time to MCLKf
-GBA_T_DISU::  UNDEFINED // DIN[31:0] set up time to MCLKf
-GBA_T_DOH::   0 // DOUT[31:0] hold from MCLKf
-GBA_T_DOHU::  UNDEFINED // DOUT[31:0] hold time from MCLKf
-GBA_T_DOUT::  1 // MCLKf to D[31:0] valid
-GBA_T_DOUTU:: UNDEFINED // MCLKf to DOUT[31:0] valid
-GBA_T_ECAPD:: UNDEFINED // TCK to ECAPCLK changing
-GBA_T_EXD::   1 // MCLKf to nEXEC and INSTRVALID valid
-GBA_T_EXH::   0 // nEXEC and INSTRVALID hold time from MCLKf
-GBA_T_EXTH::  UNDEFINED // EXTERN[1:0] hold time from MCLKf
-GBA_T_EXTS::  UNDEFINED // EXTERN[1:0] set up time to MCLKf
-GBA_T_IM::    UNDEFINED // Asynchronous interrupt guaranteed nonrecognition time, with ISYNC=0
-GBA_T_IS::    UNDEFINED // Asynchronous interrupt set up time to MCLKf for guaranteed recognition, with ISYNC=0
-GBA_T_MCKH::  UNDEFINED // MCLK HIGH time
-GBA_T_MCKL::  UNDEFINED // MCLK LOW time
-GBA_T_MDD::   1 // MCLKr to nTRANS, nM[4:0], and TBIT valid
-GBA_T_MDH::   0 // nTRANS and nM[4:0] hold time from MCLKr
-GBA_T_MSD::   1 // MCLKf to nMREQ and SEQ valid
-GBA_T_MSH::   0 // nMREQ and SEQ hold time from MCLKf
-GBA_T_NEN::   0 // MCLKf to nENOUT valid
-GBA_T_NENH::  0 // nENOUT hold time from MCLKf
-GBA_T_OPCD::  1 // MCLKr to nOPC valid
-GBA_T_OPCH::  0 // nOPC hold time from MCLKr
-GBA_T_RG::    UNDEFINED // MCLKf to RANGEOUT0, RANGEOUT1 valid
-GBA_T_RGH::   UNDEFINED // RANGEOUT0, RANGEOUT1 hold time from MCLKf
-GBA_T_RM::    UNDEFINED // Reset guaranteed nonrecognition time
-GBA_T_RQH::   UNDEFINED // DBGRQ guaranteed non-recognition time
-GBA_T_RQS::   UNDEFINED // DBGRQ set up time to MCLKr for guaranteed recognition
-GBA_T_RS::    UNDEFINED // Reset setup time to MCLKr for guaranteed recognition
-GBA_T_RSTD::  UNDEFINED // nRESETf to D[31:0], DBGACK, nCPI, nENOUT, nEXEC, nMREQ, SEQ valid
-GBA_T_RSTL::  UNDEFINED // nRESET LOW for guaranteed reset
-GBA_T_RWD::   1 // MCLKr to nRW valid
-GBA_T_RWH::   0 // nRW hold time from MCLKr
-GBA_T_SDTD::  UNDEFINED // SDOUTBS to TDO valid
-GBA_T_SHBSF:: UNDEFINED // TCK to SHCLKBS, SHCLK2BS falling
-GBA_T_SHBSR:: UNDEFINED // TCK to SHCLKBS, SHCLK2BS rising
-GBA_T_SIH::   UNDEFINED // Synchronous nFIQ, nIRQ hold from MCLKf with ISYNC=1
-GBA_T_SIS::   UNDEFINED // Synchronous nFIQ, nIRQ setup to MCLKf, with ISYNC=1
-GBA_T_TBE::   UNDEFINED // Address and Data bus enable time from TBEr
-GBA_T_TBZ::   UNDEFINED // Address and Data bus disable time from TBEf
-GBA_T_TCKF::  UNDEFINED // TCK to TCK1, TCK2 falling
-GBA_T_TCKR::  UNDEFINED // TCK to TCK1, TCK2 rising
-GBA_T_TDBGD:: UNDEFINED // TCK to DBGACK, DBGRQI changing
-GBA_T_TPFD::  UNDEFINED // TCKf to TAP outputs
-GBA_T_TPFH::  UNDEFINED // TAP outputs hold time from TCKf
-GBA_T_TPRD::  UNDEFINED // TCKr to TAP outputs
-GBA_T_TPRH::  UNDEFINED // TAP outputs hold time from TCKr
-GBA_T_TRSTD:: UNDEFINED // nTRSTf to every output valid / nTRSTf to TAP outputs valid
-GBA_T_TRSTS:: UNDEFINED // nTRSTr setup to TCKr
-GBA_T_WH::    UNDEFINED // nWAIT hold from MCLKf
-GBA_T_WS::    UNDEFINED // nWAIT setup to MCLKr
 gba_insert_wait_cycle:: proc() {
-	line_delay(&gba_core.MCLK, 2) }
-gba_MCLK_callback::    proc(self: ^Line, new_output: bool) {
+	line_delay(&gba_core.main_clock, 2) }
+gba_main_clock_callback::    proc(self: ^Line, new_output: bool) {
 	line_put(self, ! new_output) }
 gba_WAIT_callback::    proc(self: ^Line, new_output: bool) { }
 gba_IRQ_callback::     proc(self: ^Line, new_output: bool) { }
@@ -281,7 +172,7 @@ gba_DIN_callback::     proc(self: ^Bus(u32), new_output: u32) {  }
 gba_MREQ_callback::    proc(self: ^Line, new_output: bool) {
 
 }
-gba_SEQ_callback::     proc(self: ^Line, new_output: bool) { }
+gba_sequential_cycle_callback::     proc(self: ^Line, new_output: bool) { }
 gba_RW_callback::      proc(self: ^Line, new_output: bool) { }
 gba_MAS_callback::     proc(self: ^Bus(uint), new_output: uint) {  }
 gba_BL_callback::      proc(self: ^Bus(u8), new_output: u8) {  }

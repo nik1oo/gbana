@@ -3,18 +3,17 @@ package gbana
 
 // CLOCK //
 Clock:: struct {
-	interface:
-}
+	using interface: Clock_Interface }
 clock: ^Clock
 init_clock:: proc() {
-	// Interface //
 	clock = new(Clock)
+	init_clock_interface() }
 
 
 // INTERFACE //
 Clock_Interface:: struct {
-	using _: struct #raw_union { MCLK:    ^Line,                    main_clock:                     ^Line                    },
-	using _: struct #raw_union { WAIT:    ^Line,                    wait:                           ^Line                    } }
+	main_clock:                     ^Line,                    // MCLK
+	wait:                           ^Line }                   // WAIT
 init_clock_interface:: proc() {
-	clock.MCLK = &gba_core.MCLK
-	clock.WAIT = &gba_core.WAIT }
+	clock.main_clock = &gba_core.main_clock
+	clock.wait = &gba_core.wait }

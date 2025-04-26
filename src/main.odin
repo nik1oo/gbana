@@ -17,18 +17,18 @@ WARN: string: "\e[0;33m[ warn ]\e[0m"
 // - serial communication registers (network)
 // - keypad input & control registers (input)
 // - interrupt registers (cpu)
+
+
+
+// Stages of the tick:
+// Transition - transition from the previous tick into the current tick.
+
+
 tick_index:       u64 = 0
 cycle_index:      u64 = 0
 cycle_tick_index: u64 = 0
 main:: proc() {
-	// k:    u32 = 1443029
-	// k_le: u32le = u32le(k)
-	// k_be: u32be = u32be(k)
-	// fmt.printfln("%X, %X, %X", k, transmute(u32)k_le, transmute(u32)k_be)
-	init_memory()
-	init_gba_core()
-	init_gpu()
-	init_display()
+	init_gba()
 	// insert_cartridge("C:\\Games\\GBA Roms\\chessmaster.gba")
 	// ins: = cast(GBA_Instruction)memory_read_u32(0)
 	ins: = cast(GBA_Instruction)memory.data[0]
@@ -43,6 +43,4 @@ main:: proc() {
 	// 	draw_display() }
 	// NOTE Each cycle is 2 ticks: A low-MCLK tick and a high-MCLK tick. //
 	for cycle_index = 0; cycle_index < 16; cycle_index += 1 do for cycle_tick_index = 0; cycle_tick_index < 2; cycle_tick_index += 1 {
-		fmt.println(tick_index, cycle_index, cycle_tick_index)
-		tick_gba_core_interface()
 		tick_index += 1 } }
