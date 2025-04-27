@@ -642,3 +642,8 @@ load_cartridge:: proc(filename: string)-> bool {
 	copy_slice(memory.cartridge_game_data_1_region[0:n], cartridge[0:n])
 	copy_slice(memory.cartridge_game_data_2_region[0:n], cartridge[0:n])
 	return true }
+
+
+// CYCLES //
+memory_initiate_n_cycle_response:: proc() {
+}

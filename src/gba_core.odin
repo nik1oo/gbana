@@ -15,121 +15,89 @@ ALU:: struct {
 // INTERFACE //
 // Reference: Figure 1-4 ARM7TDMI processor functional diagram //
 // NOTE: A prefix of `n` before a signal means logical negation, eg nM is the negation of M. //
+GBA_Read_Write:: enum u8 { WRITE, READ }
 GBA_Core_Interface:: struct {
 	// Clocks And Timing //
-	main_clock:                     Line,                    // MCLK
-	wait:                           Line,                    // WAIT
+	main_clock:                     Signal(bool),               // MCLK
+	wait:                           Signal(bool),               // WAIT
 	// Interrupts //
-	interrupt_request:              Line,                    // IRQ
-	fast_interrupt_request:         Line,                    // FIQ
-	synchronous_interrupts_enable:  Line,                    // ISYNC
+	interrupt_request:              Signal(bool),               // IRQ
+	fast_interrupt_request:         Signal(bool),               // FIQ
+	synchronous_interrupts_enable:  Signal(bool),               // ISYNC
 	// Bus Controls //
-	reset:                          Line,                    // RESET
-	bus_enable:                     Line,                    // BUSEN
-	big_endian:                     Line,                    // BIGEND
-	input_enable:                   Line,                    // ENIN
-	output_enable:                  Line,                    // ENOUT
-	address_bus_enable:             Line,                    // ABE
-	address_latch_enable:           Line,                    // ALE
-	address_pipeline_enable:        Line,                    // APE
-	op_code_fetch:                  Line,                    // OPC
-	data_bus_enable:                Line,                    // DBE
-	test_bus_enable:                Line,                    // TBE
-	bus_disable:                    Line,                    // BUSDIS
-	external_test_capture_clock:    Line,                    // ECAPCLK
+	reset:                          Signal(bool),               // RESET
+	bus_enable:                     Signal(bool),               // BUSEN
+	big_endian:                     Signal(bool),               // BIGEND
+	input_enable:                   Signal(bool),               // ENIN
+	output_enable:                  Signal(bool),               // ENOUT
+	address_bus_enable:             Signal(bool),               // ABE
+	address_latch_enable:           Signal(bool),               // ALE
+	op_code_fetch:                  Signal(bool),               // OPC
+	data_bus_enable:                Signal(bool),               // DBE
+	test_bus_enable:                Signal(bool),               // TBE
+	bus_disable:                    Signal(bool),               // BUSDIS
+	external_test_capture_clock:    Signal(bool),               // ECAPCLK
 	// Processor Mode //
-	processor_mode:                 Bus(GBA_Processor_Mode), // M
+	processor_mode:                 Signal(GBA_Processor_Mode), // M
 	// Processor State //
-	executing_thumb:                Line,                    // TBIT
+	executing_thumb:                Signal(bool),               // TBIT
 	// Memory //
-	addresses:                      Bus(u32),                // A
-	data_output_bus:                Bus(u32),                // DOUT
-	data_bus:                       Bus(u32),                // D
-	data_input_bus:                 Bus(u32),                // DIN
-	memory_request:                 Line,                    // MREQ
-	sequential_cycle:               Line,                    // SEQ
-	read_write:                     Line,                    // RW
-	memory_access_size:             Bus(uint),               // MAS
-	byte_latch_control:             Bus(u8),                 // BL
-	locked_operation:               Line }                   // LOCK
+	address:                        Signal(u32),                // A
+	data_out:                       Signal(u32),                // DOUT
+	data_bus:                       Signal(u32),                // D
+	data_in:                        Signal(u32),                // DIN
+	memory_request:                 Signal(bool),               // MREQ
+	sequential_cycle:               Signal(bool),               // SEQ
+	read_write:                     Signal(GBA_Read_Write),     // RW
+	memory_access_size:             Signal(uint),               // MAS
+	byte_latch_control:             Signal(u8),                 // BL
+	locked_operation:               Signal(bool),               // LOCK
+	execute_cycle:                  Signal(bool) }              // EXEC
 init_gba_core_interface:: proc() {
-	line_init(&gba_core.main_clock,    2, gba_main_clock_callback); line_put(&gba_core.main_clock, true)
-	line_init(&gba_core.WAIT,    1, gba_WAIT_callback)
-	line_init(&gba_core.IRQ,     1, gba_IRQ_callback)
-	line_init(&gba_core.FIQ,     1, gba_FIQ_callback)
-	line_init(&gba_core.ISYNC,   1, gba_ISYNC_callback)
-	line_init(&gba_core.RESET,   1, gba_RESET_callback)
-	line_init(&gba_core.BUSEN,   1, gba_BUSEN_callback)
-	line_init(&gba_core.BIGEND,  1, gba_BIGEND_callback)
-	line_init(&gba_core.ENIN,    1, gba_ENIN_callback)
-	line_init(&gba_core.ENOUT,   1, gba_ENOUT_callback)
-	line_init(&gba_core.ABE,     1, gba_ABE_callback)
-	line_init(&gba_core.ALE,     1, gba_ALE_callback)
-	line_init(&gba_core.APE,     1, gba_APE_callback)
-	line_init(&gba_core.OPC,     1, gba_OPC_callback)
-	line_init(&gba_core.DBE,     1, gba_DBE_callback)
-	line_init(&gba_core.TBE,     1, gba_TBE_callback)
-	line_init(&gba_core.BUSDIS,  1, gba_BUSDIS_callback)
-	line_init(&gba_core.ECAPCLK, 1, gba_ECAPCLK_callback)
-	bus_init(&gba_core.M,        1, gba_M_callback)
-	line_init(&gba_core.TBIT,    1, gba_TBIT_callback)
-	bus_init(&gba_core.A,        1, gba_A_callback)
-	bus_init(&gba_core.DOUT,     1, gba_DOUT_callback)
-	bus_init(&gba_core.D,        1, gba_D_callback)
-	bus_init(&gba_core.DIN,      1, gba_DIN_callback)
-	bus_init(&gba_core.MREQ,     1, gba_MREQ_callback)
-	bus_init(&gba_core.sequential_cycle,      1, gba_sequential_cycle_callback)
-	bus_init(&gba_core.RW,       1, gba_RW_callback)
-	bus_init(&gba_core.MAS,      1, gba_MAS_callback)
-	bus_init(&gba_core.BL,       1, gba_BL_callback)
-	bus_init(&gba_core.LOCK,     1, gba_LOCK_callback) }
-tick_gba_core_interface:: proc() {
-	line_tick(&gba_core.main_clock)
-	line_tick(&gba_core.WAIT)
-	line_tick(&gba_core.IRQ)
-	line_tick(&gba_core.FIQ)
-	line_tick(&gba_core.ISYNC)
-	line_tick(&gba_core.RESET)
-	line_tick(&gba_core.BUSEN)
-	line_tick(&gba_core.BIGEND)
-	line_tick(&gba_core.ENIN)
-	line_tick(&gba_core.ENOUT)
-	line_tick(&gba_core.ABE)
-	line_tick(&gba_core.ALE)
-	line_tick(&gba_core.APE)
-	line_tick(&gba_core.OPC)
-	line_tick(&gba_core.DBE)
-	line_tick(&gba_core.TBE)
-	line_tick(&gba_core.BUSDIS)
-	line_tick(&gba_core.ECAPCLK)
-	bus_tick(&gba_core.M)
-	line_tick(&gba_core.TBIT)
-	bus_tick(&gba_core.A)
-	bus_tick(&gba_core.DOUT)
-	bus_tick(&gba_core.D)
-	bus_tick(&gba_core.DIN)
-	bus_tick(&gba_core.MREQ)
-	bus_tick(&gba_core.sequential_cycle)
-	bus_tick(&gba_core.RW)
-	bus_tick(&gba_core.MAS)
-	bus_tick(&gba_core.BL)
-	bus_tick(&gba_core.LOCK) }
+	signal_init(&gba_core.main_clock,                    2, gba_main_clock_callback); signal_put(&gba_core.main_clock, true)
+	signal_init(&gba_core.wait,                          1, gba_wait_callback)
+	signal_init(&gba_core.interrupt_request,             1, gba_interrupt_request_callback)
+	signal_init(&gba_core.fast_interrupt_request,        1, gba_fast_interrupt_request_callback)
+	signal_init(&gba_core.synchronous_interrupts_enable, 1, gba_synchronous_interrupts_enable_callback)
+	signal_init(&gba_core.reset,                         1, gba_reset_callback)
+	signal_init(&gba_core.bus_enable,                    1, gba_bus_enable_callback)
+	signal_init(&gba_core.big_endian,                    1, gba_big_endian_callback)
+	signal_init(&gba_core.input_enable,                  1, gba_input_enable_callback)
+	signal_init(&gba_core.output_enable,                 1, gba_output_enable_callback)
+	signal_init(&gba_core.address_bus_enable,            1, gba_address_bus_enable_callback)
+	signal_init(&gba_core.address_latch_enable,          1, gba_address_latch_enable_callback)
+	signal_init(&gba_core.op_code_fetch,                 1, gba_op_code_fetch_callback)
+	signal_init(&gba_core.data_bus_enable,               1, gba_data_bus_enable_callback)
+	signal_init(&gba_core.test_bus_enable,               1, gba_test_bus_enable_callback)
+	signal_init(&gba_core.bus_disable,                   1, gba_bus_disable_callback)
+	signal_init(&gba_core.external_test_capture_clock,   1, gba_external_test_capture_clock_callback)
+	signal_init(&gba_core.processor_mode,                 1, gba_processor_mode_callback)
+	signal_init(&gba_core.executing_thumb,               1, gba_executing_thumb_callback)
+	signal_init(&gba_core.address,                        1, gba_address_callback)
+	signal_init(&gba_core.data_out,                1, gba_data_out_callback)
+	signal_init(&gba_core.data_bus,                       1, gba_data_bus_callback)
+	signal_init(&gba_core.data_in,                 1, gba_data_in_callback)
+	signal_init(&gba_core.memory_request,                 1, gba_memory_request_callback)
+	signal_init(&gba_core.sequential_cycle,               1, gba_sequential_cycle_callback)
+	signal_init(&gba_core.read_write,                     1, gba_read_write_callback)
+	signal_init(&gba_core.memory_access_size,             1, gba_memory_access_size_callback)
+	signal_init(&gba_core.byte_latch_control,             1, gba_byte_latch_control_callback)
+	signal_init(&gba_core.locked_operation,               1, gba_locked_operation_callback)
+	signal_init(&gba_core.execute_cycle,                 1, gba_execute_cycle_callback) }
 
 
 // SIGNALS //
-HIGH:: true
-LOW::  false
 gba_watch_signals:: proc() {
-	if gba_core_states[CURRENT_STATE].RESET.output != gba_core_states[PREVIOUS_STATE].RESET.output do gba_signal_callback_reset() }
+	if gba_core_states[CURRENT_STATE].reset.output != gba_core_states[PREVIOUS_STATE].reset.output do gba_signal_callback_reset() }
 gba_signal_callback_reset:: proc() {
-	switch gba_core_states[CURRENT_STATE].RESET.output {
+	switch gba_core_states[CURRENT_STATE].reset.output {
 	case HIGH:
 		for i in uint(GBA_Physical_Register_Name.R0) ..< uint(GBA_Physical_Register_Name.CPSR) do gba_core.physical_registers.array[i] = rand.uint32()
 		// TODO More information is provided in Reset sequence after power up on page 3-33. //
 	case LOW:
 		gba_core.physical_registers.array[GBA_Physical_Register_Name.R14_SVC] = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
 		gba_core.physical_registers.array[GBA_Physical_Register_Name.SPSR_SVC] = gba_core.logical_registers.array[GBA_Logical_Register_Name.CPSR]^
-		bus_put(&gba_core.processor_mode, GBA_Processor_Mode.Supervisor)
+		signal_put(&gba_core.processor_mode, GBA_Processor_Mode.Supervisor)
 		cpsr: = gba_get_cpsr()
 		cpsr.irq_interrupt_disable = true
 		cpsr.fiq_interrupt_disable = true
@@ -143,40 +111,53 @@ gba_signal_callback_reset:: proc() {
 
 // TIMING //
 gba_insert_wait_cycle:: proc() {
-	line_delay(&gba_core.main_clock, 2) }
-gba_main_clock_callback::    proc(self: ^Line, new_output: bool) {
-	line_put(self, ! new_output) }
-gba_WAIT_callback::    proc(self: ^Line, new_output: bool) { }
-gba_IRQ_callback::     proc(self: ^Line, new_output: bool) { }
-gba_FIQ_callback::     proc(self: ^Line, new_output: bool) { }
-gba_ISYNC_callback::   proc(self: ^Line, new_output: bool) { }
-gba_RESET_callback::   proc(self: ^Line, new_output: bool) { }
-gba_BUSEN_callback::   proc(self: ^Line, new_output: bool) { }
-gba_BIGEND_callback::  proc(self: ^Line, new_output: bool) { }
-gba_ENIN_callback::    proc(self: ^Line, new_output: bool) { }
-gba_ENOUT_callback::   proc(self: ^Line, new_output: bool) { }
-gba_ABE_callback::     proc(self: ^Line, new_output: bool) { }
-gba_ALE_callback::     proc(self: ^Line, new_output: bool) { }
-gba_APE_callback::     proc(self: ^Line, new_output: bool) { }
-gba_OPC_callback::     proc(self: ^Line, new_output: bool) { }
-gba_DBE_callback::     proc(self: ^Line, new_output: bool) { }
-gba_TBE_callback::     proc(self: ^Line, new_output: bool) { }
-gba_BUSDIS_callback::  proc(self: ^Line, new_output: bool) { }
-gba_ECAPCLK_callback:: proc(self: ^Line, new_output: bool) { }
-gba_M_callback::       proc(self: ^Bus(GBA_Processor_Mode), new_output: GBA_Processor_Mode) {  }
-gba_TBIT_callback::    proc(self: ^Line, new_output: bool) { }
-gba_A_callback::       proc(self: ^Bus(u32), new_output: u32) {  }
-gba_DOUT_callback::    proc(self: ^Bus(u32), new_output: u32) {  }
-gba_D_callback::       proc(self: ^Bus(u32), new_output: u32) {  }
-gba_DIN_callback::     proc(self: ^Bus(u32), new_output: u32) {  }
-gba_MREQ_callback::    proc(self: ^Line, new_output: bool) {
+	signal_delay(&gba_core.main_clock, 2) }
+gba_main_clock_callback:: proc(self: ^Signal(bool), new_output: bool) {
+	signal_put(self, ! new_output) }
+gba_wait_callback:: proc(self: ^Signal(bool), new_output: bool) { }
+gba_interrupt_request_callback:: proc(self: ^Signal(bool), new_output: bool) { }
+gba_fast_interrupt_request_callback:: proc(self: ^Signal(bool), new_output: bool) { }
+gba_synchronous_interrupts_enable_callback:: proc(self: ^Signal(bool), new_output: bool) { }
+gba_reset_callback:: proc(self: ^Signal(bool), new_output: bool) {
+	if new_output == false {
+		signal_put(&gba_core.memory_request, true, latency_override = 4)
+		signal_put(&gba_core.execute_cycle, true, latency_override = 4)
+		signal_put(&gba_core.sequential_cycle, true, latency_override = 6) } }
+gba_bus_enable_callback:: proc(self: ^Signal(bool), new_output: bool) { }
+gba_big_endian_callback:: proc(self: ^Signal(bool), new_output: bool) { }
+gba_input_enable_callback:: proc(self: ^Signal(bool), new_output: bool) { }
+gba_output_enable_callback:: proc(self: ^Signal(bool), new_output: bool) { }
+gba_address_bus_enable_callback:: proc(self: ^Signal(bool), new_output: bool) { }
+gba_address_latch_enable_callback:: proc(self: ^Signal(bool), new_output: bool) { }
+gba_op_code_fetch_callback:: proc(self: ^Signal(bool), new_output: bool) { }
+gba_data_bus_enable_callback:: proc(self: ^Signal(bool), new_output: bool) { }
+gba_test_bus_enable_callback:: proc(self: ^Signal(bool), new_output: bool) { }
+gba_bus_disable_callback:: proc(self: ^Signal(bool), new_output: bool) { }
+gba_external_test_capture_clock_callback:: proc(self: ^Signal(bool), new_output: bool) { }
+gba_processor_mode_callback:: proc(self: ^Signal(GBA_Processor_Mode), new_output: GBA_Processor_Mode) {  }
+gba_executing_thumb_callback:: proc(self: ^Signal(bool), new_output: bool) { }
+gba_address_callback:: proc(self: ^Signal(u32), new_output: u32) {  }
+gba_data_out_callback:: proc(self: ^Signal(u32), new_output: u32) {  }
+gba_data_bus_callback:: proc(self: ^Signal(u32), new_output: u32) {  }
+gba_data_in_callback:: proc(self: ^Signal(u32), new_output: u32) {  }
+gba_memory_request_callback:: proc(self: ^Signal(bool), new_output: bool) { }
+gba_sequential_cycle_callback:: proc(self: ^Signal(bool), new_output: bool) { }
+gba_read_write_callback:: proc(self: ^Signal(GBA_Read_Write), new_output: GBA_Read_Write) { }
+gba_memory_access_size_callback:: proc(self: ^Signal(uint), new_output: uint) {  }
+gba_byte_latch_control_callback:: proc(self: ^Signal(u8), new_output: u8) {  }
+gba_locked_operation_callback:: proc(self: ^Signal(bool), new_output: bool) { }
+gba_execute_cycle_callback:: proc(self: ^Signal(bool), new_output: bool) { }
 
-}
-gba_sequential_cycle_callback::     proc(self: ^Line, new_output: bool) { }
-gba_RW_callback::      proc(self: ^Line, new_output: bool) { }
-gba_MAS_callback::     proc(self: ^Bus(uint), new_output: uint) {  }
-gba_BL_callback::      proc(self: ^Bus(u8), new_output: u8) {  }
-gba_LOCK_callback::    proc(self: ^Line, new_output: bool) { }
+
+// CYCLES //
+GBA_Cycle_Type:: enum {
+	MEMORY,
+	INTERNAL }
+gba_initiate_n_cycle_request:: proc(address: u32) {
+	assert(phase_index == 0, "cycles may only be initiated in phase 1")
+	signal_put(&gba_core.memory_request, HIGH)
+	signal_put(&gba_core.sequential_cycle, LOW)
+	signal_put(&gba_core.sequential_cycle, address, latency_override = 2) }
 
 
 // DECODER & CONTROL //

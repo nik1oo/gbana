@@ -19,28 +19,46 @@ WARN: string: "\e[0;33m[ warn ]\e[0m"
 // - interrupt registers (cpu)
 
 
-
 // Stages of the tick:
 // Transition - transition from the previous tick into the current tick.
 
 
-tick_index:       u64 = 0
-cycle_index:      u64 = 0
-cycle_tick_index: u64 = 0
+first_tick: bool
+tick_index:  uint
+cycle_index: uint
+phase_index: uint
+init:: proc() {
+	first_tick = true
+	tick_index = 0
+	cycle_index = 0
+	phase_index = 0
+	signals: [dynamic]Any_Signal = make([dynamic]Any_Signal)
+	init_gba_core()
+	device_reset() }
+tick:: proc(n: uint = 0, times: int = 1) -> bool {
+	defer {
+		if times > 1 do tick(times = times - 1) }
+	if first_tick {
+		first_tick = false
+		return true }
+	if phase_index == 1 {
+		cycle_index += 1
+		phase_index = 0 }
+	else do phase_index += 1
+	tick_index += 1
+	signals_tick()
+	if cycle_index == n do return false
+	return true }
 main:: proc() {
-	init_gba()
-	// insert_cartridge("C:\\Games\\GBA Roms\\chessmaster.gba")
-	// ins: = cast(GBA_Instruction)memory_read_u32(0)
-	ins: = cast(GBA_Instruction)memory.data[0]
-	// fmt.printfln("%b", ins)
-	ins_ident, ok: = gba_identify_instruction(ins)
-	assert(ok)
-	fmt.println("identified instruction |", ins_ident)
-	// ins_dec, defined: = gba_decode_instruction(ins_ident)
-	// assert(defined)
-	// // fmt.println(ins_dec)
-	// for (glfw.WindowShouldClose(window) == false) {
-	// 	draw_display() }
-	// NOTE Each cycle is 2 ticks: A low-MCLK tick and a high-MCLK tick. //
-	for cycle_index = 0; cycle_index < 16; cycle_index += 1 do for cycle_tick_index = 0; cycle_tick_index < 2; cycle_tick_index += 1 {
-		tick_index += 1 } }
+	init()
+	for tick() {
+		fmt.print("CYCLE ", cycle_index, " | PHASE ", phase_index, " | ", sep="")
+		fmt.print("MCLK ", gba_core.main_clock.output ? 1 : 0, " | ", sep="")
+		fmt.print("RESET ", gba_core.reset.output ? 1 : 0, " | ", sep="")
+		fmt.print("A ", gba_core.address.output, " | ", sep="")
+		fmt.print("D ", gba_core.data_in.output, " | ", sep="")
+		fmt.print("MREQ ", gba_core.memory_request.output ? 1 : 0, " | ", sep="")
+		fmt.print("SEQ ", gba_core.sequential_cycle.output ? 1 : 0, " | ", sep="")
+		fmt.print("EXEC ", gba_core.execute_cycle.output ? 1 : 0, " | ", sep="")
+		fmt.println()
+		if cycle_index == 8 do return } }

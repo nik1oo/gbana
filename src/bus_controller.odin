@@ -14,14 +14,14 @@ Burst_Transfer_Type:: enum {
 	HALFWORD = 2 } // Increment address by 2. //
 gba_set_bus_cycle_type:: proc(type: Bus_Cycle_Type) {
 	switch type {
-	case .NON_SEQUENTIAL_TRANSFER: line_force(&gba_core.memory_request, true);  line_force(&gba_core.SEQ, false)
-	case .SEQUENTIAL_TRANSFER:     line_force(&gba_core.memory_request, true);  line_force(&gba_core.SEQ, true)
-	case .INTERNAL:                line_force(&gba_core.memory_request, false); line_force(&gba_core.SEQ, false) } }
+	case .NON_SEQUENTIAL_TRANSFER: signal_force(&gba_core.memory_request, true);  signal_force(&gba_core.sequential_cycle, false)
+	case .SEQUENTIAL_TRANSFER:     signal_force(&gba_core.memory_request, true);  signal_force(&gba_core.sequential_cycle, true)
+	case .INTERNAL:                signal_force(&gba_core.memory_request, false); signal_force(&gba_core.sequential_cycle, false) } }
 get_get_bus_cycle_type:: proc() -> Bus_Cycle_Type {
 	switch {
-	case (gba_core.memory_request.output == true)  && (gba_core.SEQ.output == false): return .NON_SEQUENTIAL_TRANSFER
-	case (gba_core.memory_request.output == true)  && (gba_core.SEQ.output == true):  return .SEQUENTIAL_TRANSFER
-	case (gba_core.memory_request.output == false) && (gba_core.SEQ.output == false): return .INTERNAL }
+	case (gba_core.memory_request.output == true)  && (gba_core.sequential_cycle.output == false): return .NON_SEQUENTIAL_TRANSFER
+	case (gba_core.memory_request.output == true)  && (gba_core.sequential_cycle.output == true):  return .SEQUENTIAL_TRANSFER
+	case (gba_core.memory_request.output == false) && (gba_core.sequential_cycle.output == false): return .INTERNAL }
 	return auto_cast 0 }
 
 
@@ -34,7 +34,7 @@ tick_bus_controller_phase_1:: proc() {
 	bus_controller.bus_cycle_type = get_get_bus_cycle_type()
 	switch bus_controller.bus_cycle_type {
 	case .NON_SEQUENTIAL_TRANSFER:
-		address: = gba_core.A.output
+		address: = gba_core.address.output
 	case .SEQUENTIAL_TRANSFER:
 	case .INTERNAL:
 	} }

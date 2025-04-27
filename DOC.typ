@@ -10,6 +10,7 @@
 	table-index: (enabled: true),
 	listing-index: (enabled: true))
 #import "@preview/circuiteria:0.2.0": circuit, element, util, wire
+#show raw: set text(size: 11pt)
 #show raw.where(lang: "wavy"): it => wavy.render(it.text)
 
 = Preface
@@ -75,13 +76,17 @@ Each file represents a class. The _singleton classes_ correspond to the componen
 
 = Emulating the Clock & Cycle
 
+*Related procedures:*
+/ `test_main_clock`: Test procedure.
+
 GBANA is phase-accurate. Every phase of every cycle is simulated (one tick simulates one phase). Synchronization of events within the phase need not match the real GBA, but at the end of each phase, the correct phase must be produced.
 
 #align(center,wavy.render(width: 50%, "{
   signal:
   [
-    {name:'MCLK',wave:'n...'},
-  ]
+    {name:'MCLK',wave:'lhlh'},
+  ],
+  head:{ tick:0, every:1 }
 }"))
 
 Main clock frequency: 16 MHz, ie approximately 16E6 cycles per second, or 62.5 ns per cycle. This is plenty time to emulate a single cycle on a modern computer. Each cycle has a low phase and a high phase. Each phase is one emulator tick. Each tick has two parts: a _start_ part, where all the signals are updated and their callback functions are called, and an _interior_ part, where the components execute their logic based on their internal state and the updated signals.
@@ -109,7 +114,6 @@ Signal classes:
 	`ABE`,     [Bus\ Controls], [*Bus Controller*], [],
 	`ABORT`,   [Memory\ Management\ Interface], [], [The memory sets this to _high_ to tell the CPU that the memory access request cannot be fulfilled.],
 	`ALE`,     [Bus\ Controls], [*Bus Controller*], [],
-	`APE`,     [Bus\ Controls], [*Bus Controller*], [],
 	`BIGEND`,  [Bus\ Controls], [], [],
 	`BL`,      [Memory\ Interface], [*Memory*], [Byte latch control. A 4-bit bus where each bit corresponds to one of the bytes in a word. Used to indicate which part of the requested word is to be read/written.],
 	`BUSDIS`,  [Bus\ Controls], [], [],
@@ -153,11 +157,20 @@ Types of intervals in a timing diagram#footnote[ARM DDI 0029G xix]:
 
 In request/response contexts, request data is in displayed in blue, and respone data is displayed in pink.
 
+Types of cycles:
+- (unidirectional) data read cycle
+- (unidirectional) data write cycle
+- internal cycle
 \
 
 == Simple Memory Cycle #footnote[ARM DDI 0029G 3-4]
 
-This is what a general memory cycle looks like:
+*Related variables:*
+- `memory.memory_request`: This is `MREQ`.
+- `memory.sequential_cycle`: This is `SEQ`.
+- `memory.address`: This is `A`.
+- `gba_core.data_in`: This is `DIN`.
+- `memory.data_out`: This is `DOUT`.
 
 #align(center, wavy.render(width: 80%, "{
   signal:
@@ -165,7 +178,7 @@ This is what a general memory cycle looks like:
     {name:'MCLK',wave:'lhlhlhlh'},
     {name:'MREQ/SEQ',wave:'x.5.x...', phase: -0.35},
     {name:'A',wave:'x..5.x..', phase: -0.35},
-    {name:'D',wave:'x....8x.', phase: -0.35},
+    {name:'DIN',wave:'x....8x.', phase: -0.35},
     {node:'A.B.C.D.E', phase: 0.15},
   ],
   edge: [
@@ -173,7 +186,26 @@ This is what a general memory cycle looks like:
 	'B+C (1)',
 	'C+D (2)',
 	'D+E (3)'
-  ]
+  ],
+  head:{ tick:0, every:1 }
+}"))
+
+#align(center, wavy.render(width: 80%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlhlhlh'},
+    {name:'MREQ/SEQ',wave:'x.5.x...', phase: -0.35},
+    {name:'A',wave:'x..5.x..', phase: -0.35},
+    {name:'DOUT',wave:'x...8.x.', phase: -0.35},
+    {node:'A.B.C.D.E', phase: 0.15},
+  ],
+  edge: [
+	'A+B (0)',
+	'B+C (1)',
+	'C+D (2)',
+	'D+E (3)'
+  ],
+  head:{ tick:0, every:1 }
 }"))
 
 Cycle (0) is the _pre-cycle_, cycle (1) is the _request cycle_, cycle (2) is the _response cycle_, and cycle (3) is the _post-cycle_. The term _memory cycle_ refers to cycle (2).
@@ -190,7 +222,16 @@ Cycle (0) is the _pre-cycle_, cycle (1) is the _request cycle_, cycle (2) is the
 
 == N-Cycle #footnote[ARM DDI 0029G 3-5]
 
-This is what a Nonsequential Memory Cycle (N-cycle) looks like:
+*Related variables:*
+- `memory.memory_request`: This is `MREQ`.
+- `memory.sequential_cycle`: This is `SEQ`.
+- `memory.address`: This is `A`.
+- `gba_core.data_in`: This is `DIN`.
+
+*Related procedures:*
+- `gba_initiate_n_cycle_request`: The *GBA Core* may call during phase 1 to initiate the request cycle.
+- `memory_initiate_n_cycle_response`: The *Memory* must call this 2 ticks after to initiate the response cycle.
+- `test_n_cycle`: Test procedure.
 
 #align(center, wavy.render(width: 80%, "{
   signal:
@@ -199,7 +240,7 @@ This is what a Nonsequential Memory Cycle (N-cycle) looks like:
     {name:'A',wave:'x..5.x..', phase: -0.35},
     {name:'MREQ',wave:'x.1.0.x.', phase: -0.35},
     {name:'SEQ',wave:'x.0.1.x.', phase: -0.35},
-    {name:'D',wave:'x.z..5zx', phase: -0.35},
+    {name:'DIN',wave:'x.z..8zx', phase: -0.35},
     {node:'A.B.C.D.E', phase: 0.15},
   ],
   edge: [
@@ -207,7 +248,8 @@ This is what a Nonsequential Memory Cycle (N-cycle) looks like:
 	'B+C (1)',
 	'C+D (2)',
 	'D+E (3)'
-  ]
+  ],
+  head:{ tick:0, every:1 }
 }"))
 
 Cycle (0) is the _pre-cycle_, cycle (1) is the _request cycle_, cycle (2) is the _response cycle_, and cycle (3) is the _post-cycle_. The term _nonsequential memory cycle_ refers to cycle (2).
@@ -221,6 +263,17 @@ Cycle (0) is the _pre-cycle_, cycle (1) is the _request cycle_, cycle (2) is the
 
 == S-Cycle #footnote[ARM DDI 0029G 3-6]
 
+*Related variables:*
+- `memory.memory_request`: This is `MREQ`.
+- `memory.sequential_cycle`: This is `SEQ`.
+- `memory.address`: This is `A`.
+- `gba_core.data_in`: This is `DIN`.
+
+*Related procedures:*
+- `gba_initiate_s_cycle_request`: The *GBA Core* may call during phase 1 to initiate the request cycle.
+- `memory_initiate_s_cycle_response`: The *Memory* must call this 2 ticks after to initiate the response cycle.
+- `test_s_cycle`: Test procedure.
+
 This is what a Sequential Memory Cycle (S-cycle) looks like:
 
 #align(center, wavy.render(width: 90%, "{
@@ -230,7 +283,7 @@ This is what a Sequential Memory Cycle (S-cycle) looks like:
     {name:'A',wave:'x..5.5.5.x', phase: -0.35},
     {name:'MREQ',wave:'x.1.......', phase: -0.35},
     {name:'SEQ',wave:'x.0.1.....', phase: -0.35},
-    {name:'D',wave:'x.z..5z5z5', phase: -0.35},
+    {name:'DIN',wave:'x.z..8z8z8', phase: -0.35},
     {node:'A.B.C.D.E.F', phase: 0.15},
   ],
   edge: [
@@ -239,7 +292,8 @@ This is what a Sequential Memory Cycle (S-cycle) looks like:
 	'C+D (2)',
 	'D+E (3)',
 	'E+F (4)',
-  ]
+  ],
+  head:{ tick:0, every:1 }
 }"))
 
 Cycle (0) is the _pre-cycle_, cycle (1) is the _request cycle_, cycle (2) is the _N-response cycle_, cycle (3) is the 1st _S-response cycle_, cycle (4) is the 2nd _S-response cycle_, etc. The term _sequential memory cycle_ refers to cycles (3), (4), etc.
@@ -254,16 +308,25 @@ Cycle (0) is the _pre-cycle_, cycle (1) is the _request cycle_, cycle (2) is the
 
 == I-Cycle #footnote[ARM DDI 0029G 3-7]
 
-This is what an Internal Memory Cycle (I-cycle) looks like:
+*Related variables:*
+- `memory.memory_request`: This is `MREQ`.
+- `memory.sequential_cycle`: This is `SEQ`.
+- `memory.address`: This is `A`.
+- `gba_core.data_in`: This is `DIN`.
+- `gba_core.data_in`: This is `DOUT`.
+
+*Related procedures:*
+- `gba_initiate_i_cycle`: The *GBA Core* may call during phase 1 to initiate an I-cycle.
+- `test_n_cycle`: Test procedure.
 
 #align(center, wavy.render(width: 65%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlhlh'},
-    {name:'A',wave:'x.....', phase: -0.35},
     {name:'MREQ',wave:'x.0.x.', phase: -0.35},
     {name:'SEQ',wave:'x.0.x.', phase: -0.35},
-    {name:'D',wave:'z.....', phase: -0.35},
+    {name:'A',wave:'x.....', phase: -0.35},
+    {name:'DIN, DOUT',wave:'z.....', phase: -0.35},
     {node:'A.B.C.D.E', phase: 0.15},
   ],
   edge: [
@@ -271,7 +334,8 @@ This is what an Internal Memory Cycle (I-cycle) looks like:
 	'B+C (1)',
 	'C+D (2)',
 	'D+E (3)'
-  ]
+  ],
+  head:{ tick:0, every:1 }
 }"))
 
 Cycle (0) is the _pre-cycle_, cycle (1) is the _internal cycle_, and cycle (2) is the _post-cycle_.
@@ -284,6 +348,17 @@ Cycle (0) is the _pre-cycle_, cycle (1) is the _internal cycle_, and cycle (2) i
 
 == Merged IS-Cycle
 
+*Related variables:*
+- `memory.memory_request`: This is `MREQ`.
+- `memory.sequential_cycle`: This is `SEQ`.
+- `memory.address`: This is `A`.
+- `gba_core.data_in`: This is `DIN`.
+
+*Related procedures:*
+- `gba_initiate_merged_is_cycle`:
+- `test_merged_is_cycle`: Test procedure.
+
+
 This is what a Merged Internal-Sequential Memory Cycle (merged IS-cycle) looks like:
 
 #align(center, wavy.render(width: 80%, "{
@@ -293,7 +368,7 @@ This is what a Merged Internal-Sequential Memory Cycle (merged IS-cycle) looks l
     {name:'A',wave:'x..5.x..', phase: -0.35},
     {name:'MREQ',wave:'x.0.1.x.', phase: -0.35},
     {name:'SEQ',wave:'x.0.1.x.', phase: -0.35},
-    {name:'D',wave:'x.z..5zx', phase: -0.35},
+    {name:'DIN',wave:'x.z..8zx', phase: -0.35},
     {node:'A.B.C.D.E', phase: 0.15},
   ],
   edge: [
@@ -301,7 +376,8 @@ This is what a Merged Internal-Sequential Memory Cycle (merged IS-cycle) looks l
 	'B+C (1)',
 	'C+D (2)',
 	'D+E (3)'
-  ]
+  ],
+  head:{ tick:0, every:1 }
 }"))
 
 This looks the same as an N-Cycle, except the request cycle is merged with an I-cycle.
@@ -313,25 +389,19 @@ This looks the same as an N-Cycle, except the request cycle is merged with an I-
 
 == Pipelined Addresses
 
-#align(center, wavy.render(width: 80%, "{
-  signal:
-  [
-    {name:'MCLK',wave:'lhlhlhlh'},
-    {name:'MREQ/SEQ',wave:'x.5.x...', phase: -0.35},
-    {name:'A',wave:'x..5.x..', phase: -0.35},
-    {name:'D',wave:'x...z8x.', phase: -0.35},
-    {node:'A.B.C.D.E', phase: 0.15},
-  ],
-  edge: [
-	'A+B pre',
-	'B+C request',
-	'C+D response',
-	'D+E post'
-  ]
-}"))
+This is irrelevant to the emulator, since the GBA uses SRAM and the intended address timing for SRAM is depipelined.
+
 \
 
 == Depipelined Addresses
+
+*Related variables:*
+- `memory.memory_request`: This is `MREQ`.
+- `memory.sequential_cycle`: This is `SEQ`.
+- `memory.address`: This is `A`.
+- `gba_core.data_in`: This is `DIN`.
+*Related procedures:*
+- `test_depipelined_addresses`: Test procedure. Manually initialize the request cycle and verify the response and post cycle.
 
 #align(center, wavy.render(width: 80%, "{
   signal:
@@ -339,7 +409,7 @@ This looks the same as an N-Cycle, except the request cycle is merged with an I-
     {name:'MCLK',wave:'lhlhlhlh'},
     {name:'MREQ/SEQ',wave:'x.5.x...', phase: -0.35},
     {name:'A',wave:'x...5.x.', phase: -0.35},
-    {name:'D',wave:'x...z8x.', phase: -0.35},
+    {name:'DIN',wave:'x...z8x.', phase: -0.35},
     {node:'A.B.C.D.E', phase: 0.15},
   ],
   edge: [
@@ -347,26 +417,14 @@ This looks the same as an N-Cycle, except the request cycle is merged with an I-
 	'B+C request',
 	'C+D response',
 	'D+E post'
-  ]
+  ],
+  head:{ tick:0, every:1 }
 }"))
 \
 
 == Bidirectional Bus Cycle
 
-#align(center, wavy.render(width: 95%, "{
-  signal:
-  [
-    {name:'MCLK',wave:'lhlhlhlhlh'},
-    {name:'D',wave:'x.z88.z8x.', phase: -0.35},
-    {node:'..A.B.C.D..', phase: 0.15},
-  ],
-  edge: [
-	'A+B read cycle',
-	'B+C write cycle',
-	'C+D read cycle',
-  ]
-}"))
-\
+This is irrelevant to the emulator.
 
 == Data Write Bus Cycle
 
@@ -382,7 +440,8 @@ This looks the same as an N-Cycle, except the request cycle is merged with an I-
   ],
   edge: [
 	'A+B mem cycle',
-  ]
+  ],
+  head:{ tick:0, every:1 }
 }"))
 \
 
@@ -404,7 +463,8 @@ This looks the same as an N-Cycle, except the request cycle is merged with an I-
 	'A+B Q',
 	'B+C A1',
 	'C+D A2'
-  ]
+  ],
+  head:{ tick:0, every:1 }
 }"))
 \
 
@@ -428,7 +488,8 @@ This looks the same as an N-Cycle, except the request cycle is merged with an I-
 	'C+D A1',
 	'D+E W2',
 	'E+F A2'
-  ]
+  ],
+  head:{ tick:0, every:1 }
 }"))
 \
 
@@ -456,7 +517,8 @@ The reset sequence should look like this:
 	'E+F Fetch',
 	'F+G Decode',
 	'G+H Execute'
-  ]
+  ],
+  head:{ tick:0, every:1 }
 }"))
 \
 
@@ -481,7 +543,8 @@ The reset sequence should look like this:
   ],
   edge: [
 	'A+B Cycle',
-  ]
+  ],
+  head:{ tick:0, every:1 }
 }"))
 
 / 1.: `MREQ`, `SEQ`, `EXEC`, and `INSTRVALID` may only be updated at the start of or in the interior of phase 1.
@@ -501,7 +564,8 @@ The reset sequence should look like this:
   edge: [
 	'A+B Cycle',
 	'M->N',
-  ]
+  ],
+  head:{ tick:0, every:1 }
 }"))
 
 #align(center, wavy.render(width: 65%, "{
@@ -515,7 +579,8 @@ The reset sequence should look like this:
   edge: [
 	'A+B Cycle',
 	'M->N',
-  ]
+  ],
+  head:{ tick:0, every:1 }
 }"))
 
 - `ABE` can change during phase 1.
@@ -535,7 +600,8 @@ The reset sequence should look like this:
   ],
   edge: [
 	'A+B Cycle',
-  ]
+  ],
+  head:{ tick:0, every:1 }
 }"))
 
 / 1.: The CPU must enable `ENOUT` during the interior of phase 1.
@@ -555,7 +621,8 @@ The reset sequence should look like this:
   ],
   edge: [
 	'A+B Cycle',
-  ]
+  ],
+  head:{ tick:0, every:1 }
 }"))
 
 / 1.: The CPU must disable `ENOUT` during the interior of phase 1.
@@ -578,7 +645,8 @@ The reset sequence should look like this:
 	'A+B Cycle',
 	'M->N',
 	'P->Q'
-  ]
+  ],
+  head:{ tick:0, every:1 }
 }"))
 
 / 1.: `ENIN` immediately disables `D` when it goes low.
@@ -599,7 +667,8 @@ The reset sequence should look like this:
   edge: [
 	'A+B Cycle',
 	'B+C Cycle',
-  ]
+  ],
+  head:{ tick:0, every:1 }
 }"))
 
 / 1.: `BIGEN` may be updated during phase 2.
@@ -619,7 +688,8 @@ The reset sequence should look like this:
   ],
   edge: [
 	'A+B Cycle'
-  ]
+  ],
+  head:{ tick:0, every:1 }
 }"))
 \
 
@@ -634,7 +704,8 @@ The reset sequence should look like this:
   ],
   edge: [
 	'A+B Cycle'
-  ]
+  ],
+  head:{ tick:0, every:1 }
 }"))
 \
 
@@ -652,7 +723,8 @@ The reset sequence should look like this:
   edge: [
 	'A+B Cycle 1',
 	'B+C Cycle 2'
-  ]
+  ],
+  head:{ tick:0, every:1 }
 }"))
 \
 
@@ -668,7 +740,8 @@ The reset sequence should look like this:
   ],
   edge: [
 	'A+B Cycle 1'
-  ]
+  ],
+  head:{ tick:0, every:1 }
 }"))
 \
 
@@ -684,5 +757,272 @@ The reset sequence should look like this:
   ],
   edge: [
 	'A+B Cycle 1'
-  ]
+  ],
+  head:{ tick:0, every:1 }
 }"))
+\
+
+== General Instruction Cycle
+
+#align(center, wavy.render(width: 65%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlhlh'},
+    {name:'MREQ',wave:'x.0.x.', phase: -0.35},
+    {name:'SEQ',wave:'x.0.x.', phase: -0.35},
+    {name:'A',wave:'x.....', phase: -0.35},
+    {name:'DIN, DOUT',wave:'z.....', phase: -0.35},
+    {node:'A.B.C.D.E', phase: 0.15},
+  ],
+  edge: [
+	'A+B (0)',
+	'B+C (1)',
+	'C+D (2)',
+	'D+E (3)'
+  ],
+  head:{ tick:0, every:1 }
+}"))
+
+- There are two types of request signals: request type signals and request address signals, which are broadcast at least one tick ahead of the response cycle.
+- The request type signals (`MREQ` and `SEQ`) are pipelined up to 2 ticks ahead of the cycle to which they apply.
+- The request address signals (`A`, `MAS`, `RW`, `OPC`, and `TBIT`) are pipelined up to 1 tick ahead of the cycle to which they apply.
+- The instruction cycle is the response cycle.
+- When `OPC` is high, the address is incremented each cycle (epistemic status: _guess_).
+\
+
+== Branch and Branch with Link Instruction Cycle
+
+*Related instructions:* `B`, `BL`
+
+#align(center, wavy.render(width: 105%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlhlh'},
+    {name:'MREQ',wave:'1.....', phase: 0},
+    {name:'SEQ', wave:'0.1...', phase: 0},
+    {name:'OPC', wave:'1.....', phase: 0},
+    {name:'RW',  wave:'1.....', phase: 0},
+    {name:'A',   wave:'5.5.5.', phase: 0, data: ['pc+ 2L', 'alu', 'alu + L', 'alu + 2L']},
+    {name:'MAS', wave:'5.5.5.', phase: 0, data: ['i', 'i', 'i']},
+    {name:'DIN', wave:'z8z8z8', phase: 0, data: ['(pc + 2L)', '(alu)', '(alu + L)', '(alu + 2L)']},
+    {node:'A.B.C.D.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Cycle 2',
+	'C+D Cycle 3',
+  ],
+  head:{ tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
+
+== Thumb Branch with Link Instruction Cycle
+
+The Thumb instruction set is not needed for executing the BIOS.
+
+*Related instructions:*
+
+\
+
+== Branch and Exchange Instruction Cycle
+
+*Related instructions:* `BX`
+
+_In which phase is TBIT allowed to change? Add a bit set field in the signal struct indicating which phase the signal is allowed to change in and assert during its tick function that this rule is met._
+
+#align(center, wavy.render(width: 105%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlhlh'},
+    {name:'MREQ',wave:'1.....', phase: 0},
+    {name:'SEQ', wave:'0.1...', phase: 0},
+    {name:'OPC', wave:'1.....', phase: 0},
+    {name:'RW',  wave:'1.....', phase: 0},
+    {name:'TBIT',wave:'5.5.5.', phase: 0, data: ['T', 't', 't']},
+    {name:'A',   wave:'5.5.5.', phase: 0, data: ['pc + 2W', 'alu', 'alu + L', 'alu + 2L']},
+    {name:'MAS', wave:'5.5.5.', phase: 0, data: ['I', 'i', 'i']},
+    {name:'DIN', wave:'z8z8z8', phase: 0, data: ['(pc+ 2W)', '(alu)', '(alu + W)']},
+    {node:'A.B.C.D.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Cycle 2',
+	'C+D Cycle 3',
+  ],
+  head:{ tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
+\
+
+== Data Processing Instruction Cycle
+
+*Related instructions:* `ADC`, `ADD`, `AND`, `BIC`, `CMN`, `CMP`, `EOR`, `MOV`, `MRS`, `MSR`, `MVN`, `ORR`, `RSB`, `RSC`, `SBC`, `SUB`, `TEQ`, `TST`
+
+_It seems like whenever `SEQ` is high, the address will always increment in the post cycle._
+
+#align(center, wavy.render(width: 47%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lh'},
+    {name:'MREQ',wave:'1.', phase: 0.0},
+    {name:'SEQ', wave:'1.', phase: 0.0},
+    {name:'OPC', wave:'1.', phase: 0.0},
+    {name:'RW',  wave:'1.', phase: 0.0},
+    {name:'A',   wave:'5.', phase: 0.0, data: ['pc + 2L']},
+    {name:'MAS', wave:'5.', phase: 0.0, data: ['i']},
+    {name:'DIN', wave:'z8', phase: 0.0, data: ['(pc + 2L)']},
+    {node:'A.B.C.D.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Cycle 2',
+	'C+D Cycle 3',
+  ],
+  head:{ text:'normal', tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
+
+#align(center, wavy.render(width: 106%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlhlh'},
+    {name:'MREQ',wave:'1.....', phase: 0},
+    {name:'SEQ', wave:'0.1...', phase: 0},
+    {name:'OPC', wave:'1.....', phase: 0},
+    {name:'RW',  wave:'1.....', phase: 0},
+    {name:'A',   wave:'5.5.5.', phase: 0, data: ['pc + 2L', 'alu', 'alu + L']},
+    {name:'MAS', wave:'5.5.5.', phase: 0, data: ['i', 'i', 'i']},
+    {name:'DIN', wave:'z8z8z8', phase: 0, data: ['(pc+ 2L)', '(alu)', '(alu + L)']},
+    {node:'A.B.C.D.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Cycle 2',
+	'C+D Cycle 3',
+  ],
+  head:{ text:'dest=pc', tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
+
+#align(center, wavy.render(width: 76%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlh'},
+    {name:'MREQ',wave:'0.1.', phase: 0},
+    {name:'SEQ', wave:'0.1.', phase: 0},
+    {name:'OPC', wave:'1.0.', phase: 0},
+    {name:'RW',  wave:'1...', phase: 0},
+    {name:'A',   wave:'x...', phase: 0, data: ['pc + 2L', 'pc + 3L']},
+    {name:'MAS', wave:'5.5.', phase: 0, data: ['i', 'i']},
+    {name:'DIN', wave:'z8z.', phase: 0, data: ['(pc+ 2L)']},
+    {node:'A.B.C.D.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Cycle 2',
+	'C+D Cycle 3',
+  ],
+  head:{ text:'shift(Rs)', tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
+
+#align(center, wavy.render(width: 130%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlhlhlh'},
+    {name:'MREQ',wave:'0.1.....', phase: 0},
+    {name:'SEQ', wave:'0...1...', phase: 0},
+    {name:'OPC', wave:'1.0.1...', phase: 0},
+    {name:'RW',  wave:'1.......', phase: 0},
+    {name:'A',   wave:'5.5.5.5.', phase: 0, data: ['pc + 8', 'pc + 12', 'alu', 'alu + 4']},
+    {name:'MAS', wave:'5.5.5.5.', phase: 0, data: ['2', '2', '2', '2']},
+    {name:'DIN', wave:'z8z..8z8', phase: 0, data: ['(pc + 8)', '(alu)', '(alu + 4)']},
+    {node:'A.B.C.D.E.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Cycle 2',
+	'C+D Cycle 3',
+	'D+E Cycle 4',
+  ],
+  head:{ text:'shift(Rs), dest=pc', tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
+
+== Multiply and Multiply Accumulate Instruction Cycle
+
+#align(center, wavy.render(width: 130%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlhlhlh'},
+    {name:'MREQ',wave:'x.......', phase: -0.35},
+    {name:'SEQ', wave:'x.......', phase: -0.35},
+    {name:'OPC', wave:'x.......', phase: -0.35},
+    {name:'RW',  wave:'x.......', phase: -0.35},
+    {name:'A',   wave:'x.......', phase: -0.35, data: ['pc + 2W', 'alu', 'alu + L', 'alu + 2L']},
+    {name:'DIN', wave:'x.......', phase: -0.35, data: ['(pc+ 2W)', '(alu)', '(alu + W)']},
+    {node:'A.B.C.D.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Cycle 2',
+	'C+D Cycle 3',
+  ],
+  head:{ text:'Multiply', tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
+
+#align(center, wavy.render(width: 106%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlhlh'},
+    {name:'MREQ',wave:'x.....', phase: -0.35},
+    {name:'SEQ', wave:'x.....', phase: -0.35},
+    {name:'OPC', wave:'x.....', phase: -0.35},
+    {name:'RW',  wave:'x.....', phase: -0.35},
+    {name:'A',   wave:'x.....', phase: -0.35, data: ['pc + 2W', 'alu', 'alu + L', 'alu + 2L']},
+    {name:'DIN', wave:'x.....', phase: -0.35, data: ['(pc+ 2W)', '(alu)', '(alu + W)']},
+    {node:'A.B.C.D.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Cycle 2',
+	'C+D Cycle 3',
+  ],
+  head:{ text:'Multiply Accumulate', tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
+
+*Related instructions:* `MLA`, `MUL`, `SMLAL`, `SMULL`, `UMLAL`, `UMULL`
+
+== Load Register Instruction Cycle
+
+*Related instructions:* `LDR`, `LDRB`, `LDRBT`, `LDRH`, `LDRSB`, `LDRSH`, `LDRT`
+
+== Store Register Instruction Cycle
+
+*Related instructions:* `STR`, `STRB`, `STRBT`, `STRH`, `STRT`
+
+== Load Multiple Register Instruction Cycle
+
+*Related instructions:* `LDM`
+
+== Store Multiple Register Instruction Cycle
+
+*Related instructions:* `STM`
+
+== Data Swap Instruction Cycle
+
+*Related instructions:* `SWP`, `SWPB`
+
+== Software Interrupt and Exception Instruction Cycle
+
+*Related instructions:* `SWI`
+
+== Undefined Instruction Cycle
+
+*Related instructions:*
+
+== Unexecuted Instruction Cycle
+
+*Related instructions:*

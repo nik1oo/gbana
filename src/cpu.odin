@@ -65,3 +65,8 @@ UNDOCUMENTED_0x4000800:: bit_field u32 {
 	_:                      int  | 18,
 	Wait_Control_256K_WRAM: uint | 4,
 	_:                      int  | 4 }
+
+
+device_reset:: proc() {
+	signal_force(&gba_core.reset, true)
+	signal_put(&gba_core.reset, false, latency_override = 2) }

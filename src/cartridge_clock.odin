@@ -1,6 +1,10 @@
 package gbana
 
 
+TICKS:: #force_inline proc($tick: int) -> (ticks: int) { return ticks }
+CYCLES:: #force_inline proc($ticks: int) -> (cycles: int) { return 2 * ticks }
+
+
 // CLOCK //
 Clock:: struct {
 	using interface: Clock_Interface }
@@ -12,8 +16,8 @@ init_clock:: proc() {
 
 // INTERFACE //
 Clock_Interface:: struct {
-	main_clock:                     ^Line,                    // MCLK
-	wait:                           ^Line }                   // WAIT
+	main_clock:                     ^Signal(bool),                    // MCLK
+	wait:                           ^Signal(bool) }                   // WAIT
 init_clock_interface:: proc() {
 	clock.main_clock = &gba_core.main_clock
 	clock.wait = &gba_core.wait }
