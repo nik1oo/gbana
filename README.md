@@ -1,4 +1,3 @@
-// ![gbana](img/title.png)
 
 GBA emulator.
 
