@@ -1,4 +1,4 @@
-![gbana](img/title.png)
+// ![gbana](img/title.png)
 
 GBA emulator.
 
@@ -21,8 +21,8 @@ make
 # Roadmap
 
 - [x] Identify the first instruction in the BIOS.
-- [ ] Emulate reset sequence.
-- [ ] Emulate timing logic.
+- [x] Emulate reset sequence.
+- [x] Emulate timing logic.
 - [ ] Execute the BIOS.
 - [ ] Render the boot animation.
 - [ ] Play the boot animation sound.

@@ -1,0 +1,3 @@
+- Assert that each signal is changing only within the phase that it's allowed to change in.
+- Write tests for all the different cycles.
+- Write procedures that execute all the different cycles.
