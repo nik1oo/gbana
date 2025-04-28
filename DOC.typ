@@ -139,7 +139,7 @@ Signal classes:
 	`SEQ`,     [Memory\ Interface], [*Memory*], [Set to _high_ to indicate that the address of the next memory request will be in the same word that was accessed in the previous memory access or the word immediately after it. Sequential reads require fewer memory cycles.],
 	`TBE`,     [Bus\ Controls], [], [],
 	`TBIT`,    [Processor\ State], [*GBA Core*], [Set to _high_ for Thumb mode, set to _low_ for ARM mode.],
-	`TRANS`,   [Memory\ Management\ Interface], [], [This signal is used to enable address translation in the memory management system. Irrelevant for the emulator.],
+	`TRANS`,   [Memory\ Management\ Interface], [], [Irrelevant.],
 	`WAIT`,    [Clocks\ and Timing], [], [This signal is used to insert wait cycles. Different memory regions have different access latency, which determines how many wait cycles need to be inserted.])
 
 = Timing
@@ -794,23 +794,24 @@ The reset sequence should look like this:
 
 *Related instructions:* `B`, `BL`
 
-#align(center, wavy.render(width: 105%, "{
+#align(center, wavy.render(height: 20%, "{
   signal:
   [
-    {name:'MCLK',wave:'lhlhlh'},
-    {name:'MREQ',wave:'1.....', phase: 0},
-    {name:'SEQ', wave:'0.1...', phase: 0},
-    {name:'OPC', wave:'1.....', phase: 0},
-    {name:'RW',  wave:'1.....', phase: 0},
-    {name:'A',   wave:'5.5.5.', phase: 0, data: ['pc+ 2L', 'alu', 'alu + L', 'alu + 2L']},
-    {name:'MAS', wave:'5.5.5.', phase: 0, data: ['i', 'i', 'i']},
-    {name:'DIN', wave:'z8z8z8', phase: 0, data: ['(pc + 2L)', '(alu)', '(alu + L)', '(alu + 2L)']},
-    {node:'A.B.C.D.', phase: 0.15},
+    {name:'MCLK',wave:'lhlhlhlh'},
+    {name:'MREQ',wave:'1.....x.', phase: 0},
+    {name:'SEQ', wave:'0.1...x.', phase: 0},
+    {name:'OPC', wave:'1.....x.', phase: 0},
+    {name:'RW',  wave:'1.....x.', phase: 0},
+    {name:'A',   wave:'5.5.5.5.', phase: 0, data: ['pc+ 2L', 'alu', 'alu + L', 'alu + 2L']},
+    {name:'MAS', wave:'5.5.5.x.', phase: 0, data: ['i', 'i', 'i']},
+    {name:'DIN', wave:'z8z8z8x.', phase: 0, data: ['(pc + 2L)', '(alu)', '(alu + L)', '(alu + 2L)']},
+    {node:'A.B.C.D.E.', phase: 0.15},
   ],
   edge: [
 	'A+B Cycle 1',
 	'B+C Cycle 2',
 	'C+D Cycle 3',
+	'D+E Post Cycle',
   ],
   head:{ tick:0, every:1 },
   config: { hscale: 2 }
@@ -818,10 +819,33 @@ The reset sequence should look like this:
 
 == Thumb Branch with Link Instruction Cycle
 
-The Thumb instruction set is not needed for executing the BIOS.
-
 *Related instructions:*
 
+The Thumb instruction set is not needed for executing the BIOS.
+
+#align(center, wavy.render(height: 20%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlhlhlhlx'},
+    {name:'MREQ',wave:'1.......x.', phase: 0},
+    {name:'SEQ', wave:'1.0.1...x.', phase: 0},
+    {name:'OPC', wave:'1.......x.', phase: 0},
+    {name:'RW',  wave:'1.......x.', phase: 0},
+    {name:'A',   wave:'5.5.5.5.5.', phase: 0, data: ['pc+4', 'pc+6', 'alu', 'alu+2', 'alu+4']},
+    {name:'MAS', wave:'5.5.5.5.x.', phase: 0, data: ['1', '1', '1', '1']},
+    {name:'DIN', wave:'z8z8z8z8x.', phase: 0, data: ['(pc+4)', '(pc+6)', '(alu)', '(alu+2)']},
+    {node:'A.B.C.D.E.F.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Cycle 2',
+	'C+D Cycle 3',
+	'D+E Cycle 4',
+	'E+F Post Cycle',
+  ],
+  head:{ tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
 \
 
 == Branch and Exchange Instruction Cycle
@@ -830,24 +854,25 @@ The Thumb instruction set is not needed for executing the BIOS.
 
 _In which phase is TBIT allowed to change? Add a bit set field in the signal struct indicating which phase the signal is allowed to change in and assert during its tick function that this rule is met._
 
-#align(center, wavy.render(width: 105%, "{
+#align(center, wavy.render(height: 20%, "{
   signal:
   [
-    {name:'MCLK',wave:'lhlhlh'},
-    {name:'MREQ',wave:'1.....', phase: 0},
-    {name:'SEQ', wave:'0.1...', phase: 0},
-    {name:'OPC', wave:'1.....', phase: 0},
-    {name:'RW',  wave:'1.....', phase: 0},
-    {name:'TBIT',wave:'5.5.5.', phase: 0, data: ['T', 't', 't']},
-    {name:'A',   wave:'5.5.5.', phase: 0, data: ['pc + 2W', 'alu', 'alu + L', 'alu + 2L']},
-    {name:'MAS', wave:'5.5.5.', phase: 0, data: ['I', 'i', 'i']},
-    {name:'DIN', wave:'z8z8z8', phase: 0, data: ['(pc+ 2W)', '(alu)', '(alu + W)']},
-    {node:'A.B.C.D.', phase: 0.15},
+    {name:'MCLK',wave:'lhlhlhlh'},
+    {name:'MREQ',wave:'1.....x.', phase: 0},
+    {name:'SEQ', wave:'0.1...x.', phase: 0},
+    {name:'OPC', wave:'1.....x.', phase: 0},
+    {name:'RW',  wave:'1.....x.', phase: 0},
+    {name:'TBIT',wave:'5.5.5.x.', phase: 0, data: ['T', 't', 't']},
+    {name:'A',   wave:'5.5.5.5.', phase: 0, data: ['pc + 2w', 'alu', 'alu + w', 'alu + 2w']},
+    {name:'MAS', wave:'5.5.5.x.', phase: 0, data: ['I', 'i', 'i']},
+    {name:'DIN', wave:'z8z8z8x.', phase: 0, data: ['(pc+ 2w)', '(alu)', '(alu + w)']},
+    {node:'A.B.C.D.E.', phase: 0.15},
   ],
   edge: [
 	'A+B Cycle 1',
 	'B+C Cycle 2',
 	'C+D Cycle 3',
+	'D+E Post Cycle',
   ],
   head:{ tick:0, every:1 },
   config: { hscale: 2 }
@@ -860,17 +885,17 @@ _In which phase is TBIT allowed to change? Add a bit set field in the signal str
 
 _It seems like whenever `SEQ` is high, the address will always increment in the post cycle._
 
-#align(center, wavy.render(width: 47%, "{
+#align(center, wavy.render(height: 20%, "{
   signal:
   [
-    {name:'MCLK',wave:'lh'},
-    {name:'MREQ',wave:'1.', phase: 0.0},
-    {name:'SEQ', wave:'1.', phase: 0.0},
-    {name:'OPC', wave:'1.', phase: 0.0},
-    {name:'RW',  wave:'1.', phase: 0.0},
-    {name:'A',   wave:'5.', phase: 0.0, data: ['pc + 2L']},
-    {name:'MAS', wave:'5.', phase: 0.0, data: ['i']},
-    {name:'DIN', wave:'z8', phase: 0.0, data: ['(pc + 2L)']},
+    {name:'MCLK',wave:'lhlh'},
+    {name:'MREQ',wave:'1.x.', phase: 0.0},
+    {name:'SEQ', wave:'1.x.', phase: 0.0},
+    {name:'OPC', wave:'1.x.', phase: 0.0},
+    {name:'RW',  wave:'1.x.', phase: 0.0},
+    {name:'A',   wave:'5.5.', phase: 0.0, data: ['pc + 2L', 'pc + 3L']},
+    {name:'MAS', wave:'5.x.', phase: 0.0, data: ['i']},
+    {name:'DIN', wave:'z8x.', phase: 0.0, data: ['(pc + 2L)']},
     {node:'A.B.C.D.', phase: 0.15},
   ],
   edge: [
@@ -882,39 +907,40 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   config: { hscale: 2 }
 }"))
 
-#align(center, wavy.render(width: 106%, "{
+#align(center, wavy.render(height: 20%, "{
   signal:
   [
-    {name:'MCLK',wave:'lhlhlh'},
-    {name:'MREQ',wave:'1.....', phase: 0},
-    {name:'SEQ', wave:'0.1...', phase: 0},
-    {name:'OPC', wave:'1.....', phase: 0},
-    {name:'RW',  wave:'1.....', phase: 0},
-    {name:'A',   wave:'5.5.5.', phase: 0, data: ['pc + 2L', 'alu', 'alu + L']},
-    {name:'MAS', wave:'5.5.5.', phase: 0, data: ['i', 'i', 'i']},
-    {name:'DIN', wave:'z8z8z8', phase: 0, data: ['(pc+ 2L)', '(alu)', '(alu + L)']},
-    {node:'A.B.C.D.', phase: 0.15},
+    {name:'MCLK',wave:'lhlhlhlh'},
+    {name:'MREQ',wave:'1.....x.', phase: 0},
+    {name:'SEQ', wave:'0.1...x.', phase: 0},
+    {name:'OPC', wave:'1.....x.', phase: 0},
+    {name:'RW',  wave:'1.....x.', phase: 0},
+    {name:'A',   wave:'5.5.5.5.', phase: 0, data: ['pc + 2L', 'alu', 'alu + L', 'alu + 2L']},
+    {name:'MAS', wave:'5.5.5.x.', phase: 0, data: ['i', 'i', 'i']},
+    {name:'DIN', wave:'z8z8z8x.', phase: 0, data: ['(pc+ 2L)', '(alu)', '(alu + L)']},
+    {node:'A.B.C.D.E.', phase: 0.15},
   ],
   edge: [
 	'A+B Cycle 1',
 	'B+C Cycle 2',
 	'C+D Cycle 3',
+	'D+E Post Cycle',
   ],
   head:{ text:'dest=pc', tick:0, every:1 },
   config: { hscale: 2 }
 }"))
 
-#align(center, wavy.render(width: 76%, "{
+#align(center, wavy.render(height: 20%, "{
   signal:
   [
-    {name:'MCLK',wave:'lhlh'},
-    {name:'MREQ',wave:'0.1.', phase: 0},
-    {name:'SEQ', wave:'0.1.', phase: 0},
-    {name:'OPC', wave:'1.0.', phase: 0},
-    {name:'RW',  wave:'1...', phase: 0},
-    {name:'A',   wave:'x...', phase: 0, data: ['pc + 2L', 'pc + 3L']},
-    {name:'MAS', wave:'5.5.', phase: 0, data: ['i', 'i']},
-    {name:'DIN', wave:'z8z.', phase: 0, data: ['(pc+ 2L)']},
+    {name:'MCLK',wave:'lhlhlh'},
+    {name:'MREQ',wave:'0.1.x.', phase: 0},
+    {name:'SEQ', wave:'0.1.x.', phase: 0},
+    {name:'OPC', wave:'1.0.x.', phase: 0},
+    {name:'RW',  wave:'1...x.', phase: 0},
+    {name:'A',   wave:'5.5.5.', phase: 0, data: ['pc + 2L', 'pc + 3L', 'pc + 3L']},
+    {name:'MAS', wave:'5.5.x.', phase: 0, data: ['i', 'i']},
+    {name:'DIN', wave:'z8z.x.', phase: 0, data: ['(pc+ 2L)']},
     {node:'A.B.C.D.', phase: 0.15},
   ],
   edge: [
@@ -926,17 +952,17 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   config: { hscale: 2 }
 }"))
 
-#align(center, wavy.render(width: 130%, "{
+#align(center, wavy.render(height: 20%, "{
   signal:
   [
-    {name:'MCLK',wave:'lhlhlhlh'},
-    {name:'MREQ',wave:'0.1.....', phase: 0},
-    {name:'SEQ', wave:'0...1...', phase: 0},
-    {name:'OPC', wave:'1.0.1...', phase: 0},
-    {name:'RW',  wave:'1.......', phase: 0},
-    {name:'A',   wave:'5.5.5.5.', phase: 0, data: ['pc + 8', 'pc + 12', 'alu', 'alu + 4']},
-    {name:'MAS', wave:'5.5.5.5.', phase: 0, data: ['2', '2', '2', '2']},
-    {name:'DIN', wave:'z8z..8z8', phase: 0, data: ['(pc + 8)', '(alu)', '(alu + 4)']},
+    {name:'MCLK',wave:'lhlhlhlhlh'},
+    {name:'MREQ',wave:'0.1.....x.', phase: 0},
+    {name:'SEQ', wave:'0...1...x.', phase: 0},
+    {name:'OPC', wave:'1.0.1...x.', phase: 0},
+    {name:'RW',  wave:'1.......x.', phase: 0},
+    {name:'A',   wave:'5.5.5.5.5.', phase: 0, data: ['pc + 8', 'pc + 12', 'alu', 'alu + 4', 'alu + 8']},
+    {name:'MAS', wave:'5.5.5.5.x.', phase: 0, data: ['2', '2', '2', '2']},
+    {name:'DIN', wave:'z8z..8z8x.', phase: 0, data: ['(pc + 8)', '(alu)', '(alu + 4)']},
     {node:'A.B.C.D.E.', phase: 0.15},
   ],
   edge: [
@@ -948,81 +974,449 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'shift(Rs), dest=pc', tick:0, every:1 },
   config: { hscale: 2 }
 }"))
+\
 
 == Multiply and Multiply Accumulate Instruction Cycle
 
-#align(center, wavy.render(width: 130%, "{
+*Related instructions:* `MLA`, `MUL`, `SMLAL`, `SMULL`, `UMLAL`, `UMULL`
+
+#align(center, wavy.render(height: 20%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlhlhlh'},
-    {name:'MREQ',wave:'x.......', phase: -0.35},
-    {name:'SEQ', wave:'x.......', phase: -0.35},
-    {name:'OPC', wave:'x.......', phase: -0.35},
-    {name:'RW',  wave:'x.......', phase: -0.35},
-    {name:'A',   wave:'x.......', phase: -0.35, data: ['pc + 2W', 'alu', 'alu + L', 'alu + 2L']},
-    {name:'DIN', wave:'x.......', phase: -0.35, data: ['(pc+ 2W)', '(alu)', '(alu + W)']},
-    {node:'A.B.C.D.', phase: 0.15},
+    {name:'MREQ',wave:'0...1.x.', phase: 0},
+    {name:'SEQ', wave:'0...1.x.', phase: 0},
+    {name:'OPC', wave:'1.0...x.', phase: 0},
+    {name:'RW',  wave:'1.....x.', phase: 0},
+    {name:'A',   wave:'5.5.5.5.', phase: 0, data: ['pc + 2L', 'pc + 3L', 'pc + 3L', 'pc + 3L']},
+    {name:'MAS', wave:'5.5.5.x.', phase: 0, data: ['i', 'i', 'i']},
+    {name:'DIN', wave:'z8z...x.', phase: 0, data: ['(pc+ 2L)']},
+    {node:'A.B.C.D.E.', phase: 0.15},
   ],
   edge: [
 	'A+B Cycle 1',
-	'B+C Cycle 2',
-	'C+D Cycle 3',
+	'B+C Cycle 2 ... m',
+	'C+D Cycle m + 1',
+	'D+E Post Cycle',
   ],
   head:{ text:'Multiply', tick:0, every:1 },
   config: { hscale: 2 }
 }"))
 
-#align(center, wavy.render(width: 106%, "{
+Cycles 2 to m are identical.
+
+#align(center, wavy.render(height: 20%, "{
   signal:
   [
-    {name:'MCLK',wave:'lhlhlh'},
-    {name:'MREQ',wave:'x.....', phase: -0.35},
-    {name:'SEQ', wave:'x.....', phase: -0.35},
-    {name:'OPC', wave:'x.....', phase: -0.35},
-    {name:'RW',  wave:'x.....', phase: -0.35},
-    {name:'A',   wave:'x.....', phase: -0.35, data: ['pc + 2W', 'alu', 'alu + L', 'alu + 2L']},
-    {name:'DIN', wave:'x.....', phase: -0.35, data: ['(pc+ 2W)', '(alu)', '(alu + W)']},
-    {node:'A.B.C.D.', phase: 0.15},
+    {name:'MCLK',wave:'lhlhlhlhlh'},
+    {name:'MREQ',wave:'0.....1.x.', phase: 0},
+    {name:'SEQ', wave:'0.....1.x.', phase: 0},
+    {name:'OPC', wave:'1.0.....x.', phase: 0},
+    {name:'RW',  wave:'1.......x.', phase: 0},
+    {name:'A',   wave:'5.5.5.5.5.', phase: 0, data: ['pc + 8', 'pc + 8', 'pc + 12', 'pc + 12', 'pc + 12']},
+    {name:'MAS', wave:'5.5.5.5.x.', phase: 0, data: ['2', '2', '2', '2']},
+    {name:'DIN', wave:'z8z.....x.', phase: 0, data: ['(pc + 8)']},
+    {node:'A.B.C.D.E.F.', phase: 0.15},
   ],
   edge: [
 	'A+B Cycle 1',
 	'B+C Cycle 2',
-	'C+D Cycle 3',
+	'C+D Cycle 3 ... m + 1',
+	'D+E Cycle m + 2',
+	'E+F Post Cycle',
   ],
   head:{ text:'Multiply Accumulate', tick:0, every:1 },
   config: { hscale: 2 }
 }"))
 
-*Related instructions:* `MLA`, `MUL`, `SMLAL`, `SMULL`, `UMLAL`, `UMULL`
+#align(center, wavy.render(height: 20%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlhlhlh'},
+    {name:'MREQ',wave:'0...1.x.', phase: 0},
+    {name:'SEQ', wave:'0...1.x.', phase: 0},
+    {name:'OPC', wave:'1.0...x.', phase: 0},
+    {name:'RW',  wave:'1.....x.', phase: 0},
+    {name:'A',   wave:'5.5.5.5.', phase: 0, data: ['pc + 8', 'pc + 12', 'pc + 12', 'pc + 12']},
+    {name:'MAS', wave:'5.5.5.x.', phase: 0, data: ['i', 'i', 'i']},
+    {name:'DIN', wave:'z8z...x.', phase: 0, data: ['(pc+ 8)']},
+    {node:'A.B.C.D.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Cycle 2 ... m + 1',
+	'C+D Cycle m + 2',
+  ],
+  head:{ text:'Multiply Long', tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
+
+#align(center, wavy.render(height: 20%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlhlhlhlh'},
+    {name:'MREQ',wave:'0.....1.x.', phase: 0},
+    {name:'SEQ', wave:'0.....1.x.', phase: 0},
+    {name:'OPC', wave:'1.0.....x.', phase: 0},
+    {name:'RW',  wave:'1.......x.', phase: 0},
+    {name:'A',   wave:'5.5.5.5.5.', phase: 0, data: ['pc + 8', 'pc + 12', 'pc + 12', 'pc + 12', 'pc + 12']},
+    {name:'MAS', wave:'5.5.5.5.x.', phase: 0, data: ['2', '2', '2', '2']},
+    {name:'DIN', wave:'z8z.....x.', phase: 0, data: ['(pc + 8)']},
+    {node:'A.B.C.D.E.F.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Cycle 2',
+	'C+D Cycle 3 ... m + 2',
+	'D+E Cycle m + 3',
+	'E+F Post Cycle',
+  ],
+  head:{ text:'Multiply Accumulate Long', tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
+\
 
 == Load Register Instruction Cycle
 
 *Related instructions:* `LDR`, `LDRB`, `LDRBT`, `LDRH`, `LDRSB`, `LDRSH`, `LDRT`
 
+#align(center, wavy.render(height: 20%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlhlhlh'},
+    {name:'MREQ',wave:'1.0.1.x.', phase: 0},
+    {name:'SEQ', wave:'0...1.x.', phase: 0},
+    {name:'OPC', wave:'1.0...x.', phase: 0},
+    {name:'RW',  wave:'1.....x.', phase: 0},
+    {name:'A',   wave:'5.5.5.5.', phase: 0, data: ['pc + 2L', 'alu', 'pc + 3L', 'pc + 3L']},
+    {name:'MAS', wave:'5.5.5.x.', phase: 0, data: ['i', 's', 'i']},
+    {name:'DIN', wave:'z8z8z.x.', phase: 0, data: ['(pc+ 2L)', '(alu)']},
+    {node:'A.B.C.D.E.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Cycle 2',
+	'C+D Cycle 3',
+	'D+E Post Cycle',
+  ],
+  head:{ text:'normal', tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
+
+#align(center, wavy.render(height: 20%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlhlhlhlhlh'},
+    {name:'MREQ',wave:'1.0.1.....x.', phase: 0},
+    {name:'SEQ', wave:'0.....1...x.', phase: 0},
+    {name:'OPC', wave:'1.0.......x.', phase: 0},
+    {name:'RW',  wave:'1.........x.', phase: 0},
+    {name:'A',   wave:'5.5.5.5.5.5.', phase: 0, data: ['pc + 8', 'alu', 'pc + 12', 'pc\'', 'pc\' + 4', 'pc\' + 8']},
+    {name:'MAS', wave:'5.x.5.5.5.x.', phase: 0, data: ['2', '2', '2', '2']},
+    {name:'DIN', wave:'z8z8z.z8z8x.', phase: 0, data: ['(pc+8)', '(pc\')', '(pc\')', '(pc\'+4)']},
+    {node:'A.B.C.D.E.F.G.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Cycle 2',
+	'C+D Cycle 3',
+	'D+E Cycle 4',
+	'E+F Cycle 5',
+	'F+G Post Cycle',
+  ],
+  head:{ text:'dest=pc', tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
+\
+
 == Store Register Instruction Cycle
 
 *Related instructions:* `STR`, `STRB`, `STRBT`, `STRH`, `STRT`
+
+#align(center, wavy.render(height: 20%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlhlh'},
+    {name:'MREQ',wave:'1...x.', phase: 0},
+    {name:'SEQ', wave:'0...x.', phase: 0},
+    {name:'OPC', wave:'1.0.x.', phase: 0},
+    {name:'RW',  wave:'1.0.x.', phase: 0},
+    {name:'A',   wave:'5.5.5.', phase: 0, data: ['pc + 2L', 'alu', 'pc + 3L']},
+    {name:'MAS', wave:'5.5.x.', phase: 0, data: ['i', 's']},
+    {name:'DIN', wave:'z8z8x.', phase: 0, data: ['(pc+ 2L)', 'Rd']},
+    {node:'A.B.C.D.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Cycle 2',
+	'C+D Post Cycle',
+  ],
+  head:{ text:'', tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
+\
 
 == Load Multiple Register Instruction Cycle
 
 *Related instructions:* `LDM`
 
+#align(center, wavy.render(height: 20%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlhlhlh'},
+    {name:'MREQ',wave:'1.0.1.x.', phase: 0},
+    {name:'SEQ', wave:'1...0.x.', phase: 0},
+    {name:'OPC', wave:'1.0...x.', phase: 0},
+    {name:'RW',  wave:'1.....x.', phase: 0},
+    {name:'A',   wave:'5.5.5.5.', phase: 0, data: ['pc + 2L', 'alu', 'pc + 3L', 'pc + 3L']},
+    {name:'MAS', wave:'5.5.5.x.', phase: 0, data: ['i', '2', 'i']},
+    {name:'DIN', wave:'z8z8z.x.', phase: 0, data: ['(pc+ 2L)', '(alu)']},
+    {node:'A.B.C.D.E.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Cycle 2',
+	'C+D Cycle 3',
+	'D+E Post Cycle',
+  ],
+  head:{ text:'Single register', tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
+
+#align(center, wavy.render(height: 20%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlhlhlhlhlh'},
+    {name:'MREQ',wave:'1.0.1.....x.', phase: 0},
+    {name:'SEQ', wave:'0.....1...x.', phase: 0},
+    {name:'OPC', wave:'1.0...1...x.', phase: 0},
+    {name:'RW',  wave:'1.........x.', phase: 0},
+    {name:'A',   wave:'5.5.5.5.5.5.', phase: 0, data: ['pc + 2L', 'alu', 'pc + 3L', 'pc\'', 'pc\' + L', 'pc\' + 2L']},
+    {name:'MAS', wave:'5.5.5.5.5.x.', phase: 0, data: ['i', '2', 'i', 'i', 'i']},
+    {name:'DIN', wave:'z8z8z.z8z8x.', phase: 0, data: ['(pc + 2L)', 'pc\'', '(pc\')', '(pc\' + L)']},
+    {node:'A.B.C.D.E.F.G.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Cycle 2',
+	'C+D Cycle 3',
+	'D+E Cycle 4',
+	'E+F Cycle 5',
+	'F+G Post Cycle',
+  ],
+  head:{ text:'Single register dest=pc', tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
+
+#align(center, wavy.render(height: 20%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlhlhlhlh'},
+    {name:'MREQ',wave:'1...0.1.x.', phase: 0},
+    {name:'SEQ', wave:'0.1.0.1.x.', phase: 0},
+    {name:'OPC', wave:'1.0.....x.', phase: 0},
+    {name:'RW',  wave:'1.......x.', phase: 0},
+    {name:'A',   wave:'5.5.5.5.5.', phase: 0, data: ['pc + 2L', 'alu', 'alu + k - 2', 'pc + 3L', 'pc + 3L']},
+    {name:'MAS', wave:'5.5.5.5.x.', phase: 0, data: ['i', '2', '2', 'i']},
+    {name:'DIN', wave:'z8z8z8z.x.', phase: 0, data: ['(pc + 2L)', '(alu + k - 2)', '(alu + k - 2)']},
+    {node:'A.B.C.D.E.F.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Cycle k (2 ... n)',
+	'C+D Cycle n + 1',
+	'D+E Cycle n + 2',
+	'E+F Post Cycle',
+  ],
+  head:{ text:'n registers', tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
+
+#align(center, wavy.render(height: 17%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlhlhlhlhlhlh'},
+    {name:'MREQ',wave:'1...0.1.....x.', phase: 0},
+    {name:'SEQ', wave:'0.1.0...1...x.', phase: 0},
+    {name:'OPC', wave:'1.0.....1...x.', phase: 0},
+    {name:'RW',  wave:'1...........x.', phase: 0},
+    {name:'A',   wave:'5.5.5.5.5.5.x.', phase: 0, data: ['pc + 2L', 'alu + k - 2', 'alu + k - 2', 'pc + 3L', 'pc\'', 'pc\' + L', 'pc\' + 2L']},
+    {name:'MAS', wave:'5.5.5.5.5.5.x.', phase: 0, data: ['i', '2', '2', 'i', 'i', 'i']},
+    {name:'DIN', wave:'z8z8z8z.z8z8x.', phase: 0, data: ['(pc + 2L)', '(alu + k - 2)', 'pc\'', '(pc\')', '(pc\' + L)']},
+    {node:'A.B.C.D.E.F.G.H.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Cycle k (2 ... n)',
+	'C+D Cycle n + 1',
+	'D+E Cycle n + 2',
+	'E+F Cycle n + 3',
+	'F+G Cycle n + 4',
+	'G+H Post Cycle',
+  ],
+  head:{ text:'n registers including pc', tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
+\
+
 == Store Multiple Register Instruction Cycle
 
 *Related instructions:* `STM`
+
+#align(center, wavy.render(height: 20%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlhlh'},
+    {name:'MREQ',wave:'1...x.', phase: 0},
+    {name:'SEQ', wave:'0...x.', phase: 0},
+    {name:'OPC', wave:'1.0.x.', phase: 0},
+    {name:'RW',  wave:'1.0.x.', phase: 0},
+    {name:'A',   wave:'5.5.5.', phase: 0, data: ['pc + 2L', 'alu', 'pc + 3L']},
+    {name:'MAS', wave:'5.5.x.', phase: 0, data: ['i', '2']},
+    {name:'DIN', wave:'z8z8x.', phase: 0, data: ['(pc+ 2L)', 'Ra']},
+    {node:'A.B.C.D.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Cycle 2',
+	'C+D Post Cycle',
+  ],
+  head:{ text:'Single register', tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
+
+#align(center, wavy.render(height: 20%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlhlhlh'},
+    {name:'MREQ',wave:'1.....x.', phase: 0},
+    {name:'SEQ', wave:'0.1.0.x.', phase: 0},
+    {name:'OPC', wave:'1.0...x.', phase: 0},
+    {name:'RW',  wave:'1.0...x.', phase: 0},
+    {name:'A',   wave:'5.5.5.5.', phase: 0, data: ['pc + 8', 'alu + k - 2', 'alu + k - 2', 'pc + 12']},
+    {name:'MAS', wave:'5.5.5.x.', phase: 0, data: ['i', '2', '2']},
+    {name:'DIN', wave:'z8z8z8x.', phase: 0, data: ['(pc+ 2L)', 'R(k - 2)']},
+    {node:'A.B.C.D.E.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Cycle k (2 ... n)',
+	'C+D Cycle n + 1',
+	'D+E Post Cycle',
+  ],
+  head:{ text:'n registers', tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
+\
 
 == Data Swap Instruction Cycle
 
 *Related instructions:* `SWP`, `SWPB`
 
+#align(center, wavy.render(height: 20%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlhlhlhlh'},
+    {name:'MREQ',wave:'1...0.1.x.', phase: 0},
+    {name:'SEQ', wave:'0.....1.x.', phase: 0},
+    {name:'OPC', wave:'1.0.....x.', phase: 0},
+    {name:'RW',  wave:'1...0.1.x.', phase: 0},
+    {name:'A',   wave:'5.5.5.5.5.', phase: 0, data: ['pc + 8', 'Rn', 'Rn', 'pc + 12', 'pc + 12']},
+    {name:'MAS', wave:'5.5.5.5.x.', phase: 0, data: ['2', 'b/w', 'b/w', '2']},
+    {name:'DIN', wave:'z8z8z8z.x.', phase: 0, data: ['(pc + 8)', '(Rn)', 'Rm']},
+    {node:'A.B.C.D.E.F.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Cycle 2',
+	'C+D Cycle 3',
+	'D+E Cycle 4',
+	'E+F Post Cycle',
+  ],
+  head:{ text:'', tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
+\
+
 == Software Interrupt and Exception Instruction Cycle
 
 *Related instructions:* `SWI`
+
+#align(center, wavy.render(height: 20%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlhlhlh'},
+    {name:'MREQ',wave:'1.....x.', phase: 0},
+    {name:'SEQ', wave:'0.1...x.', phase: 0},
+    {name:'OPC', wave:'0.1...x.', phase: 0},
+    {name:'TBIT',wave:'5.5.5.x.', phase: 0, data: ['T', '0', '0']},
+    {name:'RW',  wave:'1.....x.', phase: 0},
+    {name:'A',   wave:'5.5.5.5.', phase: 0, data: ['pc + 2L', 'Xn', 'Xn + 4', 'Xn + 8']},
+    {name:'MAS', wave:'5.5.5.x.', phase: 0, data: ['i', '2', '2']},
+    {name:'DIN', wave:'z8z8z8x.', phase: 0, data: ['(pc + 2L)', '(Xn)', '(Xn + 4)']},
+    {node:'A.B.C.D.E.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Cycle 2',
+	'C+D Cycle 3',
+	'D+E Post Cycle',
+  ],
+  head:{ text:'', tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
+\
 
 == Undefined Instruction Cycle
 
 *Related instructions:*
 
+#align(center, wavy.render(height: 20%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlhlhlhlh'},
+    {name:'MREQ',wave:'0.1.....x.', phase: 0},
+    {name:'SEQ', wave:'0...1...x.', phase: 0},
+    {name:'OPC', wave:'1.......x.', phase: 0},
+    {name:'TBIT',wave:'5.5.5.5.x.', phase: 0, data: ['T', 'T', '0', '0']},
+    {name:'RW',  wave:'1.......x.', phase: 0},
+    {name:'A',   wave:'5.5.5.5.5.', phase: 0, data: ['pc + 2L', 'pc + 2L', 'Xn', 'Xn + 4', 'Xn + 8']},
+    {name:'MAS', wave:'5.5.5.5.x.', phase: 0, data: ['i', 'i', '2', '2']},
+    {name:'DIN', wave:'z8z.z8z8x.', phase: 0, data: ['(pc + 2L)', '(Xn)', '(Xn + 4)']},
+    {node:'A.B.C.D.E.F.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Cycle 2',
+	'C+D Cycle 3',
+	'D+E Cycle 4',
+	'E+F Post Cycle',
+  ],
+  head:{ text:'', tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
+
 == Unexecuted Instruction Cycle
 
 *Related instructions:*
+
+#align(center, wavy.render(height: 20%, "{
+  signal:
+  [
+    {name:'MCLK',wave:'lhlh'},
+    {name:'MREQ',wave:'1.x.', phase: 0},
+    {name:'SEQ', wave:'0.x.', phase: 0},
+    {name:'OPC', wave:'1.x.', phase: 0},
+    {name:'RW',  wave:'1.x.', phase: 0},
+    {name:'A',   wave:'5.5.', phase: 0, data: ['pc + 2L', 'pc + 3L']},
+    {name:'MAS', wave:'5.x.', phase: 0, data: ['i']},
+    {name:'DIN', wave:'z8x.', phase: 0, data: ['(pc + 2L)']},
+    {node:'A.B.C.', phase: 0.15},
+  ],
+  edge: [
+	'A+B Cycle 1',
+	'B+C Post Cycle',
+  ],
+  head:{ text:'', tick:0, every:1 },
+  config: { hscale: 2 }
+}"))
