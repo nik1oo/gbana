@@ -5,6 +5,7 @@ import "core:testing"
 import "core:math/rand"
 
 
+// Main Clock Timing //
 @(test)
 test_main_clock:: proc(test_runner: ^testing.T) {
 	init()
@@ -13,13 +14,48 @@ test_main_clock:: proc(test_runner: ^testing.T) {
 		if tick_index % 2 == 1 do testing.expect(test_runner, gba_core.main_clock.output == HIGH) } }
 
 
+// Simple Memory Cycle Timing //
+@(test)
+test_simple_memory_cycle:: proc(test_runner: ^testing.T) {
+	// Try every combination of (MREQ, SEQ) with a random address. //
+	seq: = LOW
+	for mreq in LOW ..= HIGH do for rw in LOW ..= HIGH {
+		address: = rand.int31_max(0x0e00ffff/4)
+		init()
+		gba_initialize_simple_memory_cycle(mreq = mreq, seq = seq, rw = rw, address = address)
+		tick(times = 3)
+		// 2 //
+		testing.except(test_runner, mreq == gba_core.memory_request.output)
+		testing.except(test_runner, seq == gba_core.sequential_cycle.output)
+		tick()
+		// 3 //
+		testing.except(test_runner, mreq == gba_core.memory_request.output)
+		testing.except(test_runner, seq == gba_core.sequential_cycle.output)
+		testing.except(test_runner, address == gba_core.address.output)
+		tick()
+		// 4 //
+		testing.except(test_runner, address == gba_core.address.output)
+		tick()
+		// 5 //
+		if rw == LOW do testing.except(test_runner, memory_read_u32(address) == gba_core.data_in.output)
+		else do testing.except(test_runner, memory_read_u32(address) == gba_core.data_out.output) } }
+
+
+// N-Cycle Timing //
+@(test)
+test_n_cycle:: proc(test_runner: ^testing.T) {
+	
+}
+
+
 @(test)
 test_n_cycle:: proc(test_runner: ^testing.T) {
 	init()
+	address: u32 = 0b0
 	tick(times = 3)
 	// 2 //
 	testing.expect(test_runner, tick_index == 2)
-	gba_initiate_n_cycle(0b0)
+	gba_initiate_n_cycle_request(address)
 	tick()
 	// 3 //
 	testing.expect(test_runner, tick_index == 3)

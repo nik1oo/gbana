@@ -23,6 +23,8 @@ WARN: string: "\e[0;33m[ warn ]\e[0m"
 // Transition - transition from the previous tick into the current tick.
 
 
+LOW_PHASE:: 0
+HIGH_PHASE:: 1
 first_tick: bool
 tick_index:  uint
 cycle_index: uint
