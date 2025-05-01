@@ -165,7 +165,7 @@ The Memory Sequence is an external sequence where the GBA Core requests and the 
     {name:'RW',   wave:'x..5.x..', phase: 0},
     {name:'A',    wave:'x...5.x.', phase: 0},
     {name:'DOUT', wave:'x...5.x.', phase: 0},
-    {name:'WAIT', wave:'x...8.x.', phase: 0},
+    {name:'WAIT', wave:'x...0.x.', phase: 0},
     {name:'ABORT',wave:'x....8x.', phase: 0},
     {name:'DIN',wave:'x....8x.', phase: 0},
     {node:'A.B.C.D.E', phase: 0.15},
@@ -185,6 +185,8 @@ The Memory Sequence is an external sequence where the GBA Core requests and the 
 - The *Memory* may set `ABORT` to high to indicate that the request cannot be fulfilled.
 - The *Memory* must put the data on `DIN` during the high phase of the response cycle.
 \
+
+_Insert Delayed Memory Sequence, same as Memory Sequence but with WAIT set to high for a few cycles._
 
 == #smallcaps[Nonsequential Memory Sequence]
 
@@ -393,8 +395,8 @@ This is irrelevant to the emulator, since the GBA uses SRAM and the intended add
   columns: (50%, 50%),
   table.header([*Related Procedures*], []),
   `test_data_write_sequence`, [Test procedure.],
-  `gba_request_data_write`, [Request procedure, must be called during phase 1 of the request cycle.],
-  `memory_respond_data_write`, [Response procedure, must be called during phase 1 of the response cycle.])
+  `gba_request_data_write_cycle`, [Request procedure, must be called during phase 1 of the request cycle.],
+  `memory_respond_data_write_cycle`, [Response procedure, must be called during phase 1 of the response cycle.])
 
 #table(
   columns: (50%, 50%),
@@ -430,8 +432,8 @@ A Data Write Sequence is an external sequence where a write operation is request
   columns: (50%, 50%),
   table.header([*Related Procedures*], []),
   `test_data_read_sequence`, [Test procedure.],
-  `gba_request_data_read`, [Request procedure, must be called during phase 1 of the request cycle.],
-  `memory_respond_data_read`, [Response procedure, must be called during phase 1 of the response cycle.])
+  `gba_request_data_read_cycle`, [Request procedure, must be called during phase 1 of the request cycle.],
+  `memory_respond_data_read_cycle`, [Response procedure, must be called during phase 1 of the response cycle.])
 
 #table(
   columns: (50%, 50%),
@@ -862,6 +864,12 @@ This is irrelevant for the emulator.
   table.header([*Related Instructions*]),
   [`B`, `BL`])
 
+#table(
+  columns: (60%, 40%),
+  table.header([*Related Procedures*], []),
+  `test_branch_and_branch_with_link_instruction_cycle`, [Test procedure.],
+  `gba_initiate_branch_and_branch_with_link_instruction_cycle`, [Initiation procedure, must be called during phase 1.])
+
 #figure(caption: [Branch and Branch with Link Instruction Cycle], wavy.render(height: 33%, "{
   signal:
   [
@@ -910,6 +918,12 @@ This is irrelevant for the emulator.
   columns: (100%),
   table.header([*Related Instructions*]),
   [])
+
+#table(
+  columns: (60%, 40%),
+  table.header([*Related Procedures*], []),
+  `test_thumb_branch_with_link_instruction_cycle`, [Test procedure.],
+  `gba_initiate_thumb_branch_with_link_instruction_cycle`, [Initiation procedure.])
 
 #figure(caption: [Thumb Branch with Link Instruction Cycle], wavy.render(height: 33%, "{
   signal:
@@ -962,6 +976,12 @@ This is irrelevant for the emulator.
   table.header([*Related Instructions*]),
   [`BX`])
 
+#table(
+  columns: (60%, 40%),
+  table.header([*Related Procedures*], []),
+  `test_branch_and_exchange_instruction_cycle`, [Test procedure.],
+  `gba_initiate_branch_and_exchange_instruction_cycle`, [Initiation procedure.])
+
 #figure(caption: [Branch and Exchange Instruction Cycle], wavy.render(height: 36%, "{
   signal:
   [
@@ -1012,6 +1032,12 @@ This is irrelevant for the emulator.
   columns: (100%),
   table.header([*Related Instructions*]),
   [`ADC`, `ADD`, `AND`, `BIC`, `CMN`, `CMP`, `EOR`, `MOV`, `MRS`, `MSR`, `MVN`, `ORR`, `RSB`, `RSC`, `SBC`, `SUB`, `TEQ`, `TST`])
+
+#table(
+  columns: (60%, 40%),
+  table.header([*Related Procedures*], []),
+  `test_data_processing_instruction_cycle`, [Test procedure.],
+  `gba_initiate_data_processing_instruction_cycle`, [Initiation procedure.])
 
 _It seems like whenever `SEQ` is high, the address will always increment in the post cycle._
 
@@ -1151,6 +1177,12 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   columns: (100%),
   table.header([*Related Instructions*]),
   [`MLA`, `MUL`, `SMLAL`, `SMULL`, `UMLAL`, `UMULL`])
+
+#table(
+  columns: (60%, 40%),
+  table.header([*Related Procedures*], []),
+  `test_multiply_and_multiply_accumulate_instruction_cycle`, [Test procedure.],
+  `gba_initiate_multiply_and_multiply_accumulate_instruction_cycle`, [Initiation procedure.])
 
 #figure(caption: [Multiply Instruction Cycle], wavy.render(height: 38%, "{
   signal:
@@ -1328,6 +1360,12 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   table.header([*Related Instructions*]),
   [`LDR`, `LDRB`, `LDRBT`, `LDRH`, `LDRSB`, `LDRSH`, `LDRT`])
 
+#table(
+  columns: (60%, 40%),
+  table.header([*Related Procedures*], []),
+  `test_load_register_instruction_cycle`, [Test procedure.],
+  `gba_initiate_load_register_instruction_cycle`, [Initiation procedure.])
+
 #figure(caption: [Load Register Instruction Cycle (normal)], wavy.render(height: 38%, "{
   signal:
   [
@@ -1421,6 +1459,12 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   table.header([*Related Instructions*]),
   [`STR`, `STRB`, `STRBT`, `STRH`, `STRT`])
 
+#table(
+  columns: (60%, 40%),
+  table.header([*Related Procedures*], []),
+  `test_store_register_instruction_cycle`, [Test procedure.],
+  `gba_initiate_store_register_instruction_cycle`, [Initiation procedure.])
+
 #figure(caption: [Store Register Instruction Cycle], wavy.render(height: 36%, "{
   signal:
   [
@@ -1450,6 +1494,12 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   columns: (100%),
   table.header([*Related Instructions*]),
   [`LDM`])
+
+#table(
+  columns: (60%, 40%),
+  table.header([*Related Procedures*], []),
+  `test_load_multiple_register_instruction_cycle`, [Test procedure.],
+  `gba_initiate_load_multiple_register_instruction_cycle`, [Initiation procedure.])
 
 #figure(caption: [Load Multiple Register Instruction Cycle (single register)], wavy.render(height: 38%, "{
   signal:
@@ -1631,6 +1681,12 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   table.header([*Related Instructions*]),
   [`STM`])
 
+#table(
+  columns: (60%, 40%),
+  table.header([*Related Procedures*], []),
+  `test_store_multiple_register_instruction_cycle`, [Test procedure.],
+  `gba_initiate_store_multiple_register_instruction_cycle`, [Initiation procedure.])
+
 #figure(caption: [Store Multiple Register Instruction Cycle (single register)], wavy.render(height: 42%, "{
   signal:
   [
@@ -1705,6 +1761,12 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   table.header([*Related Instructions*]),
   [`SWP`, `SWPB`])
 
+#table(
+  columns: (60%, 40%),
+  table.header([*Related Procedures*], []),
+  `test_data_swap_instruction_cycle`, [Test procedure.],
+  `gba_initiate_data_swap_instruction_cycle`, [Initiation procedure.])
+
 #figure(caption: [Data Swap Instruction Cycle], wavy.render(height: 36%, "{
   signal:
   [
@@ -1758,6 +1820,12 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   table.header([*Related Instructions*]),
   [`SWI`])
 
+#table(
+  columns: (60%, 40%),
+  table.header([*Related Procedures*], []),
+  `test_software_interrupt_and_exception_instruction_cycle`, [Test procedure.],
+  `gba_initiate_software_interrupt_and_exception_instruction_cycle`, [Initiation procedure.])
+
 #figure(caption: [Software Interrupt and Exception Instruction Cycle], wavy.render(height: 36%, "{
   signal:
   [
@@ -1803,6 +1871,12 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
 \
 
 == #smallcaps[Undefined Instruction Cycle]
+
+#table(
+  columns: (60%, 40%),
+  table.header([*Related Procedures*], []),
+  `test_undefined_instruction_cycle`, [Test procedure.],
+  `gba_initiate_undefined_instruction_cycle`, [Initiation procedure.])
 
 #figure(caption: [Undefined Instruction Cycle], wavy.render(height: 36%, "{
   signal:
@@ -1851,6 +1925,12 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
 \
 
 == #smallcaps[Unexecuted Instruction Cycle]
+
+#table(
+  columns: (60%, 40%),
+  table.header([*Related Procedures*], []),
+  `test_unexecuted_instruction_cycle`, [Test procedure.],
+  `gba_initiate_unexecuted_instruction_cycle`, [Initiation procedure.])
 
 #figure(caption: [Unexecuted Instruction Cycle], wavy.render(height: 33%, "{
   signal:

@@ -14,14 +14,14 @@ Burst_Transfer_Type:: enum {
 	HALFWORD = 2 } // Increment address by 2. //
 gba_set_bus_cycle_type:: proc(type: Bus_Cycle_Type) {
 	switch type {
-	case .NON_SEQUENTIAL_TRANSFER: signal_force(&gba_core.memory_request, true);  signal_force(&gba_core.sequential_cycle, false)
-	case .SEQUENTIAL_TRANSFER:     signal_force(&gba_core.memory_request, true);  signal_force(&gba_core.sequential_cycle, true)
-	case .INTERNAL:                signal_force(&gba_core.memory_request, false); signal_force(&gba_core.sequential_cycle, false) } }
+	case .NON_SEQUENTIAL_TRANSFER: signal_force(&memory.memory_request, true);  signal_force(&memory.sequential_cycle, false)
+	case .SEQUENTIAL_TRANSFER:     signal_force(&memory.memory_request, true);  signal_force(&memory.sequential_cycle, true)
+	case .INTERNAL:                signal_force(&memory.memory_request, false); signal_force(&memory.sequential_cycle, false) } }
 get_get_bus_cycle_type:: proc() -> Bus_Cycle_Type {
 	switch {
-	case (gba_core.memory_request.output == true)  && (gba_core.sequential_cycle.output == false): return .NON_SEQUENTIAL_TRANSFER
-	case (gba_core.memory_request.output == true)  && (gba_core.sequential_cycle.output == true):  return .SEQUENTIAL_TRANSFER
-	case (gba_core.memory_request.output == false) && (gba_core.sequential_cycle.output == false): return .INTERNAL }
+	case (memory.memory_request.output == true)  && (memory.sequential_cycle.output == false): return .NON_SEQUENTIAL_TRANSFER
+	case (memory.memory_request.output == true)  && (memory.sequential_cycle.output == true):  return .SEQUENTIAL_TRANSFER
+	case (memory.memory_request.output == false) && (memory.sequential_cycle.output == false): return .INTERNAL }
 	return auto_cast 0 }
 
 
@@ -34,7 +34,7 @@ tick_bus_controller_phase_1:: proc() {
 	bus_controller.bus_cycle_type = get_get_bus_cycle_type()
 	switch bus_controller.bus_cycle_type {
 	case .NON_SEQUENTIAL_TRANSFER:
-		address: = gba_core.address.output
+		address: = memory.address.output
 	case .SEQUENTIAL_TRANSFER:
 	case .INTERNAL:
 	} }

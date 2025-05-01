@@ -894,327 +894,327 @@ GBA_Instruction_Type:: enum {
 	BRANCH,
 	SOFTWARE_INTERRUPT,
 	UNDEFINED }
-gba_verify_opcode:: proc {
-	gba_verify_data_processing_immediate_opcode,
-	gba_verify_data_processing_immediate_shift_opcode,
-	gba_verify_data_processing_register_shift_opcode,
-	gba_verify_multiply_opcode,
-	gba_verify_multiply_long_opcode,
-	gba_verify_move_from_status_register_opcode,
-	gba_verify_move_immediate_to_status_register_opcode,
-	gba_verify_move_register_to_status_register_opcode,
-	gba_verify_branch_and_exchange_opcode,
-	gba_verify_load_store_immediate_offset_opcode,
-	gba_verify_load_store_register_offset_opcode,
-	gba_verify_load_store_halfword_signed_byte_opcode,
-	gba_verify_swap_opcode,
-	gba_verify_load_store_multiple_opcode,
-	gba_verify_coprocessor_data_processing_opcode,
-	gba_verify_coprocessor_register_transfers_opcode,
-	gba_verify_coprocessor_load_store_opcode,
-	gba_verify_branch_opcode,
-	gba_verify_software_interrupt_opcode,
-	gba_verify_undefined_opcode }
-gba_determine_instruction_type:: proc(ins: GBA_Instruction) -> GBA_Instruction_Type {
-	switch {
-	case gba_verify_data_processing_immediate_opcode(auto_cast ins):         return .DATA_PROCESSING_IMMEDIATE
-	case gba_verify_data_processing_immediate_shift_opcode(auto_cast ins):   return .DATA_PROCESSING_IMMEDIATE_SHIFT
-	case gba_verify_data_processing_register_shift_opcode(auto_cast ins):    return .DATA_PROCESSING_REGISTER_SHIFT
-	case gba_verify_multiply_opcode(auto_cast ins):                          return .MULTIPLY
-	case gba_verify_multiply_long_opcode(auto_cast ins):                     return .MULTIPLY_LONG
-	case gba_verify_move_from_status_register_opcode(auto_cast ins):         return .MOVE_FROM_STATUS_REGISTER
-	case gba_verify_move_immediate_to_status_register_opcode(auto_cast ins): return .MOVE_IMMEDIATE_TO_STATUS_REGISTER
-	case gba_verify_move_register_to_status_register_opcode(auto_cast ins):  return .MOVE_REGISTER_TO_STATUS_REGISTER
-	case gba_verify_branch_and_exchange_opcode(auto_cast ins):               return .BRANCH_AND_EXCHANGE
-	case gba_verify_load_store_immediate_offset_opcode(auto_cast ins):       return .LOAD_STORE_IMMEDIATE_OFFSET
-	case gba_verify_load_store_register_offset_opcode(auto_cast ins):        return .LOAD_STORE_REGISTER_OFFSET
-	case gba_verify_load_store_halfword_signed_byte_opcode(auto_cast ins):   return .LOAD_STORE_HALFWORD_SIGNED_BYTE
-	case gba_verify_swap_opcode(auto_cast ins):                              return .SWAP
-	case gba_verify_load_store_multiple_opcode(auto_cast ins):               return .LOAD_STORE_MULTIPLE
-	case gba_verify_coprocessor_data_processing_opcode(auto_cast ins):       return .COPROCESSOR_DATA_PROCESSING
-	case gba_verify_coprocessor_register_transfers_opcode(auto_cast ins):    return .COPROCESSOR_REGISTER_TRANSFERS
-	case gba_verify_coprocessor_load_store_opcode(auto_cast ins):            return .COPROCESSOR_LOAD_STORE
-	case gba_verify_branch_opcode(auto_cast ins):                            return .BRANCH
-	case gba_verify_software_interrupt_opcode(auto_cast ins):                return .SOFTWARE_INTERRUPT
-	case gba_verify_undefined_opcode(auto_cast ins):                         return .UNDEFINED }
-	panic("unrecognized instruction") }
-// Instruction Classes that have an "opcode" field:
-// - data processing instructions
-// - coprocessor data processing instructions
-// - coprocessor register transfers instructions
-GBA_Data_Processing_Immediate_Instruction:: bit_field u32 {
-	immediate: u32                      | 8,
-	rotate:    uint                      | 4,
-	rd:        GBA_Logical_Register_Name | 4,
-	rn:        GBA_Logical_Register_Name | 4,
-	set_condition_codes:         bool                      | 1,
-	opcode:        uint                      | 4,
-	_:         uint                      | 3,
-	cond:      GBA_Condition             | 4 }
-GBA_DATA_PROCESSING_IMMEDIATE_OPCODE::      0b00000010_00000000_00000000_00000000
-GBA_DATA_PROCESSING_IMMEDIATE_OPCODE_MASK:: 0b00001110_00000000_00000000_00000000
-gba_verify_data_processing_immediate_opcode:: proc(ins: GBA_Data_Processing_Immediate_Instruction) -> bool {
-	return (i32(ins) & GBA_DATA_PROCESSING_IMMEDIATE_OPCODE_MASK) == GBA_DATA_PROCESSING_IMMEDIATE_OPCODE }
-GBA_Data_Processing_Immediate_Shift_Instruction:: bit_field u32 {
-	rm:              GBA_Logical_Register_Name | 4,
-	_:               uint                      | 1,
-	shift:           uint                      | 2,
-	shift_immediate: uint                      | 5,
-	rd:              GBA_Logical_Register_Name | 4,
-	rn:              GBA_Logical_Register_Name | 4,
-	set_condition_codes:               bool                      | 1,
-	opcode:          uint                      | 4,
-	_:               uint                      | 3,
-	cond:            GBA_Condition             | 4 }
-GBA_DATA_PROCESSING_IMMEDIATE_SHIFT_OPCODE::      0b00000000_00000000_00000000_00000000
-GBA_DATA_PROCESSING_IMMEDIATE_SHIFT_OPCODE_MASK:: 0b00001110_00000000_00000000_00010000
-gba_verify_data_processing_immediate_shift_opcode:: proc(ins: GBA_Data_Processing_Immediate_Shift_Instruction) -> bool {
-	return (i32(ins) & GBA_DATA_PROCESSING_IMMEDIATE_SHIFT_OPCODE_MASK) == GBA_DATA_PROCESSING_IMMEDIATE_SHIFT_OPCODE }
-GBA_Data_Processing_Register_Shift_Instruction:: bit_field u32 {
-	rm:              GBA_Logical_Register_Name | 4,
-	_:               uint                      | 1,
-	shift:           uint                      | 2,
-	_:               uint                      | 1,
-	rs:              GBA_Logical_Register_Name | 4,
-	rd:              GBA_Logical_Register_Name | 4,
-	rn:              GBA_Logical_Register_Name | 4,
-	set_condition_codes:               bool                      | 1,
-	opcode:          uint                      | 4,
-	_:               uint                      | 3,
-	cond:            GBA_Condition             | 4 }
-GBA_DATA_PROCESSING_REGISTER_SHIFT_OPCODE::      0b00000000_00000000_00000000_00010000
-GBA_DATA_PROCESSING_REGISTER_SHIFT_OPCODE_MASK:: 0b00001110_00000000_00000000_10010000
-gba_verify_data_processing_register_shift_opcode:: proc(ins: GBA_Data_Processing_Register_Shift_Instruction) -> bool {
-	return (i32(ins) & GBA_DATA_PROCESSING_REGISTER_SHIFT_OPCODE_MASK) == GBA_DATA_PROCESSING_REGISTER_SHIFT_OPCODE }
-GBA_Multiply_Instruction:: bit_field u32 {
-	rm:   GBA_Logical_Register_Name | 4,
-	_:    uint                      | 4,
-	rs:   GBA_Logical_Register_Name | 4,
-	rn:   GBA_Logical_Register_Name | 4,
-	rd:   GBA_Logical_Register_Name | 4,
-	set_condition_codes:    bool                      | 1,
-	a:    bool                      | 1,
-	_:    uint                      | 6,
-	cond: GBA_Condition             | 4 }
-GBA_MULTIPLY_OPCODE::      0b00000000_00000000_00000000_10010000
-GBA_MULTIPLY_OPCODE_MASK:: 0b00001111_11000000_00000000_11110000
-gba_verify_multiply_opcode:: proc(ins: GBA_Multiply_Instruction) -> bool {
-	return (i32(ins) & GBA_MULTIPLY_OPCODE_MASK) == GBA_MULTIPLY_OPCODE }
-GBA_Multiply_Long_Instruction:: bit_field u32 {
-	rm:    GBA_Logical_Register_Name | 4,
-	_:     uint                      | 4,
-	rs:    GBA_Logical_Register_Name | 4,
-	rd_lo: GBA_Logical_Register_Name | 4,
-	rd_hi: GBA_Logical_Register_Name | 4,
-	set_condition_codes:     bool                      | 1,
-	a:     bool                      | 1,
-	u:     bool                      | 1,
-	_:     uint                      | 5,
-	cond:  GBA_Condition             | 4 }
-GBA_MULTIPLY_LONG_OPCODE::      0b00000000_10000000_00000000_10010000
-GBA_MULTIPLY_LONG_OPCODE_MASK:: 0b00001111_10000000_00000000_11110000
-gba_verify_multiply_long_opcode:: proc(ins: GBA_Multiply_Long_Instruction) -> bool {
-	return (i32(ins) & GBA_MULTIPLY_LONG_OPCODE_MASK) == GBA_MULTIPLY_LONG_OPCODE }
-GBA_Move_From_Status_Register_Instruction:: bit_field u32 {
-	sbz:   uint                      | 12,
-	rd:    GBA_Logical_Register_Name | 4,
-	sbo:   uint                      | 4,
-	_:     uint                      | 2,
-	r:     bool                      | 1,
-	_:     uint                      | 5,
-	cond:  GBA_Condition             | 4 }
-GBA_MOVE_FROM_STATUS_REGISTER_OPCODE::      0b00000001_00000000_00000000_00000000
-GBA_MOVE_FROM_STATUS_REGISTER_OPCODE_MASK:: 0b00001111_10110000_00000000_00000000
-gba_verify_move_from_status_register_opcode:: proc(ins: GBA_Move_From_Status_Register_Instruction) -> bool {
-	return (i32(ins) & GBA_MOVE_FROM_STATUS_REGISTER_OPCODE_MASK) == GBA_MOVE_FROM_STATUS_REGISTER_OPCODE }
-GBA_Move_Immediate_To_Status_Register_Instruction:: bit_field u32 {
-	immediate: uint          | 8,
-	rotate:    uint          | 4,
-	sbo:       uint          | 4,
-	mask:      uint          | 4,
-	_:         uint          | 2,
-	r:         bool          | 1,
-	_:         uint          | 5,
-	cond:      GBA_Condition | 4 }
-GBA_MOVE_IMMEDIATE_TO_STATUS_REGISTER_OPCODE::      0b00000011_00100000_00000000_00000000
-GBA_MOVE_IMMEDIATE_TO_STATUS_REGISTER_OPCODE_MASK:: 0b00001111_10110000_00000000_00000000
-gba_verify_move_immediate_to_status_register_opcode:: proc(ins: GBA_Move_Immediate_To_Status_Register_Instruction) -> bool {
-	return (i32(ins) & GBA_MOVE_IMMEDIATE_TO_STATUS_REGISTER_OPCODE_MASK) == GBA_MOVE_IMMEDIATE_TO_STATUS_REGISTER_OPCODE }
-GBA_Move_Register_To_Status_Register_Instruction:: bit_field u32 {
-	immediate: uint          | 8,
-	rotate:    uint          | 4,
-	sbo:       uint          | 4,
-	mask:      uint          | 4,
-	_:         uint          | 2,
-	r:         bool          | 1,
-	_:         uint          | 5,
-	cond:      GBA_Condition | 4 }
-GBA_MOVE_REGISTER_TO_STATUS_REGISTER_OPCODE::      0b00000001_00100000_00000000_00000000
-GBA_MOVE_REGISTER_TO_STATUS_REGISTER_OPCODE_MASK:: 0b00001111_10110000_00000000_00010000
-gba_verify_move_register_to_status_register_opcode:: proc(ins: GBA_Move_Register_To_Status_Register_Instruction) -> bool {
-	return (i32(ins) & GBA_MOVE_REGISTER_TO_STATUS_REGISTER_OPCODE_MASK) == GBA_MOVE_REGISTER_TO_STATUS_REGISTER_OPCODE }
-GBA_Move_Branch_And_Exchange_Instruction:: bit_field u32 {
-	rm:        GBA_Logical_Register_Name | 4,
-	_:         uint                      | 4,
-	sbo_0:     uint                      | 4,
-	sbo_1:     uint                      | 4,
-	sbo_2:     uint                      | 4,
-	_:         uint                      | 8,
-	cond:      GBA_Condition             | 4 }
-GBA_BRANCH_AND_EXCHANGE_OPCODE::      0b00000001_00100000_00000000_00010000
-GBA_BRANCH_AND_EXCHANGE_OPCODE_MASK:: 0b00001111_11110000_00000000_11110000
-gba_verify_branch_and_exchange_opcode:: proc(ins: GBA_Move_Branch_And_Exchange_Instruction) -> bool {
-	return (i32(ins) & GBA_BRANCH_AND_EXCHANGE_OPCODE_MASK) == GBA_BRANCH_AND_EXCHANGE_OPCODE }
-GBA_Load_Store_Immediate_Offset_Instruction:: bit_field u32 {
-	immediate: uint                      | 12,
-	rd:        GBA_Logical_Register_Name | 4,
-	rn:        GBA_Logical_Register_Name | 4,
-	l:         bool                      | 1,
-	w:         bool                      | 1,
-	b:         bool                      | 1,
-	u:         bool                      | 1,
-	p:         bool                      | 1,
-	_:         uint                      | 3,
-	cond:      GBA_Condition             | 4 }
-GBA_LOAD_STORE_IMMEDIATE_OFFSET_OPCODE::      0b00000100_00000000_00000000_00000000
-GBA_LOAD_STORE_IMMEDIATE_OFFSET_OPCODE_MASK:: 0b00001110_00000000_00000000_00000000
-gba_verify_load_store_immediate_offset_opcode:: proc(ins: GBA_Load_Store_Immediate_Offset_Instruction) -> bool {
-	return (i32(ins) & GBA_LOAD_STORE_IMMEDIATE_OFFSET_OPCODE_MASK) == GBA_LOAD_STORE_IMMEDIATE_OFFSET_OPCODE }
-GBA_Load_Store_Register_Offset_Instruction:: bit_field u32 {
-	rm:              GBA_Logical_Register_Name | 4,
-	_:               uint                      | 1,
-	shift:           uint                      | 2,
-	shift_immediate: uint                      | 5,
-	rd:              GBA_Logical_Register_Name | 4,
-	rn:              GBA_Logical_Register_Name | 4,
-	l:               bool                      | 1,
-	w:               bool                      | 1,
-	b:               bool                      | 1,
-	u:               bool                      | 1,
-	p:               bool                      | 1,
-	_:               uint                      | 3,
-	cond:            GBA_Condition             | 4 }
-GBA_LOAD_STORE_REGISTER_OFFSET_OPCODE::      0b00000110_00000000_00000000_00000000
-GBA_LOAD_STORE_REGISTER_OFFSET_OPCODE_MASK:: 0b00001110_00000000_00000000_00010000
-gba_verify_load_store_register_offset_opcode:: proc(ins: GBA_Load_Store_Register_Offset_Instruction) -> bool {
-	return (i32(ins) & GBA_LOAD_STORE_REGISTER_OFFSET_OPCODE_MASK) == GBA_LOAD_STORE_REGISTER_OFFSET_OPCODE }
-GBA_Load_Store_Halfword_Signed_Byte_Instruction:: bit_field u32 {
-	lo_offset:       uint                      | 4,
-	_:               uint                      | 1,
-	h:               bool                      | 1,
-	set_condition_codes:               bool                      | 1,
-	_:               uint                      | 1,
-	hi_offset:       uint                      | 4,
-	rd:              GBA_Logical_Register_Name | 4,
-	rn:              GBA_Logical_Register_Name | 4,
-	l:               bool                      | 1,
-	w:               bool                      | 1,
-	_:               uint                      | 1,
-	u:               bool                      | 1,
-	p:               bool                      | 1,
-	_:               uint                      | 3,
-	cond:            GBA_Condition             | 4 }
-GBA_LOAD_STORE_HALFWORD_SIGNED_BYTE_OPCODE::      0b00000000_01000000_00000000_10010000
-GBA_LOAD_STORE_HALFWORD_SIGNED_BYTE_OPCODE_MASK:: 0b00001110_01000000_00000000_10010000
-gba_verify_load_store_halfword_signed_byte_opcode:: proc(ins: GBA_Load_Store_Halfword_Signed_Byte_Instruction) -> bool {
-	return (i32(ins) & GBA_LOAD_STORE_HALFWORD_SIGNED_BYTE_OPCODE_MASK) == GBA_LOAD_STORE_HALFWORD_SIGNED_BYTE_OPCODE }
-GBA_Swap_Instruction:: bit_field u32 {
-	rm:              GBA_Logical_Register_Name | 4,
-	_:               uint                      | 4,
-	sbz:             uint                      | 4,
-	rd:              GBA_Logical_Register_Name | 4,
-	rn:              GBA_Logical_Register_Name | 4,
-	_:               uint                      | 2,
-	b:               bool                      | 1,
-	_:               uint                      | 5,
-	cond:            GBA_Condition             | 4 }
-GBA_SWAP_OPCODE::      0b00000001_00000000_00000000_10010000
-GBA_SWAP_OPCODE_MASK:: 0b00001111_10110000_00000000_11110000
-gba_verify_swap_opcode:: proc(ins: GBA_Swap_Instruction) -> bool {
-	return (i32(ins) & GBA_SWAP_OPCODE_MASK) == GBA_SWAP_OPCODE }
-GBA_Load_Store_Multiple_Instruction:: bit_field u32 {
-	register_list:   uint                      | 16,
-	rn:              GBA_Logical_Register_Name | 4,
-	l:               bool                      | 1,
-	w:               bool                      | 1,
-	set_condition_codes:               bool                      | 1,
-	u:               bool                      | 1,
-	p:               bool                      | 1,
-	_:               uint                      | 3,
-	cond:            GBA_Condition             | 4 }
-GBA_LOAD_STORE_MULTIPLE_OPCODE::      0b00001000_00000000_00000000_00000000
-GBA_LOAD_STORE_MULTIPLE_OPCODE_MASK:: 0b00001110_00000000_00000000_00000000
-gba_verify_load_store_multiple_opcode:: proc(ins: GBA_Load_Store_Multiple_Instruction) -> bool {
-	return (i32(ins) & GBA_LOAD_STORE_MULTIPLE_OPCODE_MASK) == GBA_LOAD_STORE_MULTIPLE_OPCODE }
-GBA_Coprocessor_Data_Processing_Instruction:: bit_field u32 {
-	crm:    uint          | 4,
-	_:      uint          | 1,
-	op2:    uint          | 3,
-	cp_num: uint          | 4,
-	crd:    uint          | 4,
-	crn:    uint          | 4,
-	opcode_1:    uint          | 4,
-	_:      uint          | 4,
-	cond:   GBA_Condition | 4 }
-GBA_COPROCESSOR_DATA_PROCESSING_OPCODE::      0b00001110_00000000_00000000_00000000
-GBA_COPROCESSOR_DATA_PROCESSING_OPCODE_MASK:: 0b00001111_00000000_00000000_00010000
-gba_verify_coprocessor_data_processing_opcode:: proc(ins: GBA_Coprocessor_Data_Processing_Instruction) -> bool {
-	return (i32(ins) & GBA_COPROCESSOR_DATA_PROCESSING_OPCODE_MASK) == GBA_COPROCESSOR_DATA_PROCESSING_OPCODE }
-GBA_Coprocessor_Register_Transfers_Instruction:: bit_field u32 {
-	crm:    uint                      | 4,
-	_:      uint                      | 1,
-	opcode_2:    uint                      | 3,
-	cp_num: uint                      | 4,
-	rd:     GBA_Logical_Register_Name | 4,
-	crn:    uint                      | 4,
-	l:      bool                      | 1,
-	opcode_1:    uint                      | 3,
-	_:      uint                      | 4,
-	cond:   GBA_Condition             | 4 }
-GBA_COPROCESSOR_REGISTER_TRANSFERS_OPCODE::      0b00001110_00000000_00000000_00010000
-GBA_COPROCESSOR_REGISTER_TRANSFERS_OPCODE_MASK:: 0b00001111_00000000_00000000_00010000
-gba_verify_coprocessor_register_transfers_opcode:: proc(ins: GBA_Coprocessor_Register_Transfers_Instruction) -> bool {
-	return (i32(ins) & GBA_COPROCESSOR_REGISTER_TRANSFERS_OPCODE_MASK) == GBA_COPROCESSOR_REGISTER_TRANSFERS_OPCODE }
-GBA_Coprocessor_Load_Store_Instruction:: bit_field u32 {
-	offset: uint                      | 8,
-	cp_num: uint                      | 4,
-	crd:    uint                      | 4,
-	rn:     GBA_Logical_Register_Name | 4,
-	l:      bool                      | 1,
-	w:      bool                      | 1,
-	n:      bool                      | 1,
-	u:      bool                      | 1,
-	p:      bool                      | 1,
-	_:      uint                      | 3,
-	cond:   GBA_Condition             | 4 }
-GBA_COPROCESSOR_LOAD_STORE_OPCODE::      0b00001100_00000000_00000000_00000000
-GBA_COPROCESSOR_LOAD_STORE_OPCODE_MASK:: 0b00001110_00000000_00000000_00000000
-gba_verify_coprocessor_load_store_opcode:: proc(ins: GBA_Coprocessor_Load_Store_Instruction) -> bool {
-	return (i32(ins) & GBA_COPROCESSOR_LOAD_STORE_OPCODE_MASK) == GBA_COPROCESSOR_LOAD_STORE_OPCODE }
-GBA_Branch_Instruction:: bit_field u32 {
-	offset: uint          | 24,
-	l:      bool          | 1,
-	_:      uint          | 3,
-	cond:   GBA_Condition | 4 }
-GBA_BRANCH_OPCODE::      0b00001010_00000000_00000000_00000000
-GBA_BRANCH_OPCODE_MASK:: 0b00001110_00000000_00000000_00000000
-gba_verify_branch_opcode:: proc(ins: GBA_Branch_Instruction) -> bool {
-	return (i32(ins) & GBA_BRANCH_OPCODE_MASK) == GBA_BRANCH_OPCODE }
-GBA_Software_Interrupt_Instruction:: bit_field u32 {
-	swi_number: uint          | 24,
-	_:          uint          | 4,
-	cond:       GBA_Condition | 4 }
-GBA_SOFTWARE_INTERRUPT_OPCODE::      0b00001111_00000000_00000000_00000000
-GBA_SOFTWARE_INTERRUPT_OPCODE_MASK:: 0b00001111_00000000_00000000_00000000
-gba_verify_software_interrupt_opcode:: proc(ins: GBA_Software_Interrupt_Instruction) -> bool {
-	return (i32(ins) & GBA_SOFTWARE_INTERRUPT_OPCODE_MASK) == GBA_SOFTWARE_INTERRUPT_OPCODE }
-GBA_Undefined_Instruction:: bit_field u32 {
-	_:    uint          | 28,
-	cond: GBA_Condition | 4 }
-GBA_UNDEFINED_OPCODE::      0b00000110_00000000_00000000_00010000
-GBA_UNDEFINED_OPCODE_MASK:: 0b00001110_00000000_00000000_00010000
-gba_verify_undefined_opcode:: proc(ins: GBA_Undefined_Instruction) -> bool {
-	return (i32(ins) & GBA_UNDEFINED_OPCODE_MASK) == GBA_UNDEFINED_OPCODE }
+// gba_verify_opcode:: proc {
+// 	gba_verify_data_processing_immediate_opcode,
+// 	gba_verify_data_processing_immediate_shift_opcode,
+// 	gba_verify_data_processing_register_shift_opcode,
+// 	gba_verify_multiply_opcode,
+// 	gba_verify_multiply_long_opcode,
+// 	gba_verify_move_from_status_register_opcode,
+// 	gba_verify_move_immediate_to_status_register_opcode,
+// 	gba_verify_move_register_to_status_register_opcode,
+// 	gba_verify_branch_and_exchange_opcode,
+// 	gba_verify_load_store_immediate_offset_opcode,
+// 	gba_verify_load_store_register_offset_opcode,
+// 	gba_verify_load_store_halfword_signed_byte_opcode,
+// 	gba_verify_swap_opcode,
+// 	gba_verify_load_store_multiple_opcode,
+// 	gba_verify_coprocessor_data_processing_opcode,
+// 	gba_verify_coprocessor_register_transfers_opcode,
+// 	gba_verify_coprocessor_load_store_opcode,
+// 	gba_verify_branch_opcode,
+// 	gba_verify_software_interrupt_opcode,
+// 	gba_verify_undefined_opcode }
+// gba_determine_instruction_type:: proc(ins: GBA_Instruction) -> GBA_Instruction_Type {
+// 	switch {
+// 	case gba_verify_data_processing_immediate_opcode(auto_cast ins):         return .DATA_PROCESSING_IMMEDIATE
+// 	case gba_verify_data_processing_immediate_shift_opcode(auto_cast ins):   return .DATA_PROCESSING_IMMEDIATE_SHIFT
+// 	case gba_verify_data_processing_register_shift_opcode(auto_cast ins):    return .DATA_PROCESSING_REGISTER_SHIFT
+// 	case gba_verify_multiply_opcode(auto_cast ins):                          return .MULTIPLY
+// 	case gba_verify_multiply_long_opcode(auto_cast ins):                     return .MULTIPLY_LONG
+// 	case gba_verify_move_from_status_register_opcode(auto_cast ins):         return .MOVE_FROM_STATUS_REGISTER
+// 	case gba_verify_move_immediate_to_status_register_opcode(auto_cast ins): return .MOVE_IMMEDIATE_TO_STATUS_REGISTER
+// 	case gba_verify_move_register_to_status_register_opcode(auto_cast ins):  return .MOVE_REGISTER_TO_STATUS_REGISTER
+// 	case gba_verify_branch_and_exchange_opcode(auto_cast ins):               return .BRANCH_AND_EXCHANGE
+// 	case gba_verify_load_store_immediate_offset_opcode(auto_cast ins):       return .LOAD_STORE_IMMEDIATE_OFFSET
+// 	case gba_verify_load_store_register_offset_opcode(auto_cast ins):        return .LOAD_STORE_REGISTER_OFFSET
+// 	case gba_verify_load_store_halfword_signed_byte_opcode(auto_cast ins):   return .LOAD_STORE_HALFWORD_SIGNED_BYTE
+// 	case gba_verify_swap_opcode(auto_cast ins):                              return .SWAP
+// 	case gba_verify_load_store_multiple_opcode(auto_cast ins):               return .LOAD_STORE_MULTIPLE
+// 	case gba_verify_coprocessor_data_processing_opcode(auto_cast ins):       return .COPROCESSOR_DATA_PROCESSING
+// 	case gba_verify_coprocessor_register_transfers_opcode(auto_cast ins):    return .COPROCESSOR_REGISTER_TRANSFERS
+// 	case gba_verify_coprocessor_load_store_opcode(auto_cast ins):            return .COPROCESSOR_LOAD_STORE
+// 	case gba_verify_branch_opcode(auto_cast ins):                            return .BRANCH
+// 	case gba_verify_software_interrupt_opcode(auto_cast ins):                return .SOFTWARE_INTERRUPT
+// 	case gba_verify_undefined_opcode(auto_cast ins):                         return .UNDEFINED }
+// 	panic("unrecognized instruction") }
+// // Instruction Classes that have an "opcode" field:
+// // - data processing instructions
+// // - coprocessor data processing instructions
+// // - coprocessor register transfers instructions
+// GBA_Data_Processing_Immediate_Instruction:: bit_field u32 {
+// 	immediate: u32                      | 8,
+// 	rotate:    uint                      | 4,
+// 	rd:        GBA_Logical_Register_Name | 4,
+// 	rn:        GBA_Logical_Register_Name | 4,
+// 	set_condition_codes:         bool                      | 1,
+// 	opcode:        uint                      | 4,
+// 	_:         uint                      | 3,
+// 	cond:      GBA_Condition             | 4 }
+// GBA_DATA_PROCESSING_IMMEDIATE_OPCODE::      0b00000010_00000000_00000000_00000000
+// GBA_DATA_PROCESSING_IMMEDIATE_OPCODE_MASK:: 0b00001110_00000000_00000000_00000000
+// gba_verify_data_processing_immediate_opcode:: proc(ins: GBA_Data_Processing_Immediate_Instruction) -> bool {
+// 	return (i32(ins) & GBA_DATA_PROCESSING_IMMEDIATE_OPCODE_MASK) == GBA_DATA_PROCESSING_IMMEDIATE_OPCODE }
+// GBA_Data_Processing_Immediate_Shift_Instruction:: bit_field u32 {
+// 	rm:              GBA_Logical_Register_Name | 4,
+// 	_:               uint                      | 1,
+// 	shift:           uint                      | 2,
+// 	shift_immediate: uint                      | 5,
+// 	rd:              GBA_Logical_Register_Name | 4,
+// 	rn:              GBA_Logical_Register_Name | 4,
+// 	set_condition_codes:               bool                      | 1,
+// 	opcode:          uint                      | 4,
+// 	_:               uint                      | 3,
+// 	cond:            GBA_Condition             | 4 }
+// GBA_DATA_PROCESSING_IMMEDIATE_SHIFT_OPCODE::      0b00000000_00000000_00000000_00000000
+// GBA_DATA_PROCESSING_IMMEDIATE_SHIFT_OPCODE_MASK:: 0b00001110_00000000_00000000_00010000
+// gba_verify_data_processing_immediate_shift_opcode:: proc(ins: GBA_Data_Processing_Immediate_Shift_Instruction) -> bool {
+// 	return (i32(ins) & GBA_DATA_PROCESSING_IMMEDIATE_SHIFT_OPCODE_MASK) == GBA_DATA_PROCESSING_IMMEDIATE_SHIFT_OPCODE }
+// GBA_Data_Processing_Register_Shift_Instruction:: bit_field u32 {
+// 	rm:              GBA_Logical_Register_Name | 4,
+// 	_:               uint                      | 1,
+// 	shift:           uint                      | 2,
+// 	_:               uint                      | 1,
+// 	rs:              GBA_Logical_Register_Name | 4,
+// 	rd:              GBA_Logical_Register_Name | 4,
+// 	rn:              GBA_Logical_Register_Name | 4,
+// 	set_condition_codes:               bool                      | 1,
+// 	opcode:          uint                      | 4,
+// 	_:               uint                      | 3,
+// 	cond:            GBA_Condition             | 4 }
+// GBA_DATA_PROCESSING_REGISTER_SHIFT_OPCODE::      0b00000000_00000000_00000000_00010000
+// GBA_DATA_PROCESSING_REGISTER_SHIFT_OPCODE_MASK:: 0b00001110_00000000_00000000_10010000
+// gba_verify_data_processing_register_shift_opcode:: proc(ins: GBA_Data_Processing_Register_Shift_Instruction) -> bool {
+// 	return (i32(ins) & GBA_DATA_PROCESSING_REGISTER_SHIFT_OPCODE_MASK) == GBA_DATA_PROCESSING_REGISTER_SHIFT_OPCODE }
+// GBA_Multiply_Instruction:: bit_field u32 {
+// 	rm:   GBA_Logical_Register_Name | 4,
+// 	_:    uint                      | 4,
+// 	rs:   GBA_Logical_Register_Name | 4,
+// 	rn:   GBA_Logical_Register_Name | 4,
+// 	rd:   GBA_Logical_Register_Name | 4,
+// 	set_condition_codes:    bool                      | 1,
+// 	a:    bool                      | 1,
+// 	_:    uint                      | 6,
+// 	cond: GBA_Condition             | 4 }
+// GBA_MULTIPLY_OPCODE::      0b00000000_00000000_00000000_10010000
+// GBA_MULTIPLY_OPCODE_MASK:: 0b00001111_11000000_00000000_11110000
+// gba_verify_multiply_opcode:: proc(ins: GBA_Multiply_Instruction) -> bool {
+// 	return (i32(ins) & GBA_MULTIPLY_OPCODE_MASK) == GBA_MULTIPLY_OPCODE }
+// GBA_Multiply_Long_Instruction:: bit_field u32 {
+// 	rm:    GBA_Logical_Register_Name | 4,
+// 	_:     uint                      | 4,
+// 	rs:    GBA_Logical_Register_Name | 4,
+// 	rd_lo: GBA_Logical_Register_Name | 4,
+// 	rd_hi: GBA_Logical_Register_Name | 4,
+// 	set_condition_codes:     bool                      | 1,
+// 	a:     bool                      | 1,
+// 	u:     bool                      | 1,
+// 	_:     uint                      | 5,
+// 	cond:  GBA_Condition             | 4 }
+// GBA_MULTIPLY_LONG_OPCODE::      0b00000000_10000000_00000000_10010000
+// GBA_MULTIPLY_LONG_OPCODE_MASK:: 0b00001111_10000000_00000000_11110000
+// gba_verify_multiply_long_opcode:: proc(ins: GBA_Multiply_Long_Instruction) -> bool {
+// 	return (i32(ins) & GBA_MULTIPLY_LONG_OPCODE_MASK) == GBA_MULTIPLY_LONG_OPCODE }
+// GBA_Move_From_Status_Register_Instruction:: bit_field u32 {
+// 	sbz:   uint                      | 12,
+// 	rd:    GBA_Logical_Register_Name | 4,
+// 	sbo:   uint                      | 4,
+// 	_:     uint                      | 2,
+// 	r:     bool                      | 1,
+// 	_:     uint                      | 5,
+// 	cond:  GBA_Condition             | 4 }
+// GBA_MOVE_FROM_STATUS_REGISTER_OPCODE::      0b00000001_00000000_00000000_00000000
+// GBA_MOVE_FROM_STATUS_REGISTER_OPCODE_MASK:: 0b00001111_10110000_00000000_00000000
+// gba_verify_move_from_status_register_opcode:: proc(ins: GBA_Move_From_Status_Register_Instruction) -> bool {
+// 	return (i32(ins) & GBA_MOVE_FROM_STATUS_REGISTER_OPCODE_MASK) == GBA_MOVE_FROM_STATUS_REGISTER_OPCODE }
+// GBA_Move_Immediate_To_Status_Register_Instruction:: bit_field u32 {
+// 	immediate: uint          | 8,
+// 	rotate:    uint          | 4,
+// 	sbo:       uint          | 4,
+// 	mask:      uint          | 4,
+// 	_:         uint          | 2,
+// 	r:         bool          | 1,
+// 	_:         uint          | 5,
+// 	cond:      GBA_Condition | 4 }
+// GBA_MOVE_IMMEDIATE_TO_STATUS_REGISTER_OPCODE::      0b00000011_00100000_00000000_00000000
+// GBA_MOVE_IMMEDIATE_TO_STATUS_REGISTER_OPCODE_MASK:: 0b00001111_10110000_00000000_00000000
+// gba_verify_move_immediate_to_status_register_opcode:: proc(ins: GBA_Move_Immediate_To_Status_Register_Instruction) -> bool {
+// 	return (i32(ins) & GBA_MOVE_IMMEDIATE_TO_STATUS_REGISTER_OPCODE_MASK) == GBA_MOVE_IMMEDIATE_TO_STATUS_REGISTER_OPCODE }
+// GBA_Move_Register_To_Status_Register_Instruction:: bit_field u32 {
+// 	immediate: uint          | 8,
+// 	rotate:    uint          | 4,
+// 	sbo:       uint          | 4,
+// 	mask:      uint          | 4,
+// 	_:         uint          | 2,
+// 	r:         bool          | 1,
+// 	_:         uint          | 5,
+// 	cond:      GBA_Condition | 4 }
+// GBA_MOVE_REGISTER_TO_STATUS_REGISTER_OPCODE::      0b00000001_00100000_00000000_00000000
+// GBA_MOVE_REGISTER_TO_STATUS_REGISTER_OPCODE_MASK:: 0b00001111_10110000_00000000_00010000
+// gba_verify_move_register_to_status_register_opcode:: proc(ins: GBA_Move_Register_To_Status_Register_Instruction) -> bool {
+// 	return (i32(ins) & GBA_MOVE_REGISTER_TO_STATUS_REGISTER_OPCODE_MASK) == GBA_MOVE_REGISTER_TO_STATUS_REGISTER_OPCODE }
+// GBA_Move_Branch_And_Exchange_Instruction:: bit_field u32 {
+// 	rm:        GBA_Logical_Register_Name | 4,
+// 	_:         uint                      | 4,
+// 	sbo_0:     uint                      | 4,
+// 	sbo_1:     uint                      | 4,
+// 	sbo_2:     uint                      | 4,
+// 	_:         uint                      | 8,
+// 	cond:      GBA_Condition             | 4 }
+// GBA_BRANCH_AND_EXCHANGE_OPCODE::      0b00000001_00100000_00000000_00010000
+// GBA_BRANCH_AND_EXCHANGE_OPCODE_MASK:: 0b00001111_11110000_00000000_11110000
+// gba_verify_branch_and_exchange_opcode:: proc(ins: GBA_Move_Branch_And_Exchange_Instruction) -> bool {
+// 	return (i32(ins) & GBA_BRANCH_AND_EXCHANGE_OPCODE_MASK) == GBA_BRANCH_AND_EXCHANGE_OPCODE }
+// GBA_Load_Store_Immediate_Offset_Instruction:: bit_field u32 {
+// 	immediate: uint                      | 12,
+// 	rd:        GBA_Logical_Register_Name | 4,
+// 	rn:        GBA_Logical_Register_Name | 4,
+// 	l:         bool                      | 1,
+// 	w:         bool                      | 1,
+// 	b:         bool                      | 1,
+// 	u:         bool                      | 1,
+// 	p:         bool                      | 1,
+// 	_:         uint                      | 3,
+// 	cond:      GBA_Condition             | 4 }
+// GBA_LOAD_STORE_IMMEDIATE_OFFSET_OPCODE::      0b00000100_00000000_00000000_00000000
+// GBA_LOAD_STORE_IMMEDIATE_OFFSET_OPCODE_MASK:: 0b00001110_00000000_00000000_00000000
+// gba_verify_load_store_immediate_offset_opcode:: proc(ins: GBA_Load_Store_Immediate_Offset_Instruction) -> bool {
+// 	return (i32(ins) & GBA_LOAD_STORE_IMMEDIATE_OFFSET_OPCODE_MASK) == GBA_LOAD_STORE_IMMEDIATE_OFFSET_OPCODE }
+// GBA_Load_Store_Register_Offset_Instruction:: bit_field u32 {
+// 	rm:              GBA_Logical_Register_Name | 4,
+// 	_:               uint                      | 1,
+// 	shift:           uint                      | 2,
+// 	shift_immediate: uint                      | 5,
+// 	rd:              GBA_Logical_Register_Name | 4,
+// 	rn:              GBA_Logical_Register_Name | 4,
+// 	l:               bool                      | 1,
+// 	w:               bool                      | 1,
+// 	b:               bool                      | 1,
+// 	u:               bool                      | 1,
+// 	p:               bool                      | 1,
+// 	_:               uint                      | 3,
+// 	cond:            GBA_Condition             | 4 }
+// GBA_LOAD_STORE_REGISTER_OFFSET_OPCODE::      0b00000110_00000000_00000000_00000000
+// GBA_LOAD_STORE_REGISTER_OFFSET_OPCODE_MASK:: 0b00001110_00000000_00000000_00010000
+// gba_verify_load_store_register_offset_opcode:: proc(ins: GBA_Load_Store_Register_Offset_Instruction) -> bool {
+// 	return (i32(ins) & GBA_LOAD_STORE_REGISTER_OFFSET_OPCODE_MASK) == GBA_LOAD_STORE_REGISTER_OFFSET_OPCODE }
+// GBA_Load_Store_Halfword_Signed_Byte_Instruction:: bit_field u32 {
+// 	lo_offset:       uint                      | 4,
+// 	_:               uint                      | 1,
+// 	h:               bool                      | 1,
+// 	set_condition_codes:               bool                      | 1,
+// 	_:               uint                      | 1,
+// 	hi_offset:       uint                      | 4,
+// 	rd:              GBA_Logical_Register_Name | 4,
+// 	rn:              GBA_Logical_Register_Name | 4,
+// 	l:               bool                      | 1,
+// 	w:               bool                      | 1,
+// 	_:               uint                      | 1,
+// 	u:               bool                      | 1,
+// 	p:               bool                      | 1,
+// 	_:               uint                      | 3,
+// 	cond:            GBA_Condition             | 4 }
+// GBA_LOAD_STORE_HALFWORD_SIGNED_BYTE_OPCODE::      0b00000000_01000000_00000000_10010000
+// GBA_LOAD_STORE_HALFWORD_SIGNED_BYTE_OPCODE_MASK:: 0b00001110_01000000_00000000_10010000
+// gba_verify_load_store_halfword_signed_byte_opcode:: proc(ins: GBA_Load_Store_Halfword_Signed_Byte_Instruction) -> bool {
+// 	return (i32(ins) & GBA_LOAD_STORE_HALFWORD_SIGNED_BYTE_OPCODE_MASK) == GBA_LOAD_STORE_HALFWORD_SIGNED_BYTE_OPCODE }
+// GBA_Swap_Instruction:: bit_field u32 {
+// 	rm:              GBA_Logical_Register_Name | 4,
+// 	_:               uint                      | 4,
+// 	sbz:             uint                      | 4,
+// 	rd:              GBA_Logical_Register_Name | 4,
+// 	rn:              GBA_Logical_Register_Name | 4,
+// 	_:               uint                      | 2,
+// 	b:               bool                      | 1,
+// 	_:               uint                      | 5,
+// 	cond:            GBA_Condition             | 4 }
+// GBA_SWAP_OPCODE::      0b00000001_00000000_00000000_10010000
+// GBA_SWAP_OPCODE_MASK:: 0b00001111_10110000_00000000_11110000
+// gba_verify_swap_opcode:: proc(ins: GBA_Swap_Instruction) -> bool {
+// 	return (i32(ins) & GBA_SWAP_OPCODE_MASK) == GBA_SWAP_OPCODE }
+// GBA_Load_Store_Multiple_Instruction:: bit_field u32 {
+// 	register_list:   uint                      | 16,
+// 	rn:              GBA_Logical_Register_Name | 4,
+// 	l:               bool                      | 1,
+// 	w:               bool                      | 1,
+// 	set_condition_codes:               bool                      | 1,
+// 	u:               bool                      | 1,
+// 	p:               bool                      | 1,
+// 	_:               uint                      | 3,
+// 	cond:            GBA_Condition             | 4 }
+// GBA_LOAD_STORE_MULTIPLE_OPCODE::      0b00001000_00000000_00000000_00000000
+// GBA_LOAD_STORE_MULTIPLE_OPCODE_MASK:: 0b00001110_00000000_00000000_00000000
+// gba_verify_load_store_multiple_opcode:: proc(ins: GBA_Load_Store_Multiple_Instruction) -> bool {
+// 	return (i32(ins) & GBA_LOAD_STORE_MULTIPLE_OPCODE_MASK) == GBA_LOAD_STORE_MULTIPLE_OPCODE }
+// GBA_Coprocessor_Data_Processing_Instruction:: bit_field u32 {
+// 	crm:    uint          | 4,
+// 	_:      uint          | 1,
+// 	op2:    uint          | 3,
+// 	cp_num: uint          | 4,
+// 	crd:    uint          | 4,
+// 	crn:    uint          | 4,
+// 	opcode_1:    uint          | 4,
+// 	_:      uint          | 4,
+// 	cond:   GBA_Condition | 4 }
+// GBA_COPROCESSOR_DATA_PROCESSING_OPCODE::      0b00001110_00000000_00000000_00000000
+// GBA_COPROCESSOR_DATA_PROCESSING_OPCODE_MASK:: 0b00001111_00000000_00000000_00010000
+// gba_verify_coprocessor_data_processing_opcode:: proc(ins: GBA_Coprocessor_Data_Processing_Instruction) -> bool {
+// 	return (i32(ins) & GBA_COPROCESSOR_DATA_PROCESSING_OPCODE_MASK) == GBA_COPROCESSOR_DATA_PROCESSING_OPCODE }
+// GBA_Coprocessor_Register_Transfers_Instruction:: bit_field u32 {
+// 	crm:    uint                      | 4,
+// 	_:      uint                      | 1,
+// 	opcode_2:    uint                      | 3,
+// 	cp_num: uint                      | 4,
+// 	rd:     GBA_Logical_Register_Name | 4,
+// 	crn:    uint                      | 4,
+// 	l:      bool                      | 1,
+// 	opcode_1:    uint                      | 3,
+// 	_:      uint                      | 4,
+// 	cond:   GBA_Condition             | 4 }
+// GBA_COPROCESSOR_REGISTER_TRANSFERS_OPCODE::      0b00001110_00000000_00000000_00010000
+// GBA_COPROCESSOR_REGISTER_TRANSFERS_OPCODE_MASK:: 0b00001111_00000000_00000000_00010000
+// gba_verify_coprocessor_register_transfers_opcode:: proc(ins: GBA_Coprocessor_Register_Transfers_Instruction) -> bool {
+// 	return (i32(ins) & GBA_COPROCESSOR_REGISTER_TRANSFERS_OPCODE_MASK) == GBA_COPROCESSOR_REGISTER_TRANSFERS_OPCODE }
+// GBA_Coprocessor_Load_Store_Instruction:: bit_field u32 {
+// 	offset: uint                      | 8,
+// 	cp_num: uint                      | 4,
+// 	crd:    uint                      | 4,
+// 	rn:     GBA_Logical_Register_Name | 4,
+// 	l:      bool                      | 1,
+// 	w:      bool                      | 1,
+// 	n:      bool                      | 1,
+// 	u:      bool                      | 1,
+// 	p:      bool                      | 1,
+// 	_:      uint                      | 3,
+// 	cond:   GBA_Condition             | 4 }
+// GBA_COPROCESSOR_LOAD_STORE_OPCODE::      0b00001100_00000000_00000000_00000000
+// GBA_COPROCESSOR_LOAD_STORE_OPCODE_MASK:: 0b00001110_00000000_00000000_00000000
+// gba_verify_coprocessor_load_store_opcode:: proc(ins: GBA_Coprocessor_Load_Store_Instruction) -> bool {
+// 	return (i32(ins) & GBA_COPROCESSOR_LOAD_STORE_OPCODE_MASK) == GBA_COPROCESSOR_LOAD_STORE_OPCODE }
+// GBA_Branch_Instruction:: bit_field u32 {
+// 	offset: uint          | 24,
+// 	l:      bool          | 1,
+// 	_:      uint          | 3,
+// 	cond:   GBA_Condition | 4 }
+// GBA_BRANCH_OPCODE::      0b00001010_00000000_00000000_00000000
+// GBA_BRANCH_OPCODE_MASK:: 0b00001110_00000000_00000000_00000000
+// gba_verify_branch_opcode:: proc(ins: GBA_Branch_Instruction) -> bool {
+// 	return (i32(ins) & GBA_BRANCH_OPCODE_MASK) == GBA_BRANCH_OPCODE }
+// GBA_Software_Interrupt_Instruction:: bit_field u32 {
+// 	swi_number: uint          | 24,
+// 	_:          uint          | 4,
+// 	cond:       GBA_Condition | 4 }
+// GBA_SOFTWARE_INTERRUPT_OPCODE::      0b00001111_00000000_00000000_00000000
+// GBA_SOFTWARE_INTERRUPT_OPCODE_MASK:: 0b00001111_00000000_00000000_00000000
+// gba_verify_software_interrupt_opcode:: proc(ins: GBA_Software_Interrupt_Instruction) -> bool {
+// 	return (i32(ins) & GBA_SOFTWARE_INTERRUPT_OPCODE_MASK) == GBA_SOFTWARE_INTERRUPT_OPCODE }
+// GBA_Undefined_Instruction:: bit_field u32 {
+// 	_:    uint          | 28,
+// 	cond: GBA_Condition | 4 }
+// GBA_UNDEFINED_OPCODE::      0b00000110_00000000_00000000_00010000
+// GBA_UNDEFINED_OPCODE_MASK:: 0b00001110_00000000_00000000_00010000
+// gba_verify_undefined_opcode:: proc(ins: GBA_Undefined_Instruction) -> bool {
+// 	return (i32(ins) & GBA_UNDEFINED_OPCODE_MASK) == GBA_UNDEFINED_OPCODE }
 
 
 // INSTRUCTIONS //
@@ -1267,6 +1267,60 @@ GBA_Instruction_Identified:: union {
 	GBA_TST_Instruction,
 	GBA_UMLAL_Instruction,
 	GBA_UMULL_Instruction }
+GBA_Branch_and_Link_Instruction:: union {
+	GBA_B_Instruction,
+	GBA_BL_Instruction }
+GBA_Branch_and_Exchange_Instructio:: union {
+	GBA_BX_Instruction }
+GBA_Data_Processing_Instruction:: union {
+	GBA_ADC_Instruction,
+	GBA_ADD_Instruction,
+	GBA_AND_Instruction,
+	GBA_BIC_Instruction,
+	GBA_CMN_Instruction,
+	GBA_CMP_Instruction,
+	GBA_EOR_Instruction,
+	GBA_MOV_Instruction,
+	GBA_MRS_Instruction,
+	GBA_MSR_Instruction,
+	GBA_MVN_Instruction,
+	GBA_ORR_Instruction,
+	GBA_RSB_Instruction,
+	GBA_RSC_Instruction,
+	GBA_SBC_Instruction,
+	GBA_SUB_Instruction,
+	GBA_TEQ_Instruction,
+	GBA_TST_Instruction }
+GBA_Multiply_and_Multiply_Accumulate_Instruction:: union {
+	GBA_MLA_Instruction,
+	GBA_MUL_Instruction,
+	GBA_SMLAL_Instruction,
+	GBA_SMULL_Instruction,
+	GBA_UMLAL_Instruction,
+	GBA_UMULL_Instruction }
+GBA_Load_Register_Instruction:: union {
+	GBA_LDR_Instruction,
+	GBA_LDRB_Instruction,
+	GBA_LDRBT_Instruction,
+	GBA_LDRH_Instruction,
+	GBA_LDRSB_Instruction,
+	GBA_LDRSH_Instruction,
+	GBA_LDRT_Instruction }
+GBA_Store_Register_Instruction:: union {
+	GBA_STR_Instruction,
+	GBA_STRB_Instruction,
+	GBA_STRBT_Instruction,
+	GBA_STRH_Instruction,
+	GBA_STRT_Instruction }
+GBA_Load_Multiple_Register_Instruction:: union {
+	GBA_LDM_Instruction }
+GBA_Store_Multiple_Register_Instruction:: union {
+	GBA_STM_Instruction }
+GBA_Data_Swap_Instruction:: union {
+	GBA_SWP_Instruction,
+	GBA_SWPB_Instruction }
+GBA_Software_Interrupt_Instruction:: union {
+	GBA_SWI_Instruction }
 // TODO Since the GBA doesn't have a coprocessor, executing any of the coprocessor instrucitons should trigger an Undefined Instruction exception.
 //      They don't need behaviour, but their layout still needs to be defined, so they can be identified.
 GBA_ADC_Instruction:: bit_field u32 { // Add with Carry / Data Processing / Addressing Mode 1 //

@@ -13,67 +13,40 @@ ALU:: struct {
 
 
 // INTERFACE //
-// Reference: Figure 1-4 ARM7TDMI processor functional diagram //
-// NOTE: A prefix of `n` before a signal means logical negation, eg nM is the negation of M. //
-GBA_Read_Write:: enum u8 { WRITE, READ }
 GBA_Core_Interface:: struct {
-	// Clocks And Timing //
 	main_clock:                     Signal(bool),               // MCLK
 	wait:                           Signal(bool),               // WAIT
-	// Interrupts //
 	interrupt_request:              Signal(bool),               // IRQ
 	fast_interrupt_request:         Signal(bool),               // FIQ
 	synchronous_interrupts_enable:  Signal(bool),               // ISYNC
-	// Bus Controls //
 	reset:                          Signal(bool),               // RESET
 	big_endian:                     Signal(bool),               // BIGEND
 	input_enable:                   Signal(bool),               // ENIN
 	output_enable:                  Signal(bool),               // ENOUT
 	address_bus_enable:             Signal(bool),               // ABE
 	address_latch_enable:           Signal(bool),               // ALE
-	op_code_fetch:                  Signal(bool),               // OPC
 	data_bus_enable:                Signal(bool),               // DBE
-	// Processor Mode //
 	processor_mode:                 Signal(GBA_Processor_Mode), // M
-	// Processor State //
 	executing_thumb:                Signal(bool),               // TBIT
-	// Memory //
-	address:                        Signal(u32),                // A
-	data_out:                       Signal(u32),                // DOUT
 	data_in:                        Signal(u32),                // DIN
-	memory_request:                 Signal(bool),               // MREQ
-	sequential_cycle:               Signal(bool),               // SEQ
-	read_write:                     Signal(GBA_Read_Write),     // RW
-	memory_access_size:             Signal(uint),               // MAS
-	byte_latch_control:             Signal(u8),                 // BL
-	locked_operation:               Signal(bool),               // LOCK
 	execute_cycle:                  Signal(bool) }              // EXEC
-init_gba_core_interface:: proc() {
-	signal_init(&gba_core.main_clock,                    2, gba_main_clock_callback,                    write_phase = { LOW_PHASE, HIGH_PHASE })
-	signal_init(&gba_core.wait,                          1, gba_wait_callback,                          write_phase = { HIGH_PHASE            })
-	signal_init(&gba_core.interrupt_request,             1, gba_interrupt_request_callback,             write_phase = { HIGH_PHASE            })
-	signal_init(&gba_core.fast_interrupt_request,        1, gba_fast_interrupt_request_callback,        write_phase = { HIGH_PHASE            })
-	signal_init(&gba_core.synchronous_interrupts_enable, 1, gba_synchronous_interrupts_enable_callback, write_phase = { LOW_PHASE, HIGH_PHASE })
-	signal_init(&gba_core.reset,                         1, gba_reset_callback,                         write_phase = { LOW_PHASE             })
-	signal_init(&gba_core.big_endian,                    1, gba_big_endian_callback,                    write_phase = { HIGH_PHASE            })
-	signal_init(&gba_core.input_enable,                  1, gba_input_enable_callback,                  write_phase = { LOW_PHASE, HIGH_PHASE })
-	signal_init(&gba_core.output_enable,                 1, gba_output_enable_callback,                 write_phase = { LOW_PHASE, HIGH_PHASE })
-	signal_init(&gba_core.address_bus_enable,            1, gba_address_bus_enable_callback,            write_phase = { LOW_PHASE             })
-	signal_init(&gba_core.address_latch_enable,          1, gba_address_latch_enable_callback,          write_phase = { LOW_PHASE, HIGH_PHASE })
-	signal_init(&gba_core.op_code_fetch,                 1, gba_op_code_fetch_callback,                 write_phase = { HIGH_PHASE            })
-	signal_init(&gba_core.data_bus_enable,               1, gba_data_bus_enable_callback,               write_phase = { LOW_PHASE             })
-	signal_init(&gba_core.processor_mode,                1, gba_processor_mode_callback,                write_phase = { HIGH_PHASE            })
-	signal_init(&gba_core.executing_thumb,               1, gba_executing_thumb_callback,               write_phase = { HIGH_PHASE            })
-	signal_init(&gba_core.address,                       1, gba_address_callback,                       write_phase = { LOW_PHASE             })
-	signal_init(&gba_core.data_out,                      1, gba_data_out_callback,                      write_phase = { LOW_PHASE             })
-	signal_init(&gba_core.data_in,                       1, gba_data_in_callback,                       write_phase = { HIGH_PHASE            })
-	signal_init(&gba_core.memory_request,                1, gba_memory_request_callback,                write_phase = { LOW_PHASE             })
-	signal_init(&gba_core.sequential_cycle,              1, gba_sequential_cycle_callback,              write_phase = { LOW_PHASE             })
-	signal_init(&gba_core.read_write,                    1, gba_read_write_callback,                    write_phase = { HIGH_PHASE            })
-	signal_init(&gba_core.memory_access_size,            1, gba_memory_access_size_callback,            write_phase = { HIGH_PHASE            })
-	signal_init(&gba_core.byte_latch_control,            1, gba_byte_latch_control_callback,            write_phase = { LOW_PHASE             })
-	signal_init(&gba_core.locked_operation,              1, gba_locked_operation_callback,              write_phase = { HIGH_PHASE            })
-	signal_init(&gba_core.execute_cycle,                 1, gba_execute_cycle_callback,                 write_phase = { LOW_PHASE             })
+_init_gba_core_interface:: proc() {
+	signal_init("EXEC",   &gba_core.execute_cycle,                 1, gba_execute_cycle_callback,                 write_phase = { LOW_PHASE             })
+	signal_init("MCLK",   &gba_core.main_clock,                    2, gba_main_clock_callback,                    write_phase = { LOW_PHASE, HIGH_PHASE })
+	signal_init("WAIT",   &gba_core.wait,                          1, gba_wait_callback,                          write_phase = { HIGH_PHASE            })
+	signal_init("IRQ",    &gba_core.interrupt_request,             1, gba_interrupt_request_callback,             write_phase = { HIGH_PHASE            })
+	signal_init("FIQ",    &gba_core.fast_interrupt_request,        1, gba_fast_interrupt_request_callback,        write_phase = { HIGH_PHASE            })
+	signal_init("ISYNC",  &gba_core.synchronous_interrupts_enable, 1, gba_synchronous_interrupts_enable_callback, write_phase = { LOW_PHASE, HIGH_PHASE })
+	signal_init("RESET",  &gba_core.reset,                         1, gba_reset_callback,                         write_phase = { LOW_PHASE             })
+	signal_init("BIGEND", &gba_core.big_endian,                    1, gba_big_endian_callback,                    write_phase = { HIGH_PHASE            })
+	signal_init("ENIN",   &gba_core.input_enable,                  1, gba_input_enable_callback,                  write_phase = { LOW_PHASE, HIGH_PHASE })
+	signal_init("ENOUT",  &gba_core.output_enable,                 1, gba_output_enable_callback,                 write_phase = { LOW_PHASE, HIGH_PHASE })
+	signal_init("DBE",    &gba_core.data_bus_enable,               1, gba_data_bus_enable_callback,               write_phase = { LOW_PHASE             })
+	signal_init("M",      &gba_core.processor_mode,                1, gba_processor_mode_callback,                write_phase = { HIGH_PHASE            })
+	signal_init("TBIT",   &gba_core.executing_thumb,               1, gba_executing_thumb_callback,               write_phase = { HIGH_PHASE            })
+	signal_init("DIN",    &gba_core.data_in,                       1, gba_data_in_callback,                       write_phase = { HIGH_PHASE            })
+	signal_init("ABE",    &gba_core.address_bus_enable,            1, gba_address_bus_enable_callback,            write_phase = { LOW_PHASE             })
+	signal_init("ALE",    &gba_core.address_latch_enable,          1, gba_address_latch_enable_callback,          write_phase = { LOW_PHASE, HIGH_PHASE })
 	signal_put(&gba_core.main_clock, true) }
 
 
@@ -111,9 +84,9 @@ gba_fast_interrupt_request_callback:: proc(self: ^Signal(bool), new_output: bool
 gba_synchronous_interrupts_enable_callback:: proc(self: ^Signal(bool), new_output: bool) { }
 gba_reset_callback:: proc(self: ^Signal(bool), new_output: bool) {
 	if new_output == false {
-		signal_put(&gba_core.memory_request, true, latency_override = 4)
-		signal_put(&gba_core.execute_cycle, true, latency_override = 4)
-		signal_put(&gba_core.sequential_cycle, true, latency_override = 6) } }
+		signal_put(&memory.memory_request, true, latency_override = 4)
+		signal_put(&gba_core.execute_cycle, true, latency_override = 5)
+		signal_put(&memory.sequential_cycle, true, latency_override = 6) } }
 gba_big_endian_callback:: proc(self: ^Signal(bool), new_output: bool) { }
 gba_input_enable_callback:: proc(self: ^Signal(bool), new_output: bool) { }
 gba_output_enable_callback:: proc(self: ^Signal(bool), new_output: bool) { }
@@ -131,19 +104,77 @@ gba_sequential_cycle_callback:: proc(self: ^Signal(bool), new_output: bool) { }
 gba_read_write_callback:: proc(self: ^Signal(GBA_Read_Write), new_output: GBA_Read_Write) { }
 gba_memory_access_size_callback:: proc(self: ^Signal(uint), new_output: uint) {  }
 gba_byte_latch_control_callback:: proc(self: ^Signal(u8), new_output: u8) {  }
-gba_locked_operation_callback:: proc(self: ^Signal(bool), new_output: bool) { }
+gba_lock_callback:: proc(self: ^Signal(bool), new_output: bool) { }
 gba_execute_cycle_callback:: proc(self: ^Signal(bool), new_output: bool) { }
 
 
-// CYCLES //
+// SEQUENCES //
 GBA_Cycle_Type:: enum {
 	MEMORY,
 	INTERNAL }
-gba_initiate_n_cycle_request:: proc(address: u32) {
-	assert(phase_index == 0, "cycles may only be initiated in phase 1")
-	signal_put(&gba_core.memory_request, HIGH)
-	signal_put(&gba_core.sequential_cycle, LOW)
-	signal_put(&gba_core.address, address, latency_override = 2) }
+gba_request_memory_sequence:: proc(sequential_cycle: bool = false, read_write: GBA_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0) {
+	assert(phase_index == 0, "Memory Sequence request may only be initiated in phase 1")
+	/* MREQ */ signal_force(&memory.memory_request, HIGH)
+	/*  SEQ */ signal_force(&memory.sequential_cycle, sequential_cycle)
+	/*   RW */ signal_put(&memory.read_write, read_write, latency_override = 1)
+	/*    A */ signal_put(&memory.address, address, latency_override = 2)
+	/* DOUT */ if read_write == .WRITE do signal_put(&memory.data_out, data_out, latency_override = 2) }
+gba_request_n_cycle:: proc(read_write: GBA_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0) {
+	assert(phase_index == 0, "N-Cycle may only be initiated in phase 1")
+	/* MREQ */ signal_force(&memory.memory_request, HIGH)
+	/*  SEQ */ signal_force(&memory.sequential_cycle, LOW)
+	/*   RW */ signal_put(&memory.read_write, read_write, latency_override = 1)
+	/*    A */ signal_put(&memory.address, address, latency_override = 2)
+	/* DOUT */ if read_write == .WRITE do signal_put(&memory.data_out, data_out, latency_override = 2) }
+gba_request_s_cycle:: proc(read_write: GBA_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0) {
+	assert(phase_index == 0, "S-Cycle may only be initiated in phase 1")
+	/* MREQ */ signal_force(&memory.memory_request, HIGH)
+	/*  SEQ */ signal_force(&memory.sequential_cycle, HIGH)
+	/*   RW */ signal_put(&memory.read_write, read_write, latency_override = 1)
+	/*    A */ signal_put(&memory.address, address, latency_override = 2)
+	/* DOUT */ if read_write == .WRITE do signal_put(&memory.data_out, data_out, latency_override = 2) }
+gba_initiate_i_cycle:: proc() {
+	assert(phase_index == 0, "S-Cycle may only be initiated in phase 1")
+	/* MREQ */ signal_force(&memory.memory_request, LOW)
+	/*  SEQ */ signal_force(&memory.sequential_cycle, LOW) }
+gba_request_merged_is_cycle:: proc(read_write: GBA_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0) {
+	assert(phase_index == 0, "Merged IS-Cycle may only be initiated in phase 1")
+	/* MREQ */ signal_force(&memory.memory_request, LOW)
+	           signal_put(&memory.memory_request, HIGH, latency_override = 2)
+	/*  SEQ */ signal_force(&memory.sequential_cycle, LOW)
+	           signal_put(&memory.sequential_cycle, HIGH, latency_override = 2)
+	/*   RW */ signal_put(&memory.read_write, read_write, latency_override = 1)
+	/*    A */ signal_put(&memory.address, address, latency_override = 2)
+	/* DOUT */ if read_write == .WRITE do signal_put(&memory.data_out, data_out, latency_override = 2) }
+gba_request_data_write_cycle:: proc(sequential_cycle: bool = false, address: u32 = 0b0, data_out: u32 = 0b0) {
+	assert(phase_index == 0, "Data Write Sequence may only be initiated in phase 1")
+	/* MREQ */ signal_force(&memory.memory_request, HIGH)
+	/*  SEQ */ signal_force(&memory.sequential_cycle, sequential_cycle)
+	/*   RW */ signal_put(&memory.read_write, GBA_Read_Write.WRITE, latency_override = 1)
+	/*    A */ signal_put(&memory.address, address, latency_override = 2)
+	/* DOUT */ signal_put(&memory.data_out, data_out, latency_override = 2) }
+gba_request_data_read_cycle:: proc(sequential_cycle: bool = false, address: u32 = 0b0) {
+	assert(phase_index == 0, "Data Write Sequence may only be initiated in phase 1")
+	/* MREQ */ signal_force(&memory.memory_request, HIGH)
+	/*  SEQ */ signal_force(&memory.sequential_cycle, sequential_cycle)
+	/*   RW */ signal_put(&memory.read_write, GBA_Read_Write.READ, latency_override = 1)
+	/*    A */ signal_put(&memory.address, address, latency_override = 2) }
+gba_request_halfword_memory_sequence:: proc(sequential_cycle: bool = false, read_write: GBA_Read_Write = .READ, address: u32 = 0b0) { }
+gba_request_byte_memory_sequence:: proc(sequential_cycle: bool = false, read_write: GBA_Read_Write = .READ, address: u32 = 0b0) { }
+gba_initiate_reset_sequence:: proc() { }
+gba_initiate_branch_and_branch_with_link_instruction_cycle:: proc(instruction: GBA_Branch_and_Link_Instruction) { }
+gba_initiate_thumb_branch_with_link_instruction_cycle:: proc() { }
+gba_initiate_branch_and_exchange_instruction_cycle:: proc(instruction: GBA_Branch_and_Exchange_Instructio) { }
+gba_initiate_data_processing_instruction_cycle:: proc(instruction: GBA_Data_Processing_Instruction) { }
+gba_initiate_multiply_and_multiply_accumulate_instruction_cycle:: proc(instruction: GBA_Multiply_and_Multiply_Accumulate_Instruction) { }
+gba_initiate_load_register_instruction_cycle:: proc(instruction: GBA_Load_Register_Instruction) { }
+gba_initiate_store_register_instruction_cycle:: proc(instruction: GBA_Store_Register_Instruction) { }
+gba_initiate_load_multiple_register_instruction_cycle:: proc(instruction: GBA_Load_Multiple_Register_Instruction) { }
+gba_initiate_store_multiple_register_instruction_cycle:: proc(instruction: GBA_Store_Multiple_Register_Instruction) { }
+gba_initiate_data_swap_instruction_cycle:: proc(instruction: GBA_Data_Swap_Instruction) { }
+gba_initiate_software_interrupt_and_exception_instruction_cycle:: proc(instruction: GBA_Software_Interrupt_Instruction) { }
+gba_initiate_undefined_instruction_cycle:: proc() { }
+gba_initiate_unexecuted_instruction_cycle:: proc() { }
 
 
 // DECODER & CONTROL //
@@ -168,10 +199,10 @@ gba_core: ^GBA_Core
 CURRENT_STATE:: 0
 PREVIOUS_STATE:: 1
 gba_core_states: [2]^GBA_Core
-init_gba_core:: proc() {
+@(init) _init_gba_core:: proc() {
 	gba_core_states[CURRENT_STATE], gba_core_states[PREVIOUS_STATE] = new(GBA_Core), new(GBA_Core)
 	gba_core = gba_core_states[CURRENT_STATE]
-	init_gba_core_interface() }
+	_init_gba_core_interface() }
 Hardware_Interrupt:: enum {
 	V_BLANK,
 	H_BLANK,

@@ -26,18 +26,24 @@ WARN: string: "\e[0;33m[ warn ]\e[0m"
 LOW_PHASE:: 0
 HIGH_PHASE:: 1
 first_tick: bool
-tick_index:  uint
+tick_index: uint
 cycle_index: uint
 phase_index: uint
 init:: proc() {
+	reinit() }
+reinit:: proc() {
 	first_tick = true
 	tick_index = 0
 	cycle_index = 0
 	phase_index = 0
 	signals: [dynamic]Any_Signal = make([dynamic]Any_Signal)
-	init_gba_core()
-	device_reset() }
+	device_reset()
+}
 tick:: proc(n: uint = 0, times: int = 1) -> bool {
+	current_tick_index: uint = tick_index
+	current_cycle_index: uint = cycle_index
+	current_phase_index: uint = phase_index
+	if cycle_index >= n do return false
 	defer {
 		if times > 1 do tick(times = times - 1) }
 	if first_tick {
@@ -48,19 +54,9 @@ tick:: proc(n: uint = 0, times: int = 1) -> bool {
 		phase_index = 0 }
 	else do phase_index += 1
 	tick_index += 1
-	signals_tick()
-	if cycle_index == n do return false
+	signals_tick(current_tick_index, current_cycle_index, current_phase_index)
 	return true }
 main:: proc() {
 	init()
-	for tick() {
-		fmt.print("CYCLE ", cycle_index, " | PHASE ", phase_index, " | ", sep="")
-		fmt.print("MCLK ", gba_core.main_clock.output ? 1 : 0, " | ", sep="")
-		fmt.print("RESET ", gba_core.reset.output ? 1 : 0, " | ", sep="")
-		fmt.print("A ", gba_core.address.output, " | ", sep="")
-		fmt.print("D ", gba_core.data_in.output, " | ", sep="")
-		fmt.print("MREQ ", gba_core.memory_request.output ? 1 : 0, " | ", sep="")
-		fmt.print("SEQ ", gba_core.sequential_cycle.output ? 1 : 0, " | ", sep="")
-		fmt.print("EXEC ", gba_core.execute_cycle.output ? 1 : 0, " | ", sep="")
-		fmt.println()
-		if cycle_index == 8 do return } }
+	for tick(n = 8) { }
+	timeline_print() }
