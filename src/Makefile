@@ -8,11 +8,11 @@ run:
 	odin run . -subsystem:console -debug
 
 test:
-	odin test . -ignore-warnings -define:ODIN_TEST_TRACK_MEMORY=false
+	odin test . -define:ODIN_TEST_TRACK_MEMORY=true -define:ODIN_TEST_THREADS=1 # -debug
 
 sanitize:
 	odin run . -subsystem:console -debug -sanitize:address
 
 debug:
-	odin build . -subsystem:console -debug
+	# odin build . -subsystem:console
 	remedybg -g session.rdbg

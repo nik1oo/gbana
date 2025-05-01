@@ -5,21 +5,22 @@ import "core:os"
 import "core:encoding/endian"
 import "core:mem"
 import "core:slice"
+import "core:thread"
 
 
 // INTERFACE //
 GBA_Read_Write:: enum u8 { WRITE, READ }
 Memory_Interface:: struct {
-	main_clock:                     Signal(bool),               // MCLK
-	address:                        Signal(u32),                // A
-	byte_latch_control:             Signal(u8),                 // BL
-	data_out:                       Signal(u32),                // DOUT
-	lock:                           Signal(bool),               // LOCK
-	memory_access_size:             Signal(uint),               // MAS
-	memory_request:                 Signal(bool),               // MREQ
-	sequential_cycle:               Signal(bool),               // SEQ
-	op_code_fetch:                  Signal(bool),               // OPC
-	read_write:                     Signal(GBA_Read_Write) }    // RW
+	main_clock:                     Signal(bool),            // MCLK
+	address:                        Signal(u32),             // A
+	byte_latch_control:             Signal(u8),              // BL
+	data_out:                       Signal(u32),             // DOUT
+	lock:                           Signal(bool),            // LOCK
+	memory_access_size:             Signal(uint),            // MAS
+	memory_request:                 Signal(bool),            // MREQ
+	sequential_cycle:               Signal(bool),            // SEQ
+	op_code_fetch:                  Signal(bool),            // OPC
+	read_write:                     Signal(GBA_Read_Write) } // RW
 _init_memory_interface:: proc() {
 	signal_init("MCLK", &memory.main_clock,           2, gba_main_clock_callback,           write_phase = { LOW_PHASE, HIGH_PHASE })
 	signal_init("OPC",  &memory.op_code_fetch,        1, gba_op_code_fetch_callback,        write_phase = { HIGH_PHASE            })
@@ -32,6 +33,10 @@ _init_memory_interface:: proc() {
 	signal_init("BL",   &memory.byte_latch_control,   1, gba_byte_latch_control_callback,   write_phase = { LOW_PHASE             })
 	signal_init("LOCK", &memory.lock,                 1, gba_lock_callback,                 write_phase = { HIGH_PHASE            })
 	signal_put(&memory.main_clock, true) }
+
+
+// THREAD //
+memory_thread_proc:: proc(t: ^thread.Thread) { }
 
 
 // ENDIANNESS //
@@ -725,7 +730,7 @@ load_cartridge:: proc(filename: string)-> bool {
 // SEQUENCES //
 memory_respond_memory_sequence:: proc(sequential_cycle: bool = LOW, read_write: GBA_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0) {
 	assert(phase_index == 0, "Memory Sequence response may only be initiated in phase 1")
-	access_latency: = memory_bus_latency_from_address(address = address, width = memory.memory_access_size.output)
+	access_latency: = memory_bus_latency_from_address(address = address, width = 4/*memory.memory_access_size.output*/)
 	read_write: = memory.read_write.output
 	if access_latency == 1 do signal_force(&gba_core.wait, LOW)
 	else {

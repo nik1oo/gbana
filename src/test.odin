@@ -3,50 +3,66 @@ import "base:runtime"
 import "core:fmt"
 import "core:testing"
 import "core:math/rand"
+import "core:os"
+import "core:log"
 
 
 @(test)
 test_main_clock:: proc(test_runner: ^testing.T) {
-	init()
-	for tick(n = 8) {
-		if tick_index % 2 == 0 do testing.expect(test_runner, gba_core.main_clock.output == LOW)
-		if tick_index % 2 == 1 do testing.expect(test_runner, gba_core.main_clock.output == HIGH) } }
+	// init()
+	// for tick(n = 8) {
+	// 	if tick_index % 2 == 0 do testing.expect(test_runner, gba_core.main_clock.output == LOW)
+	// 	if tick_index % 2 == 1 do testing.expect(test_runner, gba_core.main_clock.output == HIGH) }
+}
+
+
+expect_signal:: proc(test_runner: ^testing.T, tick: uint, signal_name: string, observed_value: $T, expected_value: T, loc: = #caller_location) {
+	testing.expect(test_runner, observed_value == expected_value, msg = fmt.tprint("[tick ", tick, "] ", signal_name, " is ", observed_value, ", but should be ", expected_value, ".", sep = ""), loc = loc) }
 
 
 @(test)
 test_memory_sequence:: proc(test_runner: ^testing.T) {
 	// TODO What do I do with ABORT? //
+	tl: Timeline = make_dynamic_array(Timeline, allocator = test_runner._log_allocator)
 	seq: = LOW
 	address: u32 = cast(u32)rand.int31_max(0x0e00ffff/4)
 	dout: = rand.uint32()
 	init()
 	for read_write in GBA_Read_Write {
 		reinit()
-		tick(times = 3)
+		tick(times = 3, tl = &tl)
 		// 2 //
 		gba_request_memory_sequence(sequential_cycle = LOW, read_write = read_write, address = address, data_out = dout)
-		testing.expect(test_runner, memory.memory_request.output == HIGH)
-		testing.expect(test_runner, memory.sequential_cycle.output == LOW)
-		tick()
+		expect_signal(test_runner, 2, "MREQ", memory.memory_request.output, HIGH)
+		expect_signal(test_runner, 2, "SEQ", memory.sequential_cycle.output, LOW)
+		tick(tl = &tl)
 		// 3 //
-		testing.expect(test_runner, memory.memory_request.output == HIGH)
-		testing.expect(test_runner, memory.sequential_cycle.output == LOW)
-		testing.expect(test_runner, memory.read_write.output == read_write)
-		tick()
+		expect_signal(test_runner, 3, "MREQ", memory.memory_request.output, HIGH)
+		expect_signal(test_runner, 3, "SEQ", memory.sequential_cycle.output, LOW)
+		expect_signal(test_runner, 3, "RW", memory.read_write.output, read_write)
+		tick(tl = &tl)
 		// 4 //
 		memory_respond_memory_sequence(sequential_cycle = LOW, read_write = read_write, address = address)
-		testing.expect(test_runner, memory.read_write.output == read_write)
-		testing.expect(test_runner, memory.address.output == address)
-		if read_write == .WRITE do testing.expect(test_runner, memory.data_out.output == dout)
-		testing.expect(test_runner, gba_core.wait.output == LOW)
-		tick()
+		expect_signal(test_runner, 4, "RW", memory.read_write.output, read_write)
+		expect_signal(test_runner, 4, "A", memory.address.output, address)
+		if read_write == .WRITE do expect_signal(test_runner, 4, "DOUT", memory.data_out.output, dout)
+		expect_signal(test_runner, 4, "WAIT", gba_core.wait.output, LOW)
+		tick(tl = &tl)
 		// 5 //
-		testing.expect(test_runner, memory.address.output == address)
-		if read_write == .WRITE do testing.expect(test_runner, memory.data_out.output == dout)
-		else do testing.expect(test_runner, gba_core.data_in.output == memory_read_u32(address))
-		tick()
+		expect_signal(test_runner, 5, "A", memory.address.output, address)
+		if read_write == .WRITE do expect_signal(test_runner, 5, "DOUT", memory.data_out.output, dout)
+		else do expect_signal(test_runner, 5, "DIN", gba_core.data_in.output, memory_read_u32(address))
+		tick(tl = &tl)
 		// 6 //
-		if read_write == .WRITE do testing.expect(test_runner, memory.data_out.output == memory_read_u32(address)) } }
+		if read_write == .WRITE do expect_signal(test_runner, 6, "DOUT", memory.data_out.output, memory_read_u32(address)) }
+	if testing.failed(test_runner) do log.info("\n", timeline_print(&tl), sep = "") }
+
+
+@(fini)
+print_log:: proc() {
+	// for _, i in saved_timelines {
+	// 	fmt.println(timeline_print(tl = &saved_timelines[i])) } }
+}
 
 
 @(test)

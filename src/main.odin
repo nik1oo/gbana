@@ -3,6 +3,8 @@ import "core:fmt"
 import "core:os"
 import "core:path/filepath"
 import "core:strings"
+import "core:thread"
+import "core:time"
 import "vendor:glfw"
 LOG:  string: "\e[0;36m[ log  ]\e[0m"
 BAD:  string: "\e[0;31m[ bad  ]\e[0m"
@@ -35,15 +37,13 @@ reinit:: proc() {
 	first_tick = true
 	tick_index = 0
 	cycle_index = 0
-	phase_index = 0
-	signals: [dynamic]Any_Signal = make([dynamic]Any_Signal)
-	device_reset()
-}
-tick:: proc(n: uint = 0, times: int = 1) -> bool {
+	phase_index = 0 }
+	// device_reset() }
+tick:: proc(n: uint = 0, times: int = 1, tl: ^Timeline = nil) -> bool {
 	current_tick_index: uint = tick_index
 	current_cycle_index: uint = cycle_index
 	current_phase_index: uint = phase_index
-	if cycle_index >= n do return false
+	if (n != 0) && (cycle_index >= n) do return false
 	defer {
 		if times > 1 do tick(times = times - 1) }
 	if first_tick {
@@ -54,9 +54,16 @@ tick:: proc(n: uint = 0, times: int = 1) -> bool {
 		phase_index = 0 }
 	else do phase_index += 1
 	tick_index += 1
-	signals_tick(current_tick_index, current_cycle_index, current_phase_index)
+	signals_tick(tl, current_tick_index, current_cycle_index, current_phase_index)
 	return true }
 main:: proc() {
 	init()
+	memory_thread: = thread.create(memory_thread_proc)
+	gba_core_thread: = thread.create(gba_core_thread_proc)
+	thread.start(memory_thread)
+	thread.start(gba_core_thread)
 	for tick(n = 8) { }
+	// time.sleep(10 * time.Second)
+	thread.join(memory_thread)
+	thread.join(gba_core_thread)
 	timeline_print() }

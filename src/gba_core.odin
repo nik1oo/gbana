@@ -5,6 +5,7 @@ import "core:container/queue"
 import "core:math/bits"
 import "core:math/rand"
 import "core:encoding/endian"
+import "core:thread"
 
 
 ALU:: struct {
@@ -48,6 +49,10 @@ _init_gba_core_interface:: proc() {
 	signal_init("ABE",    &gba_core.address_bus_enable,            1, gba_address_bus_enable_callback,            write_phase = { LOW_PHASE             })
 	signal_init("ALE",    &gba_core.address_latch_enable,          1, gba_address_latch_enable_callback,          write_phase = { LOW_PHASE, HIGH_PHASE })
 	signal_put(&gba_core.main_clock, true) }
+
+
+// THREAD //
+gba_core_thread_proc:: proc(t: ^thread.Thread) { }
 
 
 // SIGNALS //

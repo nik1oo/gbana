@@ -7,8 +7,12 @@ HIGH:: true
 LOW:: false
 READ:: HIGH
 WRITE:: LOW
-signals: [dynamic]Any_Signal
 Any_Signal:: union{ ^Signal(u32), ^Signal(uint), ^Signal(u8), ^Signal(bool), ^Signal(GBA_Processor_Mode), ^Signal(GBA_Read_Write) }
+
+
+signals: [dynamic]Any_Signal
+@(init) _:: proc() {
+	signals = make([dynamic]Any_Signal) }
 
 
 // SIGNAL //
@@ -21,14 +25,14 @@ Signal:: struct($T: typeid) {
 	latency:     int,
 	write_phase: bit_set[0..=1],
 	callback:    proc(self: ^Signal(T), new_output: T) }
-signals_tick:: proc(current_tick_index:  uint, current_cycle_index: uint, current_phase_index: uint) {
+signals_tick:: proc(tl: ^Timeline = nil, current_tick_index:  uint, current_cycle_index: uint, current_phase_index: uint) {
 	for signal in signals do #partial switch v in signal {
 	case ^Signal(u32):                signal_tick(v)
 	case ^Signal(uint):               signal_tick(v)
 	case ^Signal(u8):                 signal_tick(v)
 	case ^Signal(bool):               signal_tick(v)
 	case ^Signal(GBA_Processor_Mode): signal_tick(v) }
-	timeline_append(current_tick_index, current_cycle_index, current_phase_index) }
+	timeline_append(tl, current_tick_index, current_cycle_index, current_phase_index) }
 Signal_Data:: struct($T: typeid) {
 	data:    T,
 	latency: int }
