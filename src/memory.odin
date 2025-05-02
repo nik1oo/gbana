@@ -143,16 +143,17 @@ memory_bus_width_from_address:: proc(address: u32) -> int {
 @(rodata) CARTRIDGE_FLASH_LATENCY:   [3]int = [3]int{5, 5, 8} // Flash
 memory_bus_latency_from_address:: proc(address: u32, width: uint) -> int {
 	assert((width == 1) || (width == 2) || (width == 4))
+	w: = (width == 1) ? 0 : (width == 2) ? 1 : 2
 	switch address {
-	case BIOS_RANGE[START]                  ..= BIOS_RANGE[END]:                  return BIOS_LATENCY[width]
-	case EXTERNAL_WORK_RAM_RANGE[START]     ..= EXTERNAL_WORK_RAM_RANGE[END]:     return EXTERNAL_WORK_RAM_LATENCY[width]
-	case INTERNAL_WORK_RAM_RANGE[START]     ..= INTERNAL_WORK_RAM_RANGE[END]:     return INTERNAL_WORK_RAM_LATENCY[width]
-	case INPUT_OUTPUT_RAM_RANGE[START]      ..= INPUT_OUTPUT_RAM_RANGE[END]:      return INPUT_OUTPUT_RAM_LATENCY[width]
-	case OAM_RANGE[START]                   ..= OAM_RANGE[END]:                   return OAM_LATENCY[width]
-	case PALETTE_RAM_RANGE[START]           ..= PALETTE_RAM_RANGE[END]:           return PALETTE_RAM_LATENCY[width]
-	case VIDEO_RAM_RANGE[START]             ..= VIDEO_RAM_RANGE[END]:             return VIDEO_RAM_LATENCY[width]
-	case CARTRIDGE_GAME_DATA_0_RANGE[START] ..= CARTRIDGE_GAME_DATA_2_RANGE[END]: return CARTRIDGE_ROM_LATENCY[width]
-	case CARTRIDGE_SAVE_DATA_RANGE[START]   ..= CARTRIDGE_SAVE_DATA_RANGE[END]:   return CARTRIDGE_FLASH_LATENCY[width]
+	case BIOS_RANGE[START]                  ..= BIOS_RANGE[END]:                  return BIOS_LATENCY[w]
+	case EXTERNAL_WORK_RAM_RANGE[START]     ..= EXTERNAL_WORK_RAM_RANGE[END]:     return EXTERNAL_WORK_RAM_LATENCY[w]
+	case INTERNAL_WORK_RAM_RANGE[START]     ..= INTERNAL_WORK_RAM_RANGE[END]:     return INTERNAL_WORK_RAM_LATENCY[w]
+	case INPUT_OUTPUT_RAM_RANGE[START]      ..= INPUT_OUTPUT_RAM_RANGE[END]:      return INPUT_OUTPUT_RAM_LATENCY[w]
+	case OAM_RANGE[START]                   ..= OAM_RANGE[END]:                   return OAM_LATENCY[w]
+	case PALETTE_RAM_RANGE[START]           ..= PALETTE_RAM_RANGE[END]:           return PALETTE_RAM_LATENCY[w]
+	case VIDEO_RAM_RANGE[START]             ..= VIDEO_RAM_RANGE[END]:             return VIDEO_RAM_LATENCY[w]
+	case CARTRIDGE_GAME_DATA_0_RANGE[START] ..= CARTRIDGE_GAME_DATA_2_RANGE[END]: return CARTRIDGE_ROM_LATENCY[w]
+	case CARTRIDGE_SAVE_DATA_RANGE[START]   ..= CARTRIDGE_SAVE_DATA_RANGE[END]:   return CARTRIDGE_FLASH_LATENCY[w]
 	case:                                                                         return 1 } }
 // TODO Implement these timings on the memory access cycles. //
 

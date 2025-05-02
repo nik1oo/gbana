@@ -59,6 +59,7 @@ signal_delay:: proc(signal: ^Signal($T), n: int) {
 		signal_data: = queue.get_ptr(&signal._queue, i)
 		signal_data.latency += n } }
 signal_tick:: proc(signal: ^Signal($T), loc: = #caller_location) {
+	// log.info("Ticking signal", signal.name)
 	if signal == nil do log.fatal("Signal is nil.", location = loc)
 	using state: ^State = cast(^State)context.user_ptr
 	for queue.len(signal._queue) > 0 {

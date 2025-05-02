@@ -66,50 +66,53 @@ test_main_clock:: proc(test_runner: ^testing.T) {
 
 @(test)
 test_memory_sequence:: proc(test_runner: ^testing.T) {
-	// using state: State
-	// k: = 1
-	// context = initialize_context(&state)
-	// allocate()
-	// // TODO What do I do with ABORT? //
-	// seq: = LOW
+	using state: State
+	k: = 1
+	context = initialize_context(&state)
+	allocate()
+	// TODO What do I do with ABORT? //
+	seq: = LOW
 	// address: u32 = cast(u32)rand.int31_max(0x0e00ffff/4)
-	// dout: = rand.uint32()
-	// // for read_write in GBA_Read_Write {
-	// read_write: = GBA_Read_Write.READ
-	// 	tick(times = 3)
-	// 	// 2 //
-	// 	expect_tick(test_runner, tick_index, 2)
-	// 	gba_request_memory_sequence(sequential_cycle = LOW, read_write = read_write, address = address, data_out = dout)
-	// 	tick()
-	// 	expect_signal(test_runner, 2, "MREQ", memory.memory_request.output, HIGH)
-	// 	expect_signal(test_runner, 2, "SEQ", memory.sequential_cycle.output, LOW)
-	// 	// 3 //
-	// 	expect_tick(test_runner, tick_index, 3)
-	// 	tick()
-	// 	expect_signal(test_runner, 3, "MREQ", memory.memory_request.output, HIGH)
-	// 	expect_signal(test_runner, 3, "SEQ", memory.sequential_cycle.output, LOW)
-	// 	expect_signal(test_runner, 3, "RW", memory.read_write.output, read_write)
-	// 	// 4 //
-	// 	expect_tick(test_runner, tick_index, 4)
-	// 	memory_respond_memory_sequence(sequential_cycle = LOW, read_write = read_write, address = address)
-	// 	tick()
-	// 	expect_signal(test_runner, 4, "RW", memory.read_write.output, read_write)
-	// 	expect_signal(test_runner, 4, "A", memory.address.output, address)
-	// 	if read_write == .WRITE do expect_signal(test_runner, 4, "DOUT", memory.data_out.output, dout)
-	// 	expect_signal(test_runner, 4, "WAIT", gba_core.wait.output, LOW)
-	// 	// 5 //
-	// 	expect_tick(test_runner, tick_index, 5)
-	// 	tick()
-	// 	expect_signal(test_runner, 5, "A", memory.address.output, address)
-	// 	if read_write == .WRITE do expect_signal(test_runner, 5, "DOUT", memory.data_out.output, dout)
-	// 	else do expect_signal(test_runner, 5, "DIN", gba_core.data_in.output, memory_read_u32(address))
-	// 	// 6 //
-	// 	expect_tick(test_runner, tick_index, 6)
-	// 	tick()
-	// 	if read_write == .WRITE do expect_signal(test_runner, 6, "DOUT", memory.data_out.output, memory_read_u32(address))
-	// // }
-	// if testing.failed(test_runner) do log.info("\n", timeline_print(), sep = "")
-}
+	address: u32 = 444
+	dout: = rand.uint32()
+	// for read_write in GBA_Read_Write {
+	read_write: = GBA_Read_Write.READ
+		initialize()
+		tick(times = 3)
+		// 2 //
+		expect_tick(test_runner, tick_index, 2)
+		gba_request_memory_sequence(sequential_cycle = LOW, read_write = read_write, address = address, data_out = dout)
+		signal_put(&memory.address, address, latency_override = 2)
+		signal_force(&memory.address, address)
+		tick()
+		expect_signal(test_runner, 2, "MREQ", memory.memory_request.output, HIGH)
+		expect_signal(test_runner, 2, "SEQ", memory.sequential_cycle.output, LOW)
+		// 3 //
+		expect_tick(test_runner, tick_index, 3)
+		tick()
+		expect_signal(test_runner, 3, "MREQ", memory.memory_request.output, HIGH)
+		expect_signal(test_runner, 3, "SEQ", memory.sequential_cycle.output, LOW)
+		expect_signal(test_runner, 3, "RW", memory.read_write.output, read_write)
+		// 4 //
+		expect_tick(test_runner, tick_index, 4)
+		memory_respond_memory_sequence(sequential_cycle = LOW, read_write = read_write, address = address)
+		tick()
+		expect_signal(test_runner, 4, "RW", memory.read_write.output, read_write)
+		expect_signal(test_runner, 4, "A", memory.address.output, address)
+		if read_write == .WRITE do expect_signal(test_runner, 4, "DOUT", memory.data_out.output, dout)
+		expect_signal(test_runner, 4, "WAIT", gba_core.wait.output, LOW)
+		// 5 //
+		expect_tick(test_runner, tick_index, 5)
+		tick()
+		expect_signal(test_runner, 5, "A", memory.address.output, address)
+		if read_write == .WRITE do expect_signal(test_runner, 5, "DOUT", memory.data_out.output, dout)
+		else do expect_signal(test_runner, 5, "DIN", gba_core.data_in.output, memory_read_u32(address))
+		// 6 //
+		expect_tick(test_runner, tick_index, 6)
+		tick()
+		if read_write == .WRITE do expect_signal(test_runner, 6, "DOUT", memory.data_out.output, memory_read_u32(address))
+	// }
+	if testing.failed(test_runner) do log.info("\n", timeline_print(), sep = "") }
 
 
 @(test)
