@@ -1,4 +1,5 @@
 package gbana
+import "base:runtime"
 import "core:fmt"
 import "core:os"
 import "core:path/filepath"
@@ -24,22 +25,33 @@ WARN: string: "\e[0;33m[ warn ]\e[0m"
 // Stages of the tick:
 // Transition - transition from the previous tick into the current tick.
 
-
 LOW_PHASE:: 0
 HIGH_PHASE:: 1
-first_tick: bool
-tick_index: uint
-cycle_index: uint
-phase_index: uint
-init:: proc() {
-	reinit() }
-reinit:: proc() {
+State:: struct {
+	first_tick:  bool,
+	tick_index:  uint,
+	cycle_index: uint,
+	phase_index: uint,
+	signals:     [dynamic]Any_Signal,
+	gba_core:    GBA_Core,
+	memory:      Memory }
+init_context:: proc(state: ^State) -> runtime.Context {
+	context.user_ptr = state
+	return context }
+allocate:: proc() {
+	allocate_memory() }
+initialize:: proc() {
+	using state: ^State = cast(^State)context.user_ptr
 	first_tick = true
 	tick_index = 0
 	cycle_index = 0
-	phase_index = 0 }
+	phase_index = 0
+	initialize_gba_core()
+	initialize_memory()
+	signals = make([dynamic]Any_Signal) }
 	// device_reset() }
 tick:: proc(n: uint = 0, times: int = 1, tl: ^Timeline = nil) -> bool {
+	using state: ^State = cast(^State)context.user_ptr
 	current_tick_index: uint = tick_index
 	current_cycle_index: uint = cycle_index
 	current_phase_index: uint = phase_index
@@ -57,7 +69,10 @@ tick:: proc(n: uint = 0, times: int = 1, tl: ^Timeline = nil) -> bool {
 	signals_tick(tl, current_tick_index, current_cycle_index, current_phase_index)
 	return true }
 main:: proc() {
-	init()
+	using state: State
+	context = init_context(&state)
+	allocate()
+	initialize()
 	memory_thread: = thread.create(memory_thread_proc)
 	gba_core_thread: = thread.create(gba_core_thread_proc)
 	thread.start(memory_thread)
@@ -66,4 +81,4 @@ main:: proc() {
 	// time.sleep(10 * time.Second)
 	thread.join(memory_thread)
 	thread.join(gba_core_thread)
-	timeline_print() }
+	fmt.println(timeline_print()) }

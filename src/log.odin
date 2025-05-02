@@ -16,6 +16,9 @@ Timeline:: [dynamic]Timeline_Node
 timeline: Timeline
 saved_timelines: [dynamic]Timeline
 timeline_append:: proc(tl: ^Timeline, current_tick_index: uint, current_cycle_index: uint, current_phase_index: uint) {
+	using state: ^State = cast(^State)context.user_ptr
+	tl: = tl
+	if tl == nil do tl = &timeline
 	append(tl, Timeline_Node{
 		tick_index = current_tick_index,
 		cycle_index = current_cycle_index,

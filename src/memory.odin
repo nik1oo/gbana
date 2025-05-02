@@ -21,7 +21,8 @@ Memory_Interface:: struct {
 	sequential_cycle:               Signal(bool),            // SEQ
 	op_code_fetch:                  Signal(bool),            // OPC
 	read_write:                     Signal(GBA_Read_Write) } // RW
-_init_memory_interface:: proc() {
+init_memory_interface:: proc() {
+	using state: ^State = cast(^State)context.user_ptr
 	signal_init("MCLK", &memory.main_clock,           2, gba_main_clock_callback,           write_phase = { LOW_PHASE, HIGH_PHASE })
 	signal_init("OPC",  &memory.op_code_fetch,        1, gba_op_code_fetch_callback,        write_phase = { HIGH_PHASE            })
 	signal_init("A",    &memory.address,              1, gba_address_callback,              write_phase = { LOW_PHASE             })
@@ -432,32 +433,38 @@ WIDTH:: 1
 // 	return 0
 // }
 memory_read_u8:: proc(address: u32) -> (value: u8) {
+	using state: ^State = cast(^State)context.user_ptr
 	word_address: u32 = cast(u32)mem.align_backward_uint(uint(address), 4)
 	byte_index: = address - word_address
 	word: u32 = transmute(u32)cast(u32be)transmute(u32le)(memory.data[word_address / 4])
 	return cast(u8)((word >> (byte_index * 8)) & 0b_11111111) }
 memory_read_u16:: proc(address: u32) -> (value: u16) {
+	using state: ^State = cast(^State)context.user_ptr
 	address: = address & (~ u32(0b_1))
 	word_address: u32 = cast(u32)mem.align_backward_uint(uint(address), 4)
 	byte_index: = address - word_address
 	word: u32 = transmute(u32)cast(u32be)transmute(u32le)(memory.data[word_address / 4])
 	return cast(u16)((word >> (byte_index * 8)) & 0b_11111111_11111111) }
 memory_read_u32:: proc(address: u32) -> (value: u32) {
+	using state: ^State = cast(^State)context.user_ptr
 	address: = address & (~ u32(0b_11))
 	word: u32 = transmute(u32)cast(u32be)transmute(u32le)(memory.data[address / 4])
 	return word }
 memory_write_u8:: proc(address: u32, value: u8) {
+	using state: ^State = cast(^State)context.user_ptr
 	bytes: = slice.reinterpret([]u8, memory.data)
 	word_address: u32 = cast(u32)mem.align_backward_uint(uint(address), 4)
 	byte_index: = address - word_address
 	bytes[word_address * 4 + 3 - byte_index] = value }
 memory_write_u16:: proc(address: u32, value: u16) {
+	using state: ^State = cast(^State)context.user_ptr
 	address: = address & (~ u32(0b_1))
 	halfwords: = slice.reinterpret([]u16, memory.data)
 	word_address: u32 = cast(u32)mem.align_backward_uint(uint(address), 4)
 	halfword_index: = (address - word_address) / 2
 	halfwords[word_address * 2 + 1 - halfword_index] = transmute(u16)cast(u16le)transmute(u16be)value }
 memory_write_u32:: proc(address: u32, value: u32) {
+	using state: ^State = cast(^State)context.user_ptr
 	address: = address & (~ u32(0b_11))
 	memory.data[address / 4] = cast(u32le)transmute(u32be)value }
 // bios_read:: proc(address: u32, $width: int) -> (value: [width]u8, cycles: int) {
@@ -627,10 +634,8 @@ Memory:: struct {
 		power_down_control:                    ^HALTCNT,
 		undocumented_0x4000800:                ^UNDOCUMENTED_0x4000800 },
 	using interface: Memory_Interface }
-memory: ^Memory
-@(init) _init_memory:: proc() {
-	memory = new(Memory)
-	_init_memory_interface()
+allocate_memory:: proc() {
+	using state: ^State = cast(^State)context.user_ptr
 	memory.data =                          runtime.make_aligned([]u32le, len = 0x0e00ffff/4+1, alignment = 4); assert(memory.data != nil)
 	memory.system_rom_region =             make_memslice(SYSTEM_ROM_RANGE)
 	memory.bios_region =                   make_memslice(BIOS_RANGE)
@@ -646,12 +651,16 @@ memory: ^Memory
 	memory.cartridge_game_data_0_region =  make_memslice(CARTRIDGE_GAME_DATA_0_RANGE)
 	memory.cartridge_game_data_1_region =  make_memslice(CARTRIDGE_GAME_DATA_1_RANGE)
 	memory.cartridge_game_data_2_region =  make_memslice(CARTRIDGE_GAME_DATA_2_RANGE)
-	memory.cartridge_save_data_region =    make_memslice(CARTRIDGE_SAVE_DATA_RANGE)
+	memory.cartridge_save_data_region =    make_memslice(CARTRIDGE_SAVE_DATA_RANGE) }
+initialize_memory:: proc() {
+	using state: ^State = cast(^State)context.user_ptr
+	init_memory_interface()
 	load_bios(`C:\Games\GBA Roms\bios.bin`)
 	load_cartridge(`C:\Games\GBA Roms\Doom.gba`) }
 
 
 print_memory_regions::proc() {
+	using state: ^State = cast(^State)context.user_ptr
 	print_memslice("data                          ", memory.data)
 	print_memslice("system_rom_region             ", memory.system_rom_region)
 	print_memslice("bios_region                   ", memory.bios_region)
@@ -683,6 +692,7 @@ be_to_le:: proc(be: u32) -> u32 {
 
 
 make_memslice:: proc(range: [2]u32, loc: = #caller_location)-> []u32le {
+	using state: ^State = cast(^State)context.user_ptr
 	assert(is_aligned(range[START], 4) && is_aligned(range[END]+1, 4), loc = loc)
 	return memory.data[range[START]/4:range[END]/4+1] }
 print_memslice:: proc(name: string, memslice: []u32le) {
@@ -690,8 +700,10 @@ print_memslice:: proc(name: string, memslice: []u32le) {
 memslice_region:: proc(memslice: []u32le)-> (region: [2]uint) {
 	return { memslice_region_start(memslice), memslice_region_end(memslice) } }
 memslice_region_start:: proc(memslice: []u32le)-> uint {
+	using state: ^State = cast(^State)context.user_ptr
 	return uint(uintptr(&memslice[0]) - uintptr(&memory.data[0])) }
 memslice_region_end:: proc(memslice: []u32le)-> uint {
+	using state: ^State = cast(^State)context.user_ptr
 	return uint(uintptr(&memslice[len(memslice)-1]) - uintptr(&memory.data[0])) }
 
 
@@ -706,6 +718,7 @@ Instruction_Set:: enum {
 
 
 load_bios:: proc(filename: string)-> bool {
+	using state: ^State = cast(^State)context.user_ptr
 	bios_bytes, success: = os.read_entire_file_from_filename(filename)
 	bios: []u32le = slice.reinterpret([]u32le, bios_bytes)
 	if ! success do return false
@@ -715,6 +728,7 @@ load_bios:: proc(filename: string)-> bool {
 	copy_slice(memory.bios_region[0:n], bios[0:n])
 	return true }
 load_cartridge:: proc(filename: string)-> bool {
+	using state: ^State = cast(^State)context.user_ptr
 	cartridge_bytes, success: = os.read_entire_file_from_filename(filename)
 	cartridge: []u32le = slice.reinterpret([]u32le, cartridge_bytes)
 	if ! success do return false
@@ -729,6 +743,7 @@ load_cartridge:: proc(filename: string)-> bool {
 
 // SEQUENCES //
 memory_respond_memory_sequence:: proc(sequential_cycle: bool = LOW, read_write: GBA_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0) {
+	using state: ^State = cast(^State)context.user_ptr
 	assert(phase_index == 0, "Memory Sequence response may only be initiated in phase 1")
 	access_latency: = memory_bus_latency_from_address(address = address, width = 4/*memory.memory_access_size.output*/)
 	read_write: = memory.read_write.output

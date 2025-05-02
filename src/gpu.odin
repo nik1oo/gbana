@@ -97,6 +97,7 @@ GPU_Registers:: struct {
 	bldcnt:   ^BLDCNT_Register,
 }
 init_gpu:: proc() {
+	using state: ^State = cast(^State)context.user_ptr
 	gpu= new(GPU)
 	gpu.dispcnt=  (^DISPCNT_Register) (&slice.reinterpret([]u8, memory.data)[REG_DISPCNT_ADDR])
 	gpu.dispstat= (^DISPSTAT_Register)(&slice.reinterpret([]u8, memory.data)[REG_DISPSTAT_ADDR])

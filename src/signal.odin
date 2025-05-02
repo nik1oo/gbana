@@ -10,9 +10,8 @@ WRITE:: LOW
 Any_Signal:: union{ ^Signal(u32), ^Signal(uint), ^Signal(u8), ^Signal(bool), ^Signal(GBA_Processor_Mode), ^Signal(GBA_Read_Write) }
 
 
-signals: [dynamic]Any_Signal
-@(init) _:: proc() {
-	signals = make([dynamic]Any_Signal) }
+// @(init) _:: proc() {
+// 	signals = make([dynamic]Any_Signal) }
 
 
 // SIGNAL //
@@ -26,6 +25,7 @@ Signal:: struct($T: typeid) {
 	write_phase: bit_set[0..=1],
 	callback:    proc(self: ^Signal(T), new_output: T) }
 signals_tick:: proc(tl: ^Timeline = nil, current_tick_index:  uint, current_cycle_index: uint, current_phase_index: uint) {
+	using state: ^State = cast(^State)context.user_ptr
 	for signal in signals do #partial switch v in signal {
 	case ^Signal(u32):                signal_tick(v)
 	case ^Signal(uint):               signal_tick(v)
@@ -37,6 +37,8 @@ Signal_Data:: struct($T: typeid) {
 	data:    T,
 	latency: int }
 signal_init:: proc(name: string, signal: ^Signal($T), latency: int = 1, callback: proc(self: ^Signal(T), new_output: T) = nil, enabled: bool = true, write_phase: bit_set[0..=1] = { LOW_PHASE, HIGH_PHASE }) {
+	using state: ^State = cast(^State)context.user_ptr
+	assert(signal != nil)
 	signal.name        = name
 	signal.enabled     = enabled
 	signal.output      = {}
@@ -45,6 +47,7 @@ signal_init:: proc(name: string, signal: ^Signal($T), latency: int = 1, callback
 	signal.write_phase = write_phase
 	append_elem(&signals, signal) }
 signal_put:: proc(signal: ^Signal($T), data: T, latency_override: int = -1, loc: = #caller_location) {
+	assert(signal != nil)
 	// fmt.println("Put", data, "on signal", signal.name, "at", loc)
 	queue.push_front(&signal._queue, Signal_Data(T) { data = data, latency = (latency_override == -1) ? (signal.latency - 1) : latency_override }) }
 signal_force:: proc(signal: ^Signal($T), data: T) {
@@ -55,6 +58,8 @@ signal_delay:: proc(signal: ^Signal($T), n: int) {
 		signal_data: = queue.get_ptr(&signal._queue, i)
 		signal_data.latency += n } }
 signal_tick:: proc(signal: ^Signal($T), loc: = #caller_location) {
+	assert(signal != nil)
+	using state: ^State = cast(^State)context.user_ptr
 	for queue.len(signal._queue) > 0 {
 		signal_data: = queue.back(&signal._queue)
 		if signal_data.latency == 0 {

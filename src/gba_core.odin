@@ -31,7 +31,8 @@ GBA_Core_Interface:: struct {
 	executing_thumb:                Signal(bool),               // TBIT
 	data_in:                        Signal(u32),                // DIN
 	execute_cycle:                  Signal(bool) }              // EXEC
-_init_gba_core_interface:: proc() {
+initialize_gba_core_interface:: proc() {
+	using state: ^State = cast(^State)context.user_ptr
 	signal_init("EXEC",   &gba_core.execute_cycle,                 1, gba_execute_cycle_callback,                 write_phase = { LOW_PHASE             })
 	signal_init("MCLK",   &gba_core.main_clock,                    2, gba_main_clock_callback,                    write_phase = { LOW_PHASE, HIGH_PHASE })
 	signal_init("WAIT",   &gba_core.wait,                          1, gba_wait_callback,                          write_phase = { HIGH_PHASE            })
@@ -56,22 +57,24 @@ gba_core_thread_proc:: proc(t: ^thread.Thread) { }
 
 
 // SIGNALS //
-gba_watch_signals:: proc() {
-	if gba_core_states[CURRENT_STATE].reset.output != gba_core_states[PREVIOUS_STATE].reset.output do gba_signal_callback_reset() }
-gba_signal_callback_reset:: proc() {
-	switch gba_core_states[CURRENT_STATE].reset.output {
-	case HIGH:
-		for i in uint(GBA_Physical_Register_Name.R0) ..< uint(GBA_Physical_Register_Name.CPSR) do gba_core.physical_registers.array[i] = rand.uint32()
-		// TODO More information is provided in Reset sequence after power up on page 3-33. //
-	case LOW:
-		gba_core.physical_registers.array[GBA_Physical_Register_Name.R14_SVC] = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
-		gba_core.physical_registers.array[GBA_Physical_Register_Name.SPSR_SVC] = gba_core.logical_registers.array[GBA_Logical_Register_Name.CPSR]^
-		signal_put(&gba_core.processor_mode, GBA_Processor_Mode.Supervisor)
-		cpsr: = gba_get_cpsr()
-		cpsr.irq_interrupt_disable = true
-		cpsr.fiq_interrupt_disable = true
-		cpsr.thumb_state = false
-		gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^ = 0b0 } }
+// gba_watch_signals:: proc() {
+// 	using state: ^State = cast(^State)context.user_ptr
+// 	if gba_core_states[CURRENT_STATE].reset.output != gba_core_states[PREVIOUS_STATE].reset.output do gba_signal_callback_reset() }
+// gba_signal_callback_reset:: proc() {
+// 	using state: ^State = cast(^State)context.user_ptr
+// 	switch gba_core_states[CURRENT_STATE].reset.output {
+// 	case HIGH:
+// 		for i in uint(GBA_Physical_Register_Name.R0) ..< uint(GBA_Physical_Register_Name.CPSR) do gba_core.physical_registers.array[i] = rand.uint32()
+// 		// TODO More information is provided in Reset sequence after power up on page 3-33. //
+// 	case LOW:
+// 		gba_core.physical_registers.array[GBA_Physical_Register_Name.R14_SVC] = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
+// 		gba_core.physical_registers.array[GBA_Physical_Register_Name.SPSR_SVC] = gba_core.logical_registers.array[GBA_Logical_Register_Name.CPSR]^
+// 		signal_put(&gba_core.processor_mode, GBA_Processor_Mode.Supervisor)
+// 		cpsr: = gba_get_cpsr()
+// 		cpsr.irq_interrupt_disable = true
+// 		cpsr.fiq_interrupt_disable = true
+// 		cpsr.thumb_state = false
+// 		gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^ = 0b0 } }
 // NOTE Ignore the bounary-scan circuit stuff and the TAP controller. Those are for hardware circuit testing. //
 
 
@@ -80,6 +83,7 @@ gba_signal_callback_reset:: proc() {
 
 // TIMING //
 gba_insert_wait_cycle:: proc() {
+	using state: ^State = cast(^State)context.user_ptr
 	signal_delay(&gba_core.main_clock, 2) }
 gba_main_clock_callback:: proc(self: ^Signal(bool), new_output: bool) {
 	signal_put(self, ! new_output) }
@@ -88,6 +92,7 @@ gba_interrupt_request_callback:: proc(self: ^Signal(bool), new_output: bool) { }
 gba_fast_interrupt_request_callback:: proc(self: ^Signal(bool), new_output: bool) { }
 gba_synchronous_interrupts_enable_callback:: proc(self: ^Signal(bool), new_output: bool) { }
 gba_reset_callback:: proc(self: ^Signal(bool), new_output: bool) {
+	using state: ^State = cast(^State)context.user_ptr
 	if new_output == false {
 		signal_put(&memory.memory_request, true, latency_override = 4)
 		signal_put(&gba_core.execute_cycle, true, latency_override = 5)
@@ -118,6 +123,7 @@ GBA_Cycle_Type:: enum {
 	MEMORY,
 	INTERNAL }
 gba_request_memory_sequence:: proc(sequential_cycle: bool = false, read_write: GBA_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0) {
+	using state: ^State = cast(^State)context.user_ptr
 	assert(phase_index == 0, "Memory Sequence request may only be initiated in phase 1")
 	/* MREQ */ signal_force(&memory.memory_request, HIGH)
 	/*  SEQ */ signal_force(&memory.sequential_cycle, sequential_cycle)
@@ -125,6 +131,7 @@ gba_request_memory_sequence:: proc(sequential_cycle: bool = false, read_write: G
 	/*    A */ signal_put(&memory.address, address, latency_override = 2)
 	/* DOUT */ if read_write == .WRITE do signal_put(&memory.data_out, data_out, latency_override = 2) }
 gba_request_n_cycle:: proc(read_write: GBA_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0) {
+	using state: ^State = cast(^State)context.user_ptr
 	assert(phase_index == 0, "N-Cycle may only be initiated in phase 1")
 	/* MREQ */ signal_force(&memory.memory_request, HIGH)
 	/*  SEQ */ signal_force(&memory.sequential_cycle, LOW)
@@ -132,6 +139,7 @@ gba_request_n_cycle:: proc(read_write: GBA_Read_Write = .READ, address: u32 = 0b
 	/*    A */ signal_put(&memory.address, address, latency_override = 2)
 	/* DOUT */ if read_write == .WRITE do signal_put(&memory.data_out, data_out, latency_override = 2) }
 gba_request_s_cycle:: proc(read_write: GBA_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0) {
+	using state: ^State = cast(^State)context.user_ptr
 	assert(phase_index == 0, "S-Cycle may only be initiated in phase 1")
 	/* MREQ */ signal_force(&memory.memory_request, HIGH)
 	/*  SEQ */ signal_force(&memory.sequential_cycle, HIGH)
@@ -139,10 +147,12 @@ gba_request_s_cycle:: proc(read_write: GBA_Read_Write = .READ, address: u32 = 0b
 	/*    A */ signal_put(&memory.address, address, latency_override = 2)
 	/* DOUT */ if read_write == .WRITE do signal_put(&memory.data_out, data_out, latency_override = 2) }
 gba_initiate_i_cycle:: proc() {
+	using state: ^State = cast(^State)context.user_ptr
 	assert(phase_index == 0, "S-Cycle may only be initiated in phase 1")
 	/* MREQ */ signal_force(&memory.memory_request, LOW)
 	/*  SEQ */ signal_force(&memory.sequential_cycle, LOW) }
 gba_request_merged_is_cycle:: proc(read_write: GBA_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0) {
+	using state: ^State = cast(^State)context.user_ptr
 	assert(phase_index == 0, "Merged IS-Cycle may only be initiated in phase 1")
 	/* MREQ */ signal_force(&memory.memory_request, LOW)
 	           signal_put(&memory.memory_request, HIGH, latency_override = 2)
@@ -152,6 +162,7 @@ gba_request_merged_is_cycle:: proc(read_write: GBA_Read_Write = .READ, address: 
 	/*    A */ signal_put(&memory.address, address, latency_override = 2)
 	/* DOUT */ if read_write == .WRITE do signal_put(&memory.data_out, data_out, latency_override = 2) }
 gba_request_data_write_cycle:: proc(sequential_cycle: bool = false, address: u32 = 0b0, data_out: u32 = 0b0) {
+	using state: ^State = cast(^State)context.user_ptr
 	assert(phase_index == 0, "Data Write Sequence may only be initiated in phase 1")
 	/* MREQ */ signal_force(&memory.memory_request, HIGH)
 	/*  SEQ */ signal_force(&memory.sequential_cycle, sequential_cycle)
@@ -159,6 +170,7 @@ gba_request_data_write_cycle:: proc(sequential_cycle: bool = false, address: u32
 	/*    A */ signal_put(&memory.address, address, latency_override = 2)
 	/* DOUT */ signal_put(&memory.data_out, data_out, latency_override = 2) }
 gba_request_data_read_cycle:: proc(sequential_cycle: bool = false, address: u32 = 0b0) {
+	using state: ^State = cast(^State)context.user_ptr
 	assert(phase_index == 0, "Data Write Sequence may only be initiated in phase 1")
 	/* MREQ */ signal_force(&memory.memory_request, HIGH)
 	/*  SEQ */ signal_force(&memory.sequential_cycle, sequential_cycle)
@@ -200,14 +212,8 @@ GBA_Core:: struct {
 	logical_registers: GBA_Logical_Registers,
 	physical_registers: GBA_Physical_Registers,
 	using interface: GBA_Core_Interface }
-gba_core: ^GBA_Core
-CURRENT_STATE:: 0
-PREVIOUS_STATE:: 1
-gba_core_states: [2]^GBA_Core
-@(init) _init_gba_core:: proc() {
-	gba_core_states[CURRENT_STATE], gba_core_states[PREVIOUS_STATE] = new(GBA_Core), new(GBA_Core)
-	gba_core = gba_core_states[CURRENT_STATE]
-	_init_gba_core_interface() }
+initialize_gba_core:: proc() {
+	initialize_gba_core_interface() }
 Hardware_Interrupt:: enum {
 	V_BLANK,
 	H_BLANK,
@@ -271,6 +277,7 @@ Software_Interrupt:: enum {
 
 // INSTRUCTIONS //
 gba_execute_ADC:: proc(ins: GBA_ADC_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = transmute(u32)(ins.operand + ins.shifter_operand + i32(cpsr.carry))
@@ -282,6 +289,7 @@ gba_execute_ADC:: proc(ins: GBA_ADC_Instruction_Decoded) {
 		cpsr.carry = gba_carry_from_add(ins.operand, ins.shifter_operand, u32(cpsr.carry))
 		cpsr.overflow = gba_overflow_from_add(ins.operand, ins.shifter_operand, u32(cpsr.carry)) } }
 gba_execute_ADD:: proc(ins: GBA_ADD_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = transmute(u32)(ins.operand + ins.shifter_operand)
@@ -293,6 +301,7 @@ gba_execute_ADD:: proc(ins: GBA_ADD_Instruction_Decoded) {
 		cpsr.carry = gba_carry_from_add(ins.operand, ins.shifter_operand)
 		cpsr.overflow = gba_overflow_from_add(ins.operand, ins.shifter_operand) } }
 gba_execute_AND:: proc(ins: GBA_AND_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = ins.operand & ins.shifter_operand
@@ -303,13 +312,16 @@ gba_execute_AND:: proc(ins: GBA_AND_Instruction_Decoded) {
 		cpsr.zero = (ins.destination^ == 0)
 		cpsr.carry = ins.shifter_carry_out } }
 gba_execute_B:: proc(ins: GBA_B_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^ = ins.target_address }
 gba_execute_BL:: proc(ins: GBA_BL_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	gba_core.logical_registers.array[GBA_Logical_Register_Name.LR]^ = ins.instruction_address + 4
 	gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^ = ins.target_address }
 gba_execute_BIC:: proc(ins: GBA_BIC_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = ins.operand & (~ ins.shifter_operand)
@@ -320,11 +332,13 @@ gba_execute_BIC:: proc(ins: GBA_BIC_Instruction_Decoded) {
 		cpsr.zero = (ins.destination^ == 0)
 		cpsr.carry = ins.shifter_carry_out } }
 gba_execute_BX:: proc(ins: GBA_BX_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^ = ins.target_address
 	cpsr.thumb_state = true }
 gba_execute_CMN:: proc(ins: GBA_CMN_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	alu_out: i32 = ins.operand + ins.shifter_operand
@@ -333,6 +347,7 @@ gba_execute_CMN:: proc(ins: GBA_CMN_Instruction_Decoded) {
 	cpsr.carry = gba_carry_from_add(ins.operand, ins.shifter_operand)
 	cpsr.overflow = gba_overflow_from_add(ins.operand, ins.shifter_operand) }
 gba_execute_CMP:: proc(ins: GBA_CMP_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	alu_out: i32 = ins.operand - ins.shifter_operand
@@ -341,6 +356,7 @@ gba_execute_CMP:: proc(ins: GBA_CMP_Instruction_Decoded) {
 	cpsr.carry = gba_borrow_from(ins.operand, ins.shifter_operand)
 	cpsr.overflow = gba_overflow_from_sub(ins.operand, ins.shifter_operand) }
 gba_execute_EOR:: proc(ins: GBA_EOR_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = ins.operand ~ ins.shifter_operand
@@ -351,6 +367,7 @@ gba_execute_EOR:: proc(ins: GBA_EOR_Instruction_Decoded) {
 		cpsr.zero = (ins.destination^ == 0)
 		cpsr.carry = ins.shifter_carry_out } }
 gba_execute_LDM:: proc(ins: GBA_LDM_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	address: = ins.start_address
 	for register in GBA_Logical_Register_Name(0) ..< GBA_Logical_Register_Name(15) {
@@ -359,6 +376,7 @@ gba_execute_LDM:: proc(ins: GBA_LDM_Instruction_Decoded) {
 			address += 4 } }
 	if ins.restore_status_register do gba_pop_psr() }
 gba_execute_LDR:: proc(ins: GBA_LDR_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	tail_bits: = bits.bitfield_extract(ins.address, 0, 2)
 	switch tail_bits {
@@ -367,22 +385,28 @@ gba_execute_LDR:: proc(ins: GBA_LDR_Instruction_Decoded) {
 	case 0b10: ins.destination^ = rotate_right(memory_read_u32(ins.address), 16)
 	case 0b11: ins.destination^ = rotate_right(memory_read_u32(ins.address), 24) } }
 gba_execute_LDRB:: proc(ins: GBA_LDRB_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	ins.destination^ = cast(u32)memory_read_u8(ins.address) }
 gba_execute_LDRBT:: proc(ins: GBA_LDRBT_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	// TODO Do the write-back on all instructions. //
 	if ! gba_condition_passed(ins.cond) do return
 	ins.destination^ = cast(u32)memory_read_u8(ins.address) }
 gba_execute_LDRH:: proc(ins: GBA_LDRH_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	ins.destination^ = cast(u32)memory_read_u16(ins.address) }
 gba_execute_LDRSB:: proc(ins: GBA_LDRSB_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	ins.destination^ = transmute(u32)gba_sign_extend(cast(u32)memory_read_u8(ins.address), 8) }
 gba_execute_LDRSH:: proc(ins: GBA_LDRSH_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	ins.destination^ = transmute(u32)gba_sign_extend(cast(u32)memory_read_u16(ins.address), 16) }
 gba_execute_LDRT:: proc(ins: GBA_LDRT_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	tail_bits: = bits.bitfield_extract(ins.address, 0, 2)
 	switch tail_bits {
@@ -391,6 +415,7 @@ gba_execute_LDRT:: proc(ins: GBA_LDRT_Instruction_Decoded) {
 	case 0b10: ins.destination^ = rotate_right(memory_read_u32(ins.address), 16)
 	case 0b11: ins.destination^ = rotate_right(memory_read_u32(ins.address), 24) } }
 gba_execute_MLA:: proc(ins: GBA_MLA_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = transmute(u32)(ins.operand * ins.multiplicand + ins.addend)
@@ -399,6 +424,7 @@ gba_execute_MLA:: proc(ins: GBA_MLA_Instruction_Decoded) {
 		cpsr.zero = (ins.destination^ == 0)
 		cpsr.carry = bool(rand.int_max(2)) } }
 gba_execute_MOV:: proc(ins: GBA_MOV_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	if ins.set_condition_codes && ins.destination == gba_core.logical_registers.array[GBA_Logical_Register_Name.PC] {
@@ -409,9 +435,11 @@ gba_execute_MOV:: proc(ins: GBA_MOV_Instruction_Decoded) {
 		cpsr.zero = (ins.destination^ == 0)
 		cpsr.carry = ins.shifter_carry_out } }
 gba_execute_MRS:: proc(ins: GBA_MRS_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	ins.source^ = ins.destination^ }
 gba_execute_MSR:: proc(ins: GBA_MSR_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr, spsr: = gba_get_cpsr(), gba_get_spsr()
 	#partial switch ins.destination {
@@ -434,6 +462,7 @@ gba_execute_MSR:: proc(ins: GBA_MSR_Instruction_Decoded) {
 		if 3 in ins.field_mask && gba_current_mode_has_spsr() {
 			spsr^ = auto_cast bits.bitfield_insert(cast(u32)spsr^, bits.bitfield_extract(ins.operand, 24, 8), 24, 8) } } }
 gba_execute_MUL:: proc(ins: GBA_MUL_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = transmute(u32)(ins.operand * ins.multiplicand)
@@ -442,6 +471,7 @@ gba_execute_MUL:: proc(ins: GBA_MUL_Instruction_Decoded) {
 		cpsr.zero = (ins.destination^ == 0)
 		cpsr.carry = bool(rand.int_max(2)) } }
 gba_execute_MVN:: proc(ins: GBA_MVN_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = ~ ins.shifter_operand
@@ -452,6 +482,7 @@ gba_execute_MVN:: proc(ins: GBA_MVN_Instruction_Decoded) {
 		cpsr.zero = (ins.destination^ == 0)
 		cpsr.carry = ins.shifter_carry_out } }
 gba_execute_ORR:: proc(ins: GBA_ORR_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = ins.operand | ins.shifter_operand
@@ -462,6 +493,7 @@ gba_execute_ORR:: proc(ins: GBA_ORR_Instruction_Decoded) {
 		cpsr.zero = (ins.destination^ == 0)
 		cpsr.carry = ins.shifter_carry_out } }
 gba_execute_RSB:: proc(ins: GBA_RSB_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = transmute(u32)(ins.shifter_operand - ins.operand)
@@ -473,6 +505,7 @@ gba_execute_RSB:: proc(ins: GBA_RSB_Instruction_Decoded) {
 		cpsr.carry = ! gba_borrow_from(ins.shifter_operand, ins.operand)
 		cpsr.overflow = gba_overflow_from_sub(ins.shifter_operand, ins.operand) } }
 gba_execute_RSC:: proc(ins: GBA_RSC_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = transmute(u32)(ins.shifter_operand - (ins.operand + i32(! cpsr.carry)))
@@ -484,6 +517,7 @@ gba_execute_RSC:: proc(ins: GBA_RSC_Instruction_Decoded) {
 		cpsr.carry = ! gba_borrow_from(ins.shifter_operand, (ins.operand + i32(! cpsr.carry)))
 		cpsr.overflow = gba_overflow_from_sub(ins.shifter_operand, (ins.operand + i32(! cpsr.carry))) } }
 gba_execute_SBC:: proc(ins: GBA_SBC_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = transmute(u32)(ins.operand - (ins.shifter_operand + i32(! cpsr.carry)))
@@ -495,6 +529,7 @@ gba_execute_SBC:: proc(ins: GBA_SBC_Instruction_Decoded) {
 		cpsr.carry = ! gba_borrow_from(ins.operand, (ins.shifter_operand + i32(! cpsr.carry)))
 		cpsr.overflow = gba_overflow_from_sub(ins.operand, (ins.shifter_operand + i32(! cpsr.carry))) } }
 gba_execute_SMLAL:: proc(ins: GBA_SMLAL_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	accumulator: i64 = transmute(i64)(u64(ins.destinations[0]^) | (u64(ins.destinations[1]^) << 32))
@@ -508,6 +543,7 @@ gba_execute_SMLAL:: proc(ins: GBA_SMLAL_Instruction_Decoded) {
 		cpsr.carry = bool(rand.int_max(2))
 		cpsr.overflow = bool(rand.int_max(2)) } }
 gba_execute_SMULL:: proc(ins: GBA_SMULL_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	product: i64 = i64(ins.multiplicands[0]) * i64(ins.multiplicands[1])
@@ -519,6 +555,7 @@ gba_execute_SMULL:: proc(ins: GBA_SMULL_Instruction_Decoded) {
 		cpsr.carry = bool(rand.int_max(2))
 		cpsr.overflow = bool(rand.int_max(2)) } }
 gba_execute_STM:: proc(ins: GBA_STM_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	address: = ins.start_address
 	for register in GBA_Logical_Register_Name(0) ..< GBA_Logical_Register_Name(15) {
@@ -527,21 +564,27 @@ gba_execute_STM:: proc(ins: GBA_STM_Instruction_Decoded) {
 			address += 4 } }
 	if ins.restore_status_register do gba_pop_psr() }
 gba_execute_STR:: proc(ins: GBA_STR_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	memory_write_u32(ins.address, ins.source^) }
 gba_execute_STRB:: proc(ins: GBA_STRB_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	memory_write_u8(ins.address, cast(u8)(ins.source^ & 0xFF)) }
 gba_execute_STRBT:: proc(ins: GBA_STRBT_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	memory_write_u8(ins.address, cast(u8)(ins.source^ & 0xFF)) }
 gba_execute_STRH:: proc(ins: GBA_STRH_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	memory_write_u16(ins.address, cast(u16)(ins.source^ & 0xFFFF)) }
 gba_execute_STRT:: proc(ins: GBA_STRT_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	memory_write_u32(ins.address, ins.source^) }
 gba_execute_SUB:: proc(ins: GBA_SUB_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = transmute(u32)(ins.operand - ins.shifter_operand)
@@ -553,6 +596,7 @@ gba_execute_SUB:: proc(ins: GBA_SUB_Instruction_Decoded) {
 		cpsr.carry = ! gba_borrow_from(ins.operand, ins.shifter_operand)
 		cpsr.overflow = gba_overflow_from_sub(ins.operand, ins.shifter_operand) } }
 gba_execute_SWI:: proc(ins: GBA_SWI_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	gba_core.physical_registers.array[GBA_Physical_Register_Name.R14_SVC] = ins.instruction_address + 4
@@ -561,16 +605,19 @@ gba_execute_SWI:: proc(ins: GBA_SWI_Instruction_Decoded) {
 	cpsr^ = auto_cast bits.bitfield_insert(cast(u32)cpsr^, 0b1, 7, 1)
 	gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^ = 0x08 }
 gba_execute_SWP:: proc(ins: GBA_SWP_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	temp: u32 = memory_read_u32(ins.address)
 	memory_write_u32(ins.address, ins.source_register^)
 	ins.destination_register^ = temp }
 gba_execute_SWPB:: proc(ins: GBA_SWPB_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	temp: u8 = memory_read_u8(ins.address)
 	memory_write_u8(ins.address, cast(u8)(ins.source_register^ & 0xFF))
 	ins.destination_register^ = u32(temp) }
 gba_execute_TEQ:: proc(ins: GBA_TEQ_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	alu_out: u32 = ins.operand ~ ins.shifter_operand
@@ -578,6 +625,7 @@ gba_execute_TEQ:: proc(ins: GBA_TEQ_Instruction_Decoded) {
 	cpsr.zero = (alu_out == 0)
 	cpsr.carry = ins.shifter_carry_out }
 gba_execute_TST:: proc(ins: GBA_TST_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	alu_out: u32 = ins.operand & ins.shifter_operand
@@ -585,6 +633,7 @@ gba_execute_TST:: proc(ins: GBA_TST_Instruction_Decoded) {
 	cpsr.zero = (alu_out == 0)
 	cpsr.carry = ins.shifter_carry_out }
 gba_execute_UMLAL:: proc(ins: GBA_UMLAL_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	accumulator: u64 = u64(ins.destinations[0]^) | (u64(ins.destinations[1]^) << 32)
@@ -598,6 +647,7 @@ gba_execute_UMLAL:: proc(ins: GBA_UMLAL_Instruction_Decoded) {
 		cpsr.carry = bool(rand.int_max(2))
 		cpsr.overflow = bool(rand.int_max(2)) } }
 gba_execute_UMULL:: proc(ins: GBA_UMULL_Instruction_Decoded) {
+	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	product: u64 = u64(ins.multiplicands[0]) * u64(ins.multiplicands[1])
@@ -608,5 +658,3 @@ gba_execute_UMULL:: proc(ins: GBA_UMULL_Instruction_Decoded) {
 		cpsr.zero = ((ins.destinations[0]^ == 0) && (ins.destinations[1]^ == 0))
 		cpsr.carry = bool(rand.int_max(2))
 		cpsr.overflow = bool(rand.int_max(2)) } }
-
-

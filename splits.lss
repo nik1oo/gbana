@@ -15,7 +15,7 @@
     <Variables />
   </Metadata>
   <Offset>00:00:00</Offset>
-  <AttemptCount>40</AttemptCount>
+  <AttemptCount>41</AttemptCount>
   <AttemptHistory>
     <Attempt id="1" started="12/08/2024 15:17:36" isStartedSynced="True" ended="12/08/2024 15:17:53" isEndedSynced="True">
       <PauseTime>00:00:03.6910156</PauseTime>
@@ -56,15 +56,6 @@
     <Attempt id="23" started="02/21/2025 08:48:24" isStartedSynced="True" ended="02/21/2025 08:48:37" isEndedSynced="True" />
   </AttemptHistory>
   <Segments>
-    <Segment>
-      <Name>make testing consistent</Name>
-      <Icon />
-      <SplitTimes>
-        <SplitTime name="Personal Best" />
-      </SplitTimes>
-      <BestSegmentTime />
-      <SegmentHistory />
-    </Segment>
     <Segment>
       <Name>pass the simple memory cycle tests</Name>
       <Icon />

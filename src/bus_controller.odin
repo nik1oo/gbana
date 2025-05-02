@@ -12,12 +12,14 @@ Bus_Cycle_Type:: enum {
 Burst_Transfer_Type:: enum {
 	WORD = 4,      // Increment address by 4. //
 	HALFWORD = 2 } // Increment address by 2. //
-gba_set_bus_cycle_type:: proc(type: Bus_Cycle_Type) {
+gba_set_bus_cycle_type:: proc(state: ^State, type: Bus_Cycle_Type) {
+	using state
 	switch type {
 	case .NON_SEQUENTIAL_TRANSFER: signal_force(&memory.memory_request, true);  signal_force(&memory.sequential_cycle, false)
 	case .SEQUENTIAL_TRANSFER:     signal_force(&memory.memory_request, true);  signal_force(&memory.sequential_cycle, true)
 	case .INTERNAL:                signal_force(&memory.memory_request, false); signal_force(&memory.sequential_cycle, false) } }
-get_get_bus_cycle_type:: proc() -> Bus_Cycle_Type {
+get_get_bus_cycle_type:: proc(state: ^State) -> Bus_Cycle_Type {
+	using state
 	switch {
 	case (memory.memory_request.output == true)  && (memory.sequential_cycle.output == false): return .NON_SEQUENTIAL_TRANSFER
 	case (memory.memory_request.output == true)  && (memory.sequential_cycle.output == true):  return .SEQUENTIAL_TRANSFER
@@ -29,9 +31,9 @@ get_get_bus_cycle_type:: proc() -> Bus_Cycle_Type {
 Bus_Controller:: struct {
 	bus_cycle_type: Bus_Cycle_Type }
 bus_controller: ^Bus_Controller
-tick_bus_controller_phase_1:: proc() {
-	// pg. 76 //
-	bus_controller.bus_cycle_type = get_get_bus_cycle_type()
+tick_bus_controller_phase_1:: proc(state: ^State) {
+	using state: ^State = cast(^State)context.user_ptr
+	bus_controller.bus_cycle_type = get_get_bus_cycle_type(state)
 	switch bus_controller.bus_cycle_type {
 	case .NON_SEQUENTIAL_TRANSFER:
 		address: = memory.address.output
