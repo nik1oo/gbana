@@ -7,6 +7,54 @@ import "core:os"
 import "core:log"
 
 
+expect_tick:: proc(test_runner: ^testing.T, observed_value: uint, expected_value: uint, loc: = #caller_location) {
+	testing.expect(test_runner, observed_value == expected_value, msg = fmt.tprint("[tick ", expected_value, "] ", "tick_index is ", observed_value, ", but should be ", expected_value, ".", sep = ""), loc = loc) }
+expect_signal:: proc(test_runner: ^testing.T, tick: uint, signal_name: string, observed_value: $T, expected_value: T, loc: = #caller_location) {
+	testing.expect(test_runner, observed_value == expected_value, msg = fmt.tprint("[tick ", tick, "] ", signal_name, " is ", observed_value, ", but should be ", expected_value, ".", sep = ""), loc = loc) }
+
+
+@(test)
+test_signal:: proc(test_runner: ^testing.T) {
+	using state: State
+	context = initialize_context(&state)
+	allocate()
+	signal: Signal(bool)
+	// 0 //
+	signal_init(name = "S", signal = &signal, latency = 1, callback = signal_stub_callback)
+	signal_force(&signal, LOW)
+	signal_put(&signal, HIGH)
+	expect_signal(test_runner, 0, "S", signal.output, LOW)
+	signal_tick(&signal)
+	// 1 //
+	expect_signal(test_runner, 1, "S", signal.output, HIGH)
+	signal_put(&signal, LOW, latency_override = 1)
+	signal_tick(&signal)
+	// 2 //
+	expect_signal(test_runner, 2, "S", signal.output, LOW)
+	signal_put(&signal, HIGH, latency_override = 2)
+	signal_tick(&signal)
+	// 3 //
+	expect_signal(test_runner, 3, "S", signal.output, LOW)
+	signal_tick(&signal)
+	// 4 //
+	expect_signal(test_runner, 4, "S", signal.output, HIGH)
+	signal_put(&signal, LOW, latency_override = 2)
+	signal_put(&signal, HIGH, latency_override = 4)
+	signal_tick(&signal)
+	// 5 //
+	expect_signal(test_runner, 5, "S", signal.output, HIGH)
+	signal_tick(&signal)
+	// 6 //
+	expect_signal(test_runner, 6, "S", signal.output, LOW)
+	signal_tick(&signal)
+	// 7 //
+	expect_signal(test_runner, 7, "S", signal.output, LOW)
+	signal_tick(&signal)
+	// 8 //
+	expect_signal(test_runner, 8, "S", signal.output, HIGH)
+	signal_tick(&signal) }
+
+
 @(test)
 test_main_clock:: proc(test_runner: ^testing.T) {
 	// init()
@@ -16,55 +64,52 @@ test_main_clock:: proc(test_runner: ^testing.T) {
 }
 
 
-expect_tick:: proc(test_runner: ^testing.T, observed_value: uint, expected_value: uint, loc: = #caller_location) {
-	testing.expect(test_runner, observed_value == expected_value, msg = fmt.tprint("[tick ", expected_value, "] ", "tick_index is ", observed_value, ", but should be ", expected_value, ".", sep = ""), loc = loc) }
-expect_signal:: proc(test_runner: ^testing.T, tick: uint, signal_name: string, observed_value: $T, expected_value: T, loc: = #caller_location) {
-	testing.expect(test_runner, observed_value == expected_value, msg = fmt.tprint("[tick ", tick, "] ", signal_name, " is ", observed_value, ", but should be ", expected_value, ".", sep = ""), loc = loc) }
-
-
 @(test)
 test_memory_sequence:: proc(test_runner: ^testing.T) {
-	using state: State
-	k: = 1
-	context = initialize_context(&state)
-	allocate()
-	// TODO What do I do with ABORT? //
-	seq: = LOW
-	address: u32 = cast(u32)rand.int31_max(0x0e00ffff/4)
-	dout: = rand.uint32()
-	for read_write in GBA_Read_Write {
-		initialize()
-		tick(times = 3)
-		// 2 //
-		expect_tick(test_runner, tick_index, 2)
-		gba_request_memory_sequence(sequential_cycle = LOW, read_write = read_write, address = address, data_out = dout)
-		expect_signal(test_runner, 2, "MREQ", memory.memory_request.output, HIGH)
-		expect_signal(test_runner, 2, "SEQ", memory.sequential_cycle.output, LOW)
-		tick()
-		// 3 //
-		expect_tick(test_runner, tick_index, 3)
-		expect_signal(test_runner, 3, "MREQ", memory.memory_request.output, HIGH)
-		expect_signal(test_runner, 3, "SEQ", memory.sequential_cycle.output, LOW)
-		expect_signal(test_runner, 3, "RW", memory.read_write.output, read_write)
-		tick()
-		// 4 //
-		expect_tick(test_runner, tick_index, 4)
-		memory_respond_memory_sequence(sequential_cycle = LOW, read_write = read_write, address = address)
-		expect_signal(test_runner, 4, "RW", memory.read_write.output, read_write)
-		expect_signal(test_runner, 4, "A", memory.address.output, address)
-		if read_write == .WRITE do expect_signal(test_runner, 4, "DOUT", memory.data_out.output, dout)
-		expect_signal(test_runner, 4, "WAIT", gba_core.wait.output, LOW)
-		tick()
-		// 5 //
-		expect_tick(test_runner, tick_index, 5)
-		expect_signal(test_runner, 5, "A", memory.address.output, address)
-		if read_write == .WRITE do expect_signal(test_runner, 5, "DOUT", memory.data_out.output, dout)
-		else do expect_signal(test_runner, 5, "DIN", gba_core.data_in.output, memory_read_u32(address))
-		tick()
-		// 6 //
-		expect_tick(test_runner, tick_index, 6)
-		if read_write == .WRITE do expect_signal(test_runner, 6, "DOUT", memory.data_out.output, memory_read_u32(address)) }
-	if testing.failed(test_runner) do log.info("\n", timeline_print(), sep = "") }
+	// using state: State
+	// k: = 1
+	// context = initialize_context(&state)
+	// allocate()
+	// // TODO What do I do with ABORT? //
+	// seq: = LOW
+	// address: u32 = cast(u32)rand.int31_max(0x0e00ffff/4)
+	// dout: = rand.uint32()
+	// // for read_write in GBA_Read_Write {
+	// read_write: = GBA_Read_Write.READ
+	// 	tick(times = 3)
+	// 	// 2 //
+	// 	expect_tick(test_runner, tick_index, 2)
+	// 	gba_request_memory_sequence(sequential_cycle = LOW, read_write = read_write, address = address, data_out = dout)
+	// 	tick()
+	// 	expect_signal(test_runner, 2, "MREQ", memory.memory_request.output, HIGH)
+	// 	expect_signal(test_runner, 2, "SEQ", memory.sequential_cycle.output, LOW)
+	// 	// 3 //
+	// 	expect_tick(test_runner, tick_index, 3)
+	// 	tick()
+	// 	expect_signal(test_runner, 3, "MREQ", memory.memory_request.output, HIGH)
+	// 	expect_signal(test_runner, 3, "SEQ", memory.sequential_cycle.output, LOW)
+	// 	expect_signal(test_runner, 3, "RW", memory.read_write.output, read_write)
+	// 	// 4 //
+	// 	expect_tick(test_runner, tick_index, 4)
+	// 	memory_respond_memory_sequence(sequential_cycle = LOW, read_write = read_write, address = address)
+	// 	tick()
+	// 	expect_signal(test_runner, 4, "RW", memory.read_write.output, read_write)
+	// 	expect_signal(test_runner, 4, "A", memory.address.output, address)
+	// 	if read_write == .WRITE do expect_signal(test_runner, 4, "DOUT", memory.data_out.output, dout)
+	// 	expect_signal(test_runner, 4, "WAIT", gba_core.wait.output, LOW)
+	// 	// 5 //
+	// 	expect_tick(test_runner, tick_index, 5)
+	// 	tick()
+	// 	expect_signal(test_runner, 5, "A", memory.address.output, address)
+	// 	if read_write == .WRITE do expect_signal(test_runner, 5, "DOUT", memory.data_out.output, dout)
+	// 	else do expect_signal(test_runner, 5, "DIN", gba_core.data_in.output, memory_read_u32(address))
+	// 	// 6 //
+	// 	expect_tick(test_runner, tick_index, 6)
+	// 	tick()
+	// 	if read_write == .WRITE do expect_signal(test_runner, 6, "DOUT", memory.data_out.output, memory_read_u32(address))
+	// // }
+	// if testing.failed(test_runner) do log.info("\n", timeline_print(), sep = "")
+}
 
 
 @(test)

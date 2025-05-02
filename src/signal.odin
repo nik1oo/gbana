@@ -27,14 +27,13 @@ Signal:: struct($T: typeid) {
 	callback:    proc(self: ^Signal(T), new_output: T) }
 signals_tick:: proc(current_tick_index:  uint, current_cycle_index: uint, current_phase_index: uint) {
 	using state: ^State = cast(^State)context.user_ptr
-	fmt.println("LEN = ", len(signals))
+	timeline_append(current_tick_index, current_cycle_index, current_phase_index)
 	for signal in signals do #partial switch v in signal {
 	case ^Signal(u32):                signal_tick(v)
 	case ^Signal(uint):               signal_tick(v)
 	case ^Signal(u8):                 signal_tick(v)
 	case ^Signal(bool):               signal_tick(v)
-	case ^Signal(GBA_Processor_Mode): signal_tick(v) }
-	timeline_append(current_tick_index, current_cycle_index, current_phase_index) }
+	case ^Signal(GBA_Processor_Mode): signal_tick(v) } }
 Signal_Data:: struct($T: typeid) {
 	data:    T,
 	latency: int }
@@ -51,7 +50,7 @@ signal_init:: proc(name: string, signal: ^Signal($T), latency: int = 1, callback
 signal_put:: proc(signal: ^Signal($T), data: T, latency_override: int = -1, loc: = #caller_location) {
 	if signal == nil do log.fatal("Signal is nil.", location = loc)
 	// fmt.println("Put", data, "on signal", signal.name, "at", loc)
-	queue.push_front(&signal._queue, Signal_Data(T) { data = data, latency = (latency_override == -1) ? (signal.latency - 1) : latency_override }) }
+	queue.push_front(&signal._queue, Signal_Data(T) { data = data, latency = (latency_override == -1) ? (signal.latency - 1) : (latency_override - 1) }) }
 signal_force:: proc(signal: ^Signal($T), data: T) {
 	signal.output = data
 	signal._queue = {} }
@@ -73,4 +72,7 @@ signal_tick:: proc(signal: ^Signal($T), loc: = #caller_location) {
 		else do break }
 	for i in 0 ..< queue.len(signal._queue) {
 		signal_data: = queue.get_ptr(&signal._queue, i)
-		signal_data.latency -= 1 } }
+		signal_data.latency -= 1
+		// fmt.println("signal", signal.name, "ticks down to", signal_data.latency)
+} }
+signal_stub_callback:: proc(self: ^Signal(bool), new_output: bool) { }

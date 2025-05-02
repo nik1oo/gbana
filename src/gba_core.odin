@@ -125,6 +125,7 @@ gba_request_memory_sequence:: proc(sequential_cycle: bool = false, read_write: G
 	assert(phase_index == 0, "Memory Sequence request may only be initiated in phase 1")
 	/* MREQ */ signal_force(&memory.memory_request, HIGH)
 	/*  SEQ */ signal_force(&memory.sequential_cycle, sequential_cycle)
+	/*   RW */ signal_force(&memory.read_write, read_write)
 	/*   RW */ signal_put(&memory.read_write, read_write, latency_override = 1)
 	/*    A */ signal_put(&memory.address, address, latency_override = 2)
 	/* DOUT */ if read_write == .WRITE do signal_put(&memory.data_out, data_out, latency_override = 2) }
