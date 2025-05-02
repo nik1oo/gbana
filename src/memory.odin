@@ -6,21 +6,23 @@ import "core:encoding/endian"
 import "core:mem"
 import "core:slice"
 import "core:thread"
+import "core:log"
 
 
 // INTERFACE //
 GBA_Read_Write:: enum u8 { WRITE, READ }
+Memory_Access_Size:: enum u8 { BYTE, HALFWORD, WORD }
 Memory_Interface:: struct {
-	main_clock:                     Signal(bool),            // MCLK
-	address:                        Signal(u32),             // A
-	byte_latch_control:             Signal(u8),              // BL
-	data_out:                       Signal(u32),             // DOUT
-	lock:                           Signal(bool),            // LOCK
-	memory_access_size:             Signal(uint),            // MAS
-	memory_request:                 Signal(bool),            // MREQ
-	sequential_cycle:               Signal(bool),            // SEQ
-	op_code_fetch:                  Signal(bool),            // OPC
-	read_write:                     Signal(GBA_Read_Write) } // RW
+	main_clock:                     Signal(bool),               // MCLK
+	address:                        Signal(u32),                // A
+	byte_latch_control:             Signal(u8),                 // BL
+	data_out:                       Signal(u32),                // DOUT
+	lock:                           Signal(bool),               // LOCK
+	memory_access_size:             Signal(Memory_Access_Size), // MAS
+	memory_request:                 Signal(bool),               // MREQ
+	sequential_cycle:               Signal(bool),               // SEQ
+	op_code_fetch:                  Signal(bool),               // OPC
+	read_write:                     Signal(GBA_Read_Write)      } // RW
 init_memory_interface:: proc() {
 	using state: ^State = cast(^State)context.user_ptr
 	signal_init("MCLK", &memory.main_clock,           2, gba_main_clock_callback,           write_phase = { LOW_PHASE, HIGH_PHASE })
@@ -116,7 +118,7 @@ PALETTE_RAM_BUS_WIDTH::       2
 VIDEO_RAM_BUS_WIDTH::         2
 CARTRIDGE_ROM_BUS_WIDTH::     2
 CARTRIDGE_FLASH_BUS_WIDTH::   2
-memory_bus_width_from_address:: proc(address: u32) -> int {
+memory_bus_width_from_address:: proc(address: u32) -> uint {
 	switch address {
 	case BIOS_RANGE[START]                  ..= BIOS_RANGE[END]:                  return BIOS_BUS_WIDTH
 	case EXTERNAL_WORK_RAM_RANGE[START]     ..= EXTERNAL_WORK_RAM_RANGE[END]:     return EXTERNAL_WORK_RAM_BUS_WIDTH
@@ -764,3 +766,40 @@ memory_respond_data_write_cycle:: proc() { }
 memory_respond_data_read_cycle:: proc() { }
 memory_respond_halfword_memory_sequence:: proc() { }
 memory_respond_byte_memory_sequence:: proc() { }
+
+
+
+
+
+
+memory_respond_reset_sequence:: proc() { }
+memory_respond_branch_and_branch_with_link_instruction_cycle:: proc(instruction: GBA_Branch_and_Link_Instruction_Decoded) { }
+memory_respond_thumb_branch_with_link_instruction_cycle:: proc() { }
+memory_respond_branch_and_exchange_instruction_cycle:: proc(instruction: GBA_Branch_and_Exchange_Instruction_Decoded) { }
+memory_respond_data_processing_instruction_cycle:: proc(alu: u32, destination_is_pc: bool, shift_specified_by_register: bool, loc: = #caller_location) {
+	using state: ^State = cast(^State)context.user_ptr
+	if phase_index != 0 do log.fatal("Data Write Sequence response may only be initiated in the LOW phase.", location = loc)
+	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
+	L: u32 = gba_core.executing_thumb.output ? 2 : 4
+	switch {
+	// normal //
+	case (! shift_specified_by_register) && (! destination_is_pc):
+		signal_put(&gba_core.data_in, memory_read_u32(pc + 2 * L), latency_override = 1)
+	// dest=pc //
+	case (! shift_specified_by_register) && destination_is_pc:
+	// shift(RS) //
+	case shift_specified_by_register && (! destination_is_pc):
+	// shift(RS) dest=pc //
+	case shift_specified_by_register && destination_is_pc:
+	case:
+	}
+}
+memory_respond_multiply_and_multiply_accumulate_instruction_cycle:: proc(instruction: GBA_Multiply_and_Multiply_Accumulate_Instruction_Decoded) { }
+memory_respond_load_register_instruction_cycle:: proc(instruction: GBA_Load_Register_Instruction_Decoded) { }
+memory_respond_store_register_instruction_cycle:: proc(instruction: GBA_Store_Register_Instruction_Decoded) { }
+memory_respond_load_multiple_register_instruction_cycle:: proc(instruction: GBA_Load_Multiple_Register_Instruction_Decoded) { }
+memory_respond_store_multiple_register_instruction_cycle:: proc(instruction: GBA_Store_Multiple_Register_Instruction_Decoded) { }
+memory_respond_data_swap_instruction_cycle:: proc(instruction: GBA_Data_Swap_Instruction_Decoded) { }
+memory_respond_software_interrupt_and_exception_instruction_cycle:: proc(instruction: GBA_Software_Interrupt_Instruction_Decoded) { }
+memory_respond_undefined_instruction_cycle:: proc() { }
+memory_respond_unexecuted_instruction_cycle:: proc() { }

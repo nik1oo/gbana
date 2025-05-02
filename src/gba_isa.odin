@@ -2181,6 +2181,60 @@ GBA_Instruction_Decoded:: union {
 	GBA_TST_Instruction_Decoded,
 	GBA_UMLAL_Instruction_Decoded,
 	GBA_UMULL_Instruction_Decoded }
+GBA_Branch_and_Link_Instruction_Decoded:: union {
+	GBA_B_Instruction_Decoded,
+	GBA_BL_Instruction_Decoded }
+GBA_Branch_and_Exchange_Instruction_Decoded:: union {
+	GBA_BX_Instruction_Decoded }
+GBA_Data_Processing_Instruction_Decoded:: union {
+	GBA_ADC_Instruction_Decoded,
+	GBA_ADD_Instruction_Decoded,
+	GBA_AND_Instruction_Decoded,
+	GBA_BIC_Instruction_Decoded,
+	GBA_CMN_Instruction_Decoded,
+	GBA_CMP_Instruction_Decoded,
+	GBA_EOR_Instruction_Decoded,
+	GBA_MOV_Instruction_Decoded,
+	GBA_MRS_Instruction_Decoded,
+	GBA_MSR_Instruction_Decoded,
+	GBA_MVN_Instruction_Decoded,
+	GBA_ORR_Instruction_Decoded,
+	GBA_RSB_Instruction_Decoded,
+	GBA_RSC_Instruction_Decoded,
+	GBA_SBC_Instruction_Decoded,
+	GBA_SUB_Instruction_Decoded,
+	GBA_TEQ_Instruction_Decoded,
+	GBA_TST_Instruction_Decoded }
+GBA_Multiply_and_Multiply_Accumulate_Instruction_Decoded:: union {
+	GBA_MLA_Instruction_Decoded,
+	GBA_MUL_Instruction_Decoded,
+	GBA_SMLAL_Instruction_Decoded,
+	GBA_SMULL_Instruction_Decoded,
+	GBA_UMLAL_Instruction_Decoded,
+	GBA_UMULL_Instruction_Decoded }
+GBA_Load_Register_Instruction_Decoded:: union {
+	GBA_LDR_Instruction_Decoded,
+	GBA_LDRB_Instruction_Decoded,
+	GBA_LDRBT_Instruction_Decoded,
+	GBA_LDRH_Instruction_Decoded,
+	GBA_LDRSB_Instruction_Decoded,
+	GBA_LDRSH_Instruction_Decoded,
+	GBA_LDRT_Instruction_Decoded }
+GBA_Store_Register_Instruction_Decoded:: union {
+	GBA_STR_Instruction_Decoded,
+	GBA_STRB_Instruction_Decoded,
+	GBA_STRBT_Instruction_Decoded,
+	GBA_STRH_Instruction_Decoded,
+	GBA_STRT_Instruction_Decoded }
+GBA_Load_Multiple_Register_Instruction_Decoded:: union {
+	GBA_LDM_Instruction_Decoded }
+GBA_Store_Multiple_Register_Instruction_Decoded:: union {
+	GBA_STM_Instruction_Decoded }
+GBA_Data_Swap_Instruction_Decoded:: union {
+	GBA_SWP_Instruction_Decoded,
+	GBA_SWPB_Instruction_Decoded }
+GBA_Software_Interrupt_Instruction_Decoded:: union {
+	GBA_SWI_Instruction_Decoded }
 gba_decode_instruction:: proc {
 	gba_decode_identified,
 	gba_decode_ADC,

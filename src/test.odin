@@ -13,6 +13,9 @@ expect_signal:: proc(test_runner: ^testing.T, tick: uint, signal_name: string, o
 	testing.expect(test_runner, observed_value == expected_value, msg = fmt.tprint("[tick ", tick, "] ", signal_name, " is ", observed_value, ", but should be ", expected_value, ".", sep = ""), loc = loc) }
 
 
+LOW_HIGH: [2]bool = { LOW, HIGH }
+
+
 @(test)
 test_signal:: proc(test_runner: ^testing.T) {
 	using state: State
@@ -436,7 +439,36 @@ test_branch_and_exchange_instruction_cycle:: proc(test_runner: ^testing.T) { }
 
 
 @(test)
-test_data_processing_instruction_cycle:: proc(test_runner: ^testing.T) { }
+test_data_processing_instruction_cycle:: proc(test_runner: ^testing.T) {
+	using state: State
+	context = initialize_context(&state)
+	allocate()
+	alu: u32 = rand.uint32()
+	destination_is_pc: bool = LOW
+	shift_specified_by_register: bool = LOW
+	initialize()
+	tick()
+	// 0 //
+	expect_tick(test_runner, tick_index, 0)
+	gba_request_data_processing_instruction_cycle(alu, destination_is_pc, shift_specified_by_register)
+	memory_respond_data_processing_instruction_cycle(alu, destination_is_pc, shift_specified_by_register)
+	tick()
+	expect_signal(test_runner, 0, "MREQ", memory.memory_request.output, HIGH)
+	expect_signal(test_runner, 0, "SEQ", memory.sequential_cycle.output, HIGH)
+	expect_signal(test_runner, 0, "OPC", memory.op_code_fetch.output, HIGH)
+	expect_signal(test_runner, 0, "RW", memory.read_write.output, GBA_Read_Write.READ)
+	// 1 //
+	expect_tick(test_runner, tick_index, 1)
+	tick()
+	expect_signal(test_runner, 1, "MREQ", memory.memory_request.output, HIGH)
+	expect_signal(test_runner, 1, "SEQ", memory.sequential_cycle.output, HIGH)
+	expect_signal(test_runner, 1, "OPC", memory.op_code_fetch.output, HIGH)
+	expect_signal(test_runner, 1, "RW", memory.read_write.output, GBA_Read_Write.READ)
+	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
+	L: u32 = gba_core.executing_thumb.output ? 2 : 4
+	data_in: = memory_read_u32(pc + 2 * L)
+	expect_signal(test_runner, 1, "DIN", gba_core.data_in.output, data_in)
+	if testing.failed(test_runner) do log.info("\n", timeline_print(), sep = "") }
 
 
 @(test)
