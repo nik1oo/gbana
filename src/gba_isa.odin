@@ -1429,7 +1429,7 @@ gba_AND_opcode_match:: proc(ins: GBA_Instruction) -> bool {
 GBA_AND_ADDRESSING_MODE:: GBA_Addressing_Mode.MODE_1
 GBA_B_Instruction:: bit_field u32 { // Branch / Branch //
 	signed_offset: uint          | 24,
-	_:        uint          | 4,
+	_:             uint          | 4,
 	cond:          GBA_Condition | 4 }
 GBA_B_CODE_MASK:: 0b00001111_00000000_00000000_00000000
 GBA_B_CODE::      0b00001010_00000000_00000000_00000000
@@ -1437,7 +1437,7 @@ gba_instruction_is_B:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_B_CODE_MASK) == GBA_B_CODE }
 GBA_BL_Instruction:: bit_field u32 { // Branch and Link / Branch //
 	signed_offset: uint          | 24,
-	_:        uint          | 4,
+	_:             uint          | 4,
 	cond:          GBA_Condition | 4 }
 GBA_BL_CODE_MASK:: 0b00001111_00000000_00000000_00000000
 GBA_BL_CODE::      0b00001011_00000000_00000000_00000000
@@ -1551,7 +1551,7 @@ gba_instruction_is_LDM:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_LDM_CODE_MASK) == GBA_LDM_CODE }
 GBA_LDM_ADDRESSING_MODE:: GBA_Addressing_Mode.MODE_4
 GBA_LDR_Instruction:: bit_field u32 { // Load Register / Load and Store / Addressing Mode 2 //
-	address: uint                      | 12,
+	address:                  uint                      | 12,
 	rd:                       GBA_Logical_Register_Name | 4,
 	rn:                       GBA_Logical_Register_Name | 4,
 	_:                        uint                      | 1,
@@ -1568,7 +1568,7 @@ gba_instruction_is_LDR:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_LDR_CODE_MASK) == GBA_LDR_CODE }
 GBA_LDR_ADDRESSING_MODE:: GBA_Addressing_Mode.MODE_2
 GBA_LDRB_Instruction:: bit_field u32 { // Load Register Byte / Load and Store / Addressing Mode 2 //
-	address: uint                      | 12,
+	address:                  uint                      | 12,
 	rd:                       GBA_Logical_Register_Name | 4,
 	rn:                       GBA_Logical_Register_Name | 4,
 	_:                        uint                      | 1,
@@ -1585,7 +1585,7 @@ gba_instruction_is_LDRB:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_LDRB_CODE_MASK) == GBA_LDRB_CODE }
 GBA_LDRB_ADDRESSING_MODE:: GBA_Addressing_Mode.MODE_2
 GBA_LDRBT_Instruction:: bit_field u32 { // Load Register Byte with Translation / Load and Store / Addressing Mode 2 //
-	address: uint                      | 12,
+	address:                  uint                      | 12,
 	rd:                       GBA_Logical_Register_Name | 4,
 	rn:                       GBA_Logical_Register_Name | 4,
 	_:                        uint                      | 3,
@@ -1600,35 +1600,35 @@ gba_instruction_is_LDRBT:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_LDRBT_CODE_MASK) == GBA_LDRBT_CODE }
 GBA_LDRBT_ADDRESSING_MODE:: GBA_Addressing_Mode.MODE_2
 GBA_LDRH_Instruction:: bit_field u32 { // Load Register Halfword / Load and Store / Addressing Mode 3 //
-	address_0: uint                      | 4,
-	_: uint | 4,
-	address_1: uint | 4,
-	rd: GBA_Logical_Register_Name | 4,
-	rn:                       GBA_Logical_Register_Name | 4,
-	_: uint | 1,
-	w: bool | 1,
-	immediate_shifter: bool | 1,
-	u: bool | 1,
-	p: bool | 1,
-	_: uint | 3,
-	cond:                     GBA_Condition             | 4 }
+	address_0:         uint                      | 4,
+	_:                 uint                      | 4,
+	address_1:         uint                      | 4,
+	rd:                GBA_Logical_Register_Name | 4,
+	rn:                GBA_Logical_Register_Name | 4,
+	_:                 uint                      | 1,
+	w:                 bool                      | 1,
+	immediate_shifter: bool                      | 1,
+	u:                 bool                      | 1,
+	p:                 bool                      | 1,
+	_:                 uint                      | 3,
+	cond:              GBA_Condition             | 4 }
 GBA_LDRH_CODE_MASK:: 0b00001110_00010000_00000000_11110000
 GBA_LDRH_CODE::      0b00000000_00010000_00000000_10110000
 gba_instruction_is_LDRH:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_LDRH_CODE_MASK) == GBA_LDRH_CODE }
 GBA_LDRH_ADDRESSING_MODE:: GBA_Addressing_Mode.MODE_3
 GBA_LDRSB_Instruction:: bit_field u32 { // Load Register Signed Byte / Load and Store / Addressing Mode 2 //
-	address_0: uint                      | 4,
-	_: uint | 4,
-	address_1: uint | 4,
-	rd: GBA_Logical_Register_Name | 4,
-	rn: GBA_Logical_Register_Name | 4,
-	_: uint | 1,
-	w: bool | 1,
-	immediate_shifter: bool | 1,
-	u: bool | 1,
-	p: bool | 1,
-	_: uint | 3,
+	address_0:                uint                      | 4,
+	_:                        uint                      | 4,
+	address_1:                uint                      | 4,
+	rd:                       GBA_Logical_Register_Name | 4,
+	rn:                       GBA_Logical_Register_Name | 4,
+	_:                        uint                      | 1,
+	w:                        bool                      | 1,
+	immediate_shifter:        bool                      | 1,
+	u:                        bool                      | 1,
+	p:                        bool                      | 1,
+	_:                        uint                      | 3,
 	cond:                     GBA_Condition             | 4 }
 GBA_LDRSB_CODE_MASK:: 0b00001110_00010000_00000000_11110000
 GBA_LDRSB_CODE::      0b00000000_00010000_00000000_11010000
@@ -1636,17 +1636,17 @@ gba_instruction_is_LDRSB:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_LDRSB_CODE_MASK) == GBA_LDRSB_CODE }
 GBA_LDRSB_ADDRESSING_MODE:: GBA_Addressing_Mode.MODE_3
 GBA_LDRSH_Instruction:: bit_field u32 { // Load Register Signed Halfword / Load and Store / Addressing Mode 3 //
-	address_0: uint                      | 4,
-	_: uint | 4,
-	address_1: uint | 4,
-	rd: GBA_Logical_Register_Name | 4,
+	address_0:                uint                      | 4,
+	_:                        uint                      | 4,
+	address_1:                uint                      | 4,
+	rd:                       GBA_Logical_Register_Name | 4,
 	rn:                       GBA_Logical_Register_Name | 4,
-	_: uint | 1,
-	w: bool | 1,
-	immediate_shifter: bool | 1,
-	u: bool | 1,
-	p: bool | 1,
-	_: uint | 3,
+	_:                        uint                      | 1,
+	w:                        bool                      | 1,
+	immediate_shifter:        bool                      | 1,
+	u:                        bool                      | 1,
+	p:                        bool                      | 1,
+	_:                        uint                      | 3,
 	cond:                     GBA_Condition             | 4 }
 GBA_LDRSH_CODE_MASK:: 0b00001110_00010000_00000000_11110000
 GBA_LDRSH_CODE::      0b00000000_00010000_00000000_11110000
@@ -1654,14 +1654,14 @@ gba_instruction_is_LDRSH:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_LDRSH_CODE_MASK) == GBA_LDRSH_CODE }
 GBA_LDRSH_ADDRESSING_MODE:: GBA_Addressing_Mode.MODE_3
 GBA_LDRT_Instruction:: bit_field u32 { // Load Register with Translation / Load and Store / Addressing Mode 2 //
-	address: uint                      | 12,
-	rd: GBA_Logical_Register_Name | 4,
-	rn: GBA_Logical_Register_Name | 4,
-	_: uint | 3,
-	u: bool | 1,
-	_: uint | 1,
-	immediate_shifter: bool | 1,
-	_: uint | 2,
+	address:                  uint                      | 12,
+	rd:                       GBA_Logical_Register_Name | 4,
+	rn:                       GBA_Logical_Register_Name | 4,
+	_:                        uint                      | 3,
+	u:                        bool                      | 1,
+	_:                        uint                      | 1,
+	immediate_shifter:        bool                      | 1,
+	_:                        uint                      | 2,
 	cond:                     GBA_Condition             | 4 }
 GBA_LDRT_CODE_MASK:: 0b00001101_01110000_00000000_00000000
 GBA_LDRT_CODE::      0b00000100_00110000_00000000_00000000
@@ -1676,26 +1676,26 @@ GBA_MCR_CODE::      0b00001110_00000000_00000000_00010000
 gba_instruction_is_MCR:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_MCR_CODE_MASK) == GBA_MCR_CODE }
 GBA_MLA_Instruction:: bit_field u32 { // Multiply Accumulate / Multiply //
-	rm: GBA_Logical_Register_Name | 4,
-	_: uint | 4,
-	rs: GBA_Logical_Register_Name | 4,
-	rn: GBA_Logical_Register_Name | 4,
-	rd: GBA_Logical_Register_Name | 4,
-	set_condition_codes: bool | 1,
-	_: uint | 7,
-	cond: GBA_Condition | 4 }
+	rm:                  GBA_Logical_Register_Name | 4,
+	_:                   uint                      | 4,
+	rs:                  GBA_Logical_Register_Name | 4,
+	rn:                  GBA_Logical_Register_Name | 4,
+	rd:                  GBA_Logical_Register_Name | 4,
+	set_condition_codes: bool                      | 1,
+	_:                   uint                      | 7,
+	cond:                GBA_Condition             | 4 }
 GBA_MLA_CODE_MASK:: 0b00001111_11100000_00000000_11110000
 GBA_MLA_CODE::      0b00000000_00100000_00000000_10010000
 gba_instruction_is_MLA:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_MLA_CODE_MASK) == GBA_MLA_CODE }
 GBA_MOV_Instruction:: bit_field u32 { // Move / Data Processing / Addressing Mode 1 //
-	shifter_operand: uint | 12,
-	rd: GBA_Logical_Register_Name | 4,
-	sbz: uint | 4,
-	set_condition_codes: bool | 1,
-	opcode: uint | 4,
-	immediate_shifter: bool | 1,
-	_: uint | 2,
+	shifter_operand:     uint                      | 12,
+	rd:                  GBA_Logical_Register_Name | 4,
+	sbz:                 uint                      | 4,
+	set_condition_codes: bool                      | 1,
+	opcode:              uint                      | 4,
+	immediate_shifter:   bool                      | 1,
+	_:                   uint                      | 2,
 	cond:                GBA_Condition             | 4 }
 GBA_MOV_CODE_MASK:: 0b00001101_11100000_00000000_00000000
 GBA_MOV_CODE::      0b00000001_10100000_00000000_00000000
@@ -1714,50 +1714,50 @@ gba_instruction_is_MRC:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_MRC_CODE_MASK) == GBA_MRC_CODE }
 GBA_MRC_ADDRESSING_MODE:: GBA_Addressing_Mode.MODE_4
 GBA_MRS_Instruction:: bit_field u32 { // Move from Status Register / Status Register Access //
-	sbz: uint | 12,
-	rd: GBA_Logical_Register_Name | 4,
-	sbo: uint | 4,
-	_: uint | 2,
-	r: bool | 1,
-	_: uint | 5,
-	cond: GBA_Condition | 4 }
+	sbz:  uint                      | 12,
+	rd:   GBA_Logical_Register_Name | 4,
+	sbo:  uint                      | 4,
+	_:    uint                      | 2,
+	r:    bool                      | 1,
+	_:    uint                      | 5,
+	cond: GBA_Condition             | 4 }
 GBA_MRS_CODE_MASK:: 0b00001111_10110000_00000000_00000000
 GBA_MRS_CODE::      0b00000001_00000000_00000000_00000000
 gba_instruction_is_MRS:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_MRS_CODE_MASK) == GBA_MRS_CODE }
 GBA_MSR_Instruction:: bit_field u32 { // Move to Status Register / Status Register Access //
-	operand: uint | 12,
-	sbo: uint | 4,
-	field_mask: uint | 4,
-	_: uint | 2,
-	r: bool | 1,
-	_: uint | 5,
-	cond: GBA_Condition | 4 }
+	operand:    uint          | 12,
+	sbo:        uint          | 4,
+	field_mask: uint          | 4,
+	_:          uint          | 2,
+	r:          bool          | 1,
+	_:          uint          | 5,
+	cond:       GBA_Condition | 4 }
 GBA_MSR_CODE_MASK:: 0b00001101_10110000_00000000_00000000
 GBA_MSR_CODE::      0b00000001_00100000_00000000_00000000
 gba_instruction_is_MSR:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_MSR_CODE_MASK) == GBA_MSR_CODE }
 GBA_MUL_Instruction:: bit_field u32 { // Multiply / Multiply //
-	rm: GBA_Logical_Register_Name | 4,
-	_: uint | 4,
-	rs: GBA_Logical_Register_Name | 4,
-	sbz: uint | 4,
-	rn: GBA_Logical_Register_Name | 4,
-	set_condition_codes: bool | 1,
-	_: uint | 7,
-	cond: GBA_Condition | 4 }
+	rm:                  GBA_Logical_Register_Name | 4,
+	_:                   uint                      | 4,
+	rs:                  GBA_Logical_Register_Name | 4,
+	sbz:                 uint                      | 4,
+	rn:                  GBA_Logical_Register_Name | 4,
+	set_condition_codes: bool                      | 1,
+	_:                   uint                      | 7,
+	cond:                GBA_Condition             | 4 }
 GBA_MUL_CODE_MASK:: 0b00001111_11100000_00000000_11110000
 GBA_MUL_CODE::      0b00000000_00000000_00000000_10010000
 gba_instruction_is_MUL:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_MUL_CODE_MASK) == GBA_MUL_CODE }
 GBA_MVN_Instruction:: bit_field u32 { // Move Negative / Data Processing / Addressing Mode 1 //
-	shifter_operand: uint | 12,
-	rd: GBA_Logical_Register_Name | 4,
-	sbz: uint | 4,
-	set_condition_codes: bool | 1,
-	opcode: uint | 4,
-	immediate_shifter: bool | 1,
-	_: uint | 2,
+	shifter_operand:     uint                      | 12,
+	rd:                  GBA_Logical_Register_Name | 4,
+	sbz:                 uint                      | 4,
+	set_condition_codes: bool                      | 1,
+	opcode:              uint                      | 4,
+	immediate_shifter:   bool                      | 1,
+	_:                   uint                      | 2,
 	cond:                GBA_Condition             | 4 }
 GBA_MVN_CODE_MASK:: 0b_00001101_11100000_00000000_00000000
 GBA_MVN_CODE::      0b_00000001_11100000_00000000_00000000
@@ -1768,12 +1768,12 @@ gba_MVN_opcode_match:: proc(ins: GBA_Instruction) -> bool {
 	return GBA_MVN_Instruction(ins).opcode == GBA_MVN_OPCODE }
 GBA_MVN_ADDRESSING_MODE:: GBA_Addressing_Mode.MODE_1
 GBA_ORR_Instruction:: bit_field u32 { // Logical OR / Data Processing / Addressing Mode 1 //
-	shifter_operand: uint | 12,
-	rd: GBA_Logical_Register_Name | 4,
-	rn: GBA_Logical_Register_Name | 4,
-	set_condition_codes: bool | 1,
-	opcode: uint | 4,
-	_: uint | 2,
+	shifter_operand:     uint                      | 12,
+	rd:                  GBA_Logical_Register_Name | 4,
+	rn:                  GBA_Logical_Register_Name | 4,
+	set_condition_codes: bool                      | 1,
+	opcode:              uint                      | 4,
+	_:                   uint                      | 2,
 	cond:                GBA_Condition             | 4 }
 GBA_ORR_CODE_MASK:: 0b_00001101_11100000_00000000_00000000
 GBA_ORR_CODE::      0b_00000001_10000000_00000000_00000000
@@ -1784,12 +1784,12 @@ gba_ORR_opcode_match:: proc(ins: GBA_Instruction) -> bool {
 	return GBA_ORR_Instruction(ins).opcode == GBA_ORR_OPCODE }
 GBA_ORR_ADDRESSING_MODE:: GBA_Addressing_Mode.MODE_1
 GBA_RSB_Instruction:: bit_field u32 { // Reverse Subtract / Data Processing / Addressing Mode 1 //
-	shifter_operand: uint | 12,
-	rd: GBA_Logical_Register_Name | 4,
-	rn: GBA_Logical_Register_Name | 4,
-	set_condition_codes: bool | 1,
-	opcode: uint | 4,
-	_: uint | 2,
+	shifter_operand:     uint                      | 12,
+	rd:                  GBA_Logical_Register_Name | 4,
+	rn:                  GBA_Logical_Register_Name | 4,
+	set_condition_codes: bool                      | 1,
+	opcode:              uint                      | 4,
+	_:                   uint                      | 2,
 	cond:                GBA_Condition             | 4 }
 GBA_RSB_CODE_MASK:: 0b_00001101_11100000_00000000_00000000
 GBA_RSB_CODE::      0b_00000000_01100000_00000000_00000000
@@ -1800,12 +1800,12 @@ gba_RSB_opcode_match:: proc(ins: GBA_Instruction) -> bool {
 	return GBA_RSB_Instruction(ins).opcode == GBA_RSB_OPCODE }
 GBA_RSB_ADDRESSING_MODE:: GBA_Addressing_Mode.MODE_1
 GBA_RSC_Instruction:: bit_field u32 { // Reverse Subtract with Carry / Data Processing / Addressing Mode 1 //
-	shifter_operand: uint | 12,
-	rd: GBA_Logical_Register_Name | 4,
-	rn: GBA_Logical_Register_Name | 4,
-	set_condition_codes: bool | 1,
-	opcode: uint | 4,
-	_: uint | 2,
+	shifter_operand:     uint                      | 12,
+	rd:                  GBA_Logical_Register_Name | 4,
+	rn:                  GBA_Logical_Register_Name | 4,
+	set_condition_codes: bool                      | 1,
+	opcode:              uint                      | 4,
+	_:                   uint                      | 2,
 	cond:                GBA_Condition             | 4 }
 GBA_RSC_CODE_MASK:: 0b_00001101_11100000_00000000_00000000
 GBA_RSC_CODE::      0b_00000000_11100000_00000000_00000000
@@ -1816,12 +1816,12 @@ gba_RSC_opcode_match:: proc(ins: GBA_Instruction) -> bool {
 	return GBA_RSC_Instruction(ins).opcode == GBA_RSC_OPCODE }
 GBA_RSC_ADDRESSING_MODE:: GBA_Addressing_Mode.MODE_1
 GBA_SBC_Instruction:: bit_field u32 { // Subtract with Carry / Data Processing / Addressing Mode 1 //
-	shifter_operand: uint | 12,
-	rd: GBA_Logical_Register_Name | 4,
-	rn: GBA_Logical_Register_Name | 4,
-	set_condition_codes: bool | 1,
-	opcode: uint | 4,
-	_: uint | 2,
+	shifter_operand:     uint                      | 12,
+	rd:                  GBA_Logical_Register_Name | 4,
+	rn:                  GBA_Logical_Register_Name | 4,
+	set_condition_codes: bool                      | 1,
+	opcode:              uint                      | 4,
+	_:                   uint                      | 2,
 	cond:                GBA_Condition             | 4 }
 GBA_SBC_CODE_MASK:: 0b_00001101_11100000_00000000_00000000
 GBA_SBC_CODE::      0b_00000000_11000000_00000000_00000000
@@ -1832,27 +1832,27 @@ gba_SBC_opcode_match:: proc(ins: GBA_Instruction) -> bool {
 	return GBA_SBC_Instruction(ins).opcode == GBA_SBC_OPCODE }
 GBA_SBC_ADDRESSING_MODE:: GBA_Addressing_Mode.MODE_1
 GBA_SMLAL_Instruction:: bit_field u32 { // Signed Multiply Accumulate Long / Multiply //
-	rm: GBA_Logical_Register_Name | 4,
-	_: uint | 4,
-	rs: GBA_Logical_Register_Name | 4,
-	rd_lo: GBA_Logical_Register_Name | 4,
-	rd_hi: GBA_Logical_Register_Name | 4,
-	set_condition_codes: bool | 1,
-	_: uint | 7,
-	cond: GBA_Condition | 4 }
+	rm:                  GBA_Logical_Register_Name | 4,
+	_:                   uint                      | 4,
+	rs:                  GBA_Logical_Register_Name | 4,
+	rd_lo:               GBA_Logical_Register_Name | 4,
+	rd_hi:               GBA_Logical_Register_Name | 4,
+	set_condition_codes: bool                      | 1,
+	_:                   uint                      | 7,
+	cond:                GBA_Condition             | 4 }
 GBA_SMLAL_CODE_MASK:: 0b_00001111_11100000_00000000_11110000
 GBA_SMLAL_CODE::      0b_00000000_11100000_00000000_10010000
 gba_instruction_is_SMLAL:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_SMLAL_CODE_MASK) == GBA_SMLAL_CODE }
 GBA_SMULL_Instruction:: bit_field u32 { // Signed Multiply Long / Multiply //
-	rm: GBA_Logical_Register_Name | 4,
-	_: uint | 4,
-	rs: GBA_Logical_Register_Name | 4,
-	rd_lo: GBA_Logical_Register_Name | 4,
-	rd_hi: GBA_Logical_Register_Name | 4,
-	set_condition_codes: bool | 1,
-	_: uint | 7,
-	cond: GBA_Condition | 4 }
+	rm:                  GBA_Logical_Register_Name | 4,
+	_:                   uint                      | 4,
+	rs:                  GBA_Logical_Register_Name | 4,
+	rd_lo:               GBA_Logical_Register_Name | 4,
+	rd_hi:               GBA_Logical_Register_Name | 4,
+	set_condition_codes: bool                      | 1,
+	_:                   uint                      | 7,
+	cond:                GBA_Condition             | 4 }
 GBA_SMULL_CODE_MASK:: 0b_00001111_11100000_00000000_11110000
 GBA_SMULL_CODE::      0b_00000000_11000000_00000000_10010000
 gba_instruction_is_SMULL:: proc(ins: GBA_Instruction) -> bool {
@@ -1866,12 +1866,12 @@ gba_instruction_is_STC:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_STC_CODE_MASK) == GBA_STC_CODE }
 GBA_STC_ADDRESSING_MODE:: GBA_Addressing_Mode.MODE_5
 GBA_STM_Instruction:: bit_field u32 { // Store Multiple / Load and Store / Addressing Mode 4 //
-	register_list: uint | 16,
-	rn: GBA_Logical_Register_Name | 4,
-	_: uint | 3,
-	u: bool | 1,
-	p: bool | 1,
-	_: uint | 3,
+	register_list:            uint                      | 16,
+	rn:                       GBA_Logical_Register_Name | 4,
+	_:                        uint                      | 3,
+	u:                        bool                      | 1,
+	p:                        bool                      | 1,
+	_:                        uint                      | 3,
 	cond:                     GBA_Condition             | 4 }
 GBA_STM_CODE_MASK:: 0b_00001110_00010000_00000000_00000000
 GBA_STM_CODE::      0b_00001000_00000000_00000000_00000000
@@ -1880,16 +1880,16 @@ gba_instruction_is_STM:: proc(ins: GBA_Instruction) -> bool {
 		((bits.bitfield_extract(ins, 22, 1) == 1 && bits.bitfield_extract(ins, 20, 1) == 0) || (bits.bitfield_extract(ins, 22, 1) == 0)) }
 GBA_STM_ADDRESSING_MODE:: GBA_Addressing_Mode.MODE_4
 GBA_STR_Instruction:: bit_field u32 { // Store Register / Load and Store / Addressing Mode 2 //
-	address: uint | 12,
-	rd: GBA_Logical_Register_Name | 4,
-	rn: GBA_Logical_Register_Name | 4,
-	_: uint | 1,
-	w: bool | 1,
-	_: uint | 1,
-	u: bool | 1,
-	p: bool | 1,
-	immediate_shifter: bool | 1,
-	_: uint | 2,
+	address:                  uint                      | 12,
+	rd:                       GBA_Logical_Register_Name | 4,
+	rn:                       GBA_Logical_Register_Name | 4,
+	_:                        uint                      | 1,
+	w:                        bool                      | 1,
+	_:                        uint                      | 1,
+	u:                        bool                      | 1,
+	p:                        bool                      | 1,
+	immediate_shifter:        bool                      | 1,
+	_:                        uint                      | 2,
 	cond:                     GBA_Condition             | 4 }
 GBA_STR_CODE_MASK:: 0b_00001100_01010000_00000000_00000000
 GBA_STR_CODE::      0b_00000100_00000000_00000000_00000000
@@ -1897,16 +1897,16 @@ gba_instruction_is_STR:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_STR_CODE_MASK) == GBA_STR_CODE }
 GBA_STR_ADDRESSING_MODE:: GBA_Addressing_Mode.MODE_2
 GBA_STRB_Instruction:: bit_field u32 { // Store Register Byte / Load and Store / Addressing Mode 2 //
-	address: uint | 12,
-	rd: GBA_Logical_Register_Name | 4,
-	rn: GBA_Logical_Register_Name | 4,
-	_: uint | 1,
-	w: bool | 1,
-	_: uint | 1,
-	u: bool | 1,
-	p: bool | 1,
-	immediate_shifter: bool | 1,
-	_: uint | 2,
+	address:                  uint                      | 12,
+	rd:                       GBA_Logical_Register_Name | 4,
+	rn:                       GBA_Logical_Register_Name | 4,
+	_:                        uint                      | 1,
+	w:                        bool                      | 1,
+	_:                        uint                      | 1,
+	u:                        bool                      | 1,
+	p:                        bool                      | 1,
+	immediate_shifter:        bool                      | 1,
+	_:                        uint                      | 2,
 	cond:                     GBA_Condition             | 4 }
 GBA_STRB_CODE_MASK:: 0b_00001100_01010000_00000000_00000000
 GBA_STRB_CODE::      0b_00000100_01000000_00000000_00000000
@@ -1914,14 +1914,14 @@ gba_instruction_is_STRB:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_STRB_CODE_MASK) == GBA_STRB_CODE }
 GBA_STRB_ADDRESSING_MODE:: GBA_Addressing_Mode.MODE_2
 GBA_STRBT_Instruction:: bit_field u32 { // Store Register Byte with Translation / Load and Store / Addressing Mode 2 //
-	address: uint | 12,
-	rd: GBA_Logical_Register_Name | 4,
-	rn: GBA_Logical_Register_Name | 4,
-	_: uint | 3,
-	u: bool | 1,
-	_: uint | 1,
-	immediate_shifter: bool | 1,
-	_: uint | 2,
+	address:                  uint                      | 12,
+	rd:                       GBA_Logical_Register_Name | 4,
+	rn:                       GBA_Logical_Register_Name | 4,
+	_:                        uint                      | 3,
+	u:                        bool                      | 1,
+	_:                        uint                      | 1,
+	immediate_shifter:        bool                      | 1,
+	_:                        uint                      | 2,
 	cond:                     GBA_Condition             | 4 }
 GBA_STRBT_CODE_MASK:: 0b_00001101_01110000_00000000_00000000
 GBA_STRBT_CODE::      0b_00000100_01100000_00000000_00000000
@@ -1929,17 +1929,17 @@ gba_instruction_is_STRBT:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_STRBT_CODE_MASK) == GBA_STRBT_CODE }
 GBA_STRBT_ADDRESSING_MODE:: GBA_Addressing_Mode.MODE_2
 GBA_STRH_Instruction:: bit_field u32 { // Store Register Halfword / Load and Store / Addressing Mode 2 //
-	address_0: uint | 4,
-	_: uint | 4,
-	address_1: uint | 4,
-	rd: GBA_Logical_Register_Name | 4,
-	rn: GBA_Logical_Register_Name | 4,
-	_: uint | 1,
-	w: bool | 1,
-	immediate_shifter: uint | 1,
-	u: bool | 1,
-	p: bool | 1,
-	_: uint | 3,
+	address_0:                uint                      | 4,
+	_:                        uint                      | 4,
+	address_1:                uint                      | 4,
+	rd:                       GBA_Logical_Register_Name | 4,
+	rn:                       GBA_Logical_Register_Name | 4,
+	_:                        uint                      | 1,
+	w:                        bool                      | 1,
+	immediate_shifter:        uint                      | 1,
+	u:                        bool                      | 1,
+	p:                        bool                      | 1,
+	_:                        uint                      | 3,
 	cond:                     GBA_Condition             | 4 }
 GBA_STRH_CODE_MASK:: 0b_00001110_00010000_00000000_11110000
 GBA_STRH_CODE::      0b_00000000_00000000_00000000_10110000
@@ -1947,14 +1947,14 @@ gba_instruction_is_STRH:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_STRH_CODE_MASK) == GBA_STRH_CODE }
 GBA_STRH_ADDRESSING_MODE:: GBA_Addressing_Mode.MODE_3
 GBA_STRT_Instruction:: bit_field u32 { // Store Register with Translation / Load and Store / Addressing Mode 2 //
-	address: uint | 12,
-	rd: GBA_Logical_Register_Name | 4,
-	rn: GBA_Logical_Register_Name | 4,
-	_: uint | 3,
-	u: bool | 1,
-	_: uint | 1,
-	immediate_shifter: uint | 1,
-	_: uint | 2,
+	address:                  uint                      | 12,
+	rd:                       GBA_Logical_Register_Name | 4,
+	rn:                       GBA_Logical_Register_Name | 4,
+	_:                        uint                      | 3,
+	u:                        bool                      | 1,
+	_:                        uint                      | 1,
+	immediate_shifter:        uint                      | 1,
+	_:                        uint                      | 2,
 	cond:                     GBA_Condition             | 4 }
 GBA_STRT_CODE_MASK:: 0b_00001101_01110000_00000000_00000000
 GBA_STRT_CODE::      0b_00000100_00100000_00000000_00000000
@@ -1979,48 +1979,48 @@ gba_SUB_opcode_match:: proc(ins: GBA_Instruction) -> bool {
 	return GBA_SUB_Instruction(ins).opcode == GBA_SUB_OPCODE }
 GBA_SUB_ADDRESSING_MODE:: GBA_Addressing_Mode.MODE_1
 GBA_SWI_Instruction:: bit_field u32 { // Software Interrupt / Interrupt //
-	immediate: uint | 24,
-	_: uint | 4,
-	cond:                     GBA_Condition             | 4 }
+	immediate:                uint          | 24,
+	_:                        uint          | 4,
+	cond:                     GBA_Condition | 4 }
 GBA_SWI_CODE_MASK:: 0b_00001111_00000000_00000000_00000000
 GBA_SWI_CODE::      0b_00001111_00000000_00000000_00000000
 gba_instruction_is_SWI:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_SWI_CODE_MASK) == GBA_SWI_CODE }
 GBA_SWP_Instruction:: bit_field u32 { // Swap / Semaphore //
-	rm: GBA_Logical_Register_Name | 4,
-	_: uint | 4,
-	sbz_0: uint | 4,
-	rd: GBA_Logical_Register_Name | 4,
-	rn: GBA_Logical_Register_Name | 4,
-	sbz_1: uint | 2,
-	_: uint | 6,
-	cond:                     GBA_Condition             | 4 }
+	rm:    GBA_Logical_Register_Name | 4,
+	_:     uint                      | 4,
+	sbz_0: uint                      | 4,
+	rd:    GBA_Logical_Register_Name | 4,
+	rn:    GBA_Logical_Register_Name | 4,
+	sbz_1: uint                      | 2,
+	_:     uint                      | 6,
+	cond:  GBA_Condition             | 4 }
 GBA_SWP_CODE_MASK:: 0b_00001111_11000000_00000000_11110000
 GBA_SWP_CODE::      0b_00000001_00000000_00000000_10010000
 gba_instruction_is_SWP:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_SWP_CODE_MASK) == GBA_SWP_CODE }
 GBA_SWPB_Instruction:: bit_field u32 { // Swap Byte / Semaphore //
-	rm: GBA_Logical_Register_Name | 4,
-	_: uint | 4,
-	sbz_0: uint | 4,
-	rd: GBA_Logical_Register_Name | 4,
-	rn: GBA_Logical_Register_Name | 4,
-	sbz_1: uint | 2,
-	_: uint | 6,
-	cond:                     GBA_Condition             | 4 }
+	rm:    GBA_Logical_Register_Name | 4,
+	_:     uint                      | 4,
+	sbz_0: uint                      | 4,
+	rd:    GBA_Logical_Register_Name | 4,
+	rn:    GBA_Logical_Register_Name | 4,
+	sbz_1: uint                      | 2,
+	_:     uint                      | 6,
+	cond:  GBA_Condition             | 4 }
 GBA_SWPB_CODE_MASK:: 0b_00001111_11000000_00000000_11110000
 GBA_SWPB_CODE::      0b_00000001_01000000_00000000_10010000
 gba_instruction_is_SWPB:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_SWPB_CODE_MASK) == GBA_SWPB_CODE }
 GBA_TEQ_Instruction:: bit_field u32 { // Test Equivalence / Data Processing / Addressing Mode 1 //
-	shifter_operand:     u32                       | 12,
-	sbz:                  uint | 4,
-	rn:                  GBA_Logical_Register_Name | 4,
-	_: uint | 1,
-	opcode:              uint                      | 4,
-	immediate_shifter:   bool                      | 1,
-	_:                   uint                      | 2,
-	cond:                GBA_Condition             | 4 }
+	shifter_operand:   u32                       | 12,
+	sbz:               uint                      | 4,
+	rn:                GBA_Logical_Register_Name | 4,
+	_:                 uint                      | 1,
+	opcode:            uint                      | 4,
+	immediate_shifter: bool                      | 1,
+	_:                 uint                      | 2,
+	cond:              GBA_Condition             | 4 }
 GBA_TEQ_CODE_MASK:: 0b_00001101_11110000_00000000_00000000
 GBA_TEQ_CODE::      0b_00000001_00110000_00000000_00000000
 gba_instruction_is_TEQ:: proc(ins: GBA_Instruction) -> bool {
@@ -2030,14 +2030,14 @@ gba_TEQ_opcode_match:: proc(ins: GBA_Instruction) -> bool {
 	return GBA_TEQ_Instruction(ins).opcode == GBA_TEQ_OPCODE }
 GBA_TEQ_ADDRESSING_MODE:: GBA_Addressing_Mode.MODE_1
 GBA_TST_Instruction:: bit_field u32 { // Test / Data Processing / Addressing Mode 1 //
-	shifter_operand:     u32                       | 12,
-	sbz:                  uint | 4,
-	rn:                  GBA_Logical_Register_Name | 4,
-	_: uint | 1,
-	opcode:              uint                      | 4,
-	immediate_shifter:   bool                      | 1,
-	_:                   uint                      | 2,
-	cond:                GBA_Condition             | 4 }
+	shifter_operand:   u32                       | 12,
+	sbz:               uint                      | 4,
+	rn:                GBA_Logical_Register_Name | 4,
+	_:                 uint                      | 1,
+	opcode:            uint                      | 4,
+	immediate_shifter: bool                      | 1,
+	_:                 uint                      | 2,
+	cond:              GBA_Condition             | 4 }
 GBA_TST_CODE_MASK:: 0b_00001101_11110000_00000000_00000000
 GBA_TST_CODE::      0b_00000001_00010000_00000000_00000000
 gba_instruction_is_TST:: proc(ins: GBA_Instruction) -> bool {
@@ -2047,27 +2047,27 @@ gba_TST_opcode_match:: proc(ins: GBA_Instruction) -> bool {
 	return GBA_TST_Instruction(ins).opcode == GBA_TST_OPCODE }
 GBA_TST_ADDRESSING_MODE:: GBA_Addressing_Mode.MODE_1
 GBA_UMLAL_Instruction:: bit_field u32 { // Unsigned Multiply Accumulate Long / Multiply //
-	rm: GBA_Logical_Register_Name | 4,
-	_: uint | 4,
-	rs: GBA_Logical_Register_Name | 4,
-	rd_lo: GBA_Logical_Register_Name | 4,
-	rd_hi: GBA_Logical_Register_Name | 4,
-	set_condition_codes: bool | 1,
-	_: uint | 7,
-	cond: GBA_Condition | 4 }
+	rm:                  GBA_Logical_Register_Name | 4,
+	_:                   uint                      | 4,
+	rs:                  GBA_Logical_Register_Name | 4,
+	rd_lo:               GBA_Logical_Register_Name | 4,
+	rd_hi:               GBA_Logical_Register_Name | 4,
+	set_condition_codes: bool                      | 1,
+	_:                   uint                      | 7,
+	cond:                GBA_Condition             | 4 }
 GBA_UMLAL_CODE_MASK:: 0b_00001111_11100000_00000000_11110000
 GBA_UMLAL_CODE::      0b_00000000_10100000_00000000_10010000
 gba_instruction_is_UMLAL:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_UMLAL_CODE_MASK) == GBA_UMLAL_CODE }
 GBA_UMULL_Instruction:: bit_field u32 { // Unsigned Multiply Long / Multiply //
-	rm: GBA_Logical_Register_Name | 4,
-	_: uint | 4,
-	rs: GBA_Logical_Register_Name | 4,
-	rd_lo: GBA_Logical_Register_Name | 4,
-	rd_hi: GBA_Logical_Register_Name | 4,
-	set_condition_codes: bool | 1,
-	_: uint | 7,
-	cond: GBA_Condition | 4 }
+	rm:                  GBA_Logical_Register_Name | 4,
+	_:                   uint                      | 4,
+	rs:                  GBA_Logical_Register_Name | 4,
+	rd_lo:               GBA_Logical_Register_Name | 4,
+	rd_hi:               GBA_Logical_Register_Name | 4,
+	set_condition_codes: bool                      | 1,
+	_:                   uint                      | 7,
+	cond:                GBA_Condition             | 4 }
 GBA_UMULL_CODE_MASK:: 0b_00001111_11100000_00000000_11110000
 GBA_UMULL_CODE::      0b_00000000_10000000_00000000_10010000
 gba_instruction_is_UMULL:: proc(ins: GBA_Instruction) -> bool {

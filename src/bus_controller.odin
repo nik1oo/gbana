@@ -30,7 +30,8 @@ get_get_bus_cycle_type:: proc(state: ^State) -> Bus_Cycle_Type {
 // BUS CONTROLLER //
 Bus_Controller:: struct {
 	bus_cycle_type: Bus_Cycle_Type }
-bus_controller: ^Bus_Controller
+initialize_bus_controller:: proc() {
+	using state: ^State = cast(^State)context.user_ptr }
 tick_bus_controller_phase_1:: proc(state: ^State) {
 	using state: ^State = cast(^State)context.user_ptr
 	bus_controller.bus_cycle_type = get_get_bus_cycle_type(state)

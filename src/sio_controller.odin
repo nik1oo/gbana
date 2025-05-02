@@ -1,6 +1,11 @@
 package gbana
 
 
+SIO_Controller:: struct { }
+initialize_sio_controller:: proc() {
+	using state: ^State = cast(^State)context.user_ptr }
+
+
 // REGISTERS //
 SIODATA32:: u32
 SIOMULTI0:: u16

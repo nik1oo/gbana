@@ -1,6 +1,7 @@
 package gbana
 import "core:fmt"
 import "core:container/queue"
+import "core:log"
 
 
 HIGH:: true
@@ -24,21 +25,22 @@ Signal:: struct($T: typeid) {
 	latency:     int,
 	write_phase: bit_set[0..=1],
 	callback:    proc(self: ^Signal(T), new_output: T) }
-signals_tick:: proc(tl: ^Timeline = nil, current_tick_index:  uint, current_cycle_index: uint, current_phase_index: uint) {
+signals_tick:: proc(current_tick_index:  uint, current_cycle_index: uint, current_phase_index: uint) {
 	using state: ^State = cast(^State)context.user_ptr
+	fmt.println("LEN = ", len(signals))
 	for signal in signals do #partial switch v in signal {
 	case ^Signal(u32):                signal_tick(v)
 	case ^Signal(uint):               signal_tick(v)
 	case ^Signal(u8):                 signal_tick(v)
 	case ^Signal(bool):               signal_tick(v)
 	case ^Signal(GBA_Processor_Mode): signal_tick(v) }
-	timeline_append(tl, current_tick_index, current_cycle_index, current_phase_index) }
+	timeline_append(current_tick_index, current_cycle_index, current_phase_index) }
 Signal_Data:: struct($T: typeid) {
 	data:    T,
 	latency: int }
-signal_init:: proc(name: string, signal: ^Signal($T), latency: int = 1, callback: proc(self: ^Signal(T), new_output: T) = nil, enabled: bool = true, write_phase: bit_set[0..=1] = { LOW_PHASE, HIGH_PHASE }) {
+signal_init:: proc(name: string, signal: ^Signal($T), latency: int = 1, callback: proc(self: ^Signal(T), new_output: T) = nil, enabled: bool = true, write_phase: bit_set[0..=1] = { LOW_PHASE, HIGH_PHASE }, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
-	assert(signal != nil)
+	if signal == nil do log.fatal("Signal is nil.", location = loc)
 	signal.name        = name
 	signal.enabled     = enabled
 	signal.output      = {}
@@ -47,7 +49,7 @@ signal_init:: proc(name: string, signal: ^Signal($T), latency: int = 1, callback
 	signal.write_phase = write_phase
 	append_elem(&signals, signal) }
 signal_put:: proc(signal: ^Signal($T), data: T, latency_override: int = -1, loc: = #caller_location) {
-	assert(signal != nil)
+	if signal == nil do log.fatal("Signal is nil.", location = loc)
 	// fmt.println("Put", data, "on signal", signal.name, "at", loc)
 	queue.push_front(&signal._queue, Signal_Data(T) { data = data, latency = (latency_override == -1) ? (signal.latency - 1) : latency_override }) }
 signal_force:: proc(signal: ^Signal($T), data: T) {
@@ -58,12 +60,12 @@ signal_delay:: proc(signal: ^Signal($T), n: int) {
 		signal_data: = queue.get_ptr(&signal._queue, i)
 		signal_data.latency += n } }
 signal_tick:: proc(signal: ^Signal($T), loc: = #caller_location) {
-	assert(signal != nil)
+	if signal == nil do log.fatal("Signal is nil.", location = loc)
 	using state: ^State = cast(^State)context.user_ptr
 	for queue.len(signal._queue) > 0 {
 		signal_data: = queue.back(&signal._queue)
 		if signal_data.latency == 0 {
-			assert(int(phase_index) in signal.write_phase, loc = loc, message = fmt.tprintln("Attempted to update signal", signal.name, "during phase", phase_index, "but it is only allowed to be updated during phases", signal.write_phase))
+			if int(phase_index) not_in signal.write_phase do log.error("Attempted to update signal ", signal.name, " during phase ", phase_index, " but it is only allowed to be updated during phases ", signal.write_phase, ".", sep = "", location = loc)
 			old_output: = signal.output
 			signal.output = signal_data.data
 			if (signal.output != old_output) && (signal.callback != nil) do signal.callback(signal, signal.output)

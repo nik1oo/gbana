@@ -27,3 +27,8 @@ DMA0CNT_H:: bit_field u16 {
 DMA1CNT_H:: DMA0CNT_H
 DMA2CNT_H:: DMA0CNT_H
 DMA3CNT_H:: DMA0CNT_H
+
+
+DMA_Controller:: struct { }
+initialize_dma_controller:: proc() {
+	using state: ^State = cast(^State)context.user_ptr }

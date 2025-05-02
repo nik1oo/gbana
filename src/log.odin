@@ -13,33 +13,26 @@ Timeline_Node:: struct {
 	gba_core_interface: GBA_Core_Interface,
 	memory_interface:   Memory_Interface }
 Timeline:: [dynamic]Timeline_Node
-timeline: Timeline
-saved_timelines: [dynamic]Timeline
-timeline_append:: proc(tl: ^Timeline, current_tick_index: uint, current_cycle_index: uint, current_phase_index: uint) {
+timeline_append:: proc(current_tick_index: uint, current_cycle_index: uint, current_phase_index: uint) {
 	using state: ^State = cast(^State)context.user_ptr
-	tl: = tl
-	if tl == nil do tl = &timeline
-	append(tl, Timeline_Node{
+	append(&timeline, Timeline_Node{
 		tick_index = current_tick_index,
 		cycle_index = current_cycle_index,
 		phase_index = current_phase_index,
 		gba_core_interface = gba_core.interface,
 		memory_interface = memory.interface }) }
-save_timeline:: proc(tl: ^Timeline) {
-	append(&saved_timelines, tl^) }
 format_line:: proc(line: bool) -> string { return line ? "HIGH" : "LOW" }
-timeline_print:: proc(tl: ^Timeline = nil, handle: os.Handle = 0) -> string {
+timeline_print:: proc(handle: os.Handle = 0) -> string {
+	using state: ^State = cast(^State)context.user_ptr
 	sb: strings.Builder
 	strings.builder_init_len_cap(&sb, 0, 1024)
 	stream: = table.strings_builder_writer(&sb)
-	tl: = tl
-	if tl == nil do tl = &timeline
 	tbl: = table.init(&table.Table{})
 	defer table.destroy(tbl)
 	table.caption(tbl, "Timeline")
 	table.padding(tbl, 1, 1)
 	table.header(tbl, "tick", "cycle", "phase", "MCLK", "MREQ", "SEQ", "RW", "A", "DOUT", "WAIT", "DIN")
-	for node, i in tl {
+	for node, i in timeline {
 		table.row(tbl,
 			node.tick_index,
 			node.cycle_index,

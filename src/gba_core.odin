@@ -8,9 +8,7 @@ import "core:encoding/endian"
 import "core:thread"
 
 
-ALU:: struct {
-
-}
+ALU:: struct { }
 
 
 // INTERFACE //

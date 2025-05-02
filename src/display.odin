@@ -153,6 +153,9 @@ BLDY:: bit_field u32 {
 
 // DISPLAY I/O MEMORY //
 Display:: struct {
+	window_res:                            [2]i32,
+	render_res:                            [2]i32,
+	window:                                glfw.WindowHandle,
 	lcd_control:                           ^DISPCNT,
 	green_swap:                            ^GSWP,
 	general_lcd_status:                    ^DISPSTAT,
@@ -191,12 +194,45 @@ Display:: struct {
 	color_special_effects_selection:       ^BLDCNT,
 	alpha_blending_coefficients:           ^BLDALPHA,
 	brightness_coefficient:                ^BLDY }
-display: ^Display
+initialize_display:: proc() {
+	using state: ^State = cast(^State)context.user_ptr
+	display.window_res = {1664, 936}
+	display.render_res = {240, 160}
+	glfw.Init()
+	//glfw.SetErrorCallback(glfw_error_callback)
+	glfw.WindowHint(glfw.CONTEXT_VERSION_MAJOR, 4)
+	glfw.WindowHint(glfw.CONTEXT_VERSION_MINOR, 3)
+	glfw.WindowHint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
+	glfw.WindowHint(glfw.SAMPLES, 16)
+	display.window = glfw.CreateWindow(display.window_res.x, display.window_res.y, "GBANA", nil, nil)
+	glfw.MakeContextCurrent(display.window)
+	glfw.SwapInterval(0)
+	gl.load_up_to(4, 3, glfw.gl_set_proc_address)
+	//glfw.SetKeyCallback(window, key_callback)
+	//glfw.SetCursorPosCallback(window, cursor_pos_callback)
+	glfw.SetDropCallback(display.window, drag_and_drop_callback)
+	//glfw.SetInputMode(window, glfw.CURSOR, glfw.CURSOR_CAPTURED)
+	//glfw.SetInputMode(window, glfw.CURSOR, glfw.CURSOR_DISABLED)
+	framebuffer_size: [2]i32
+	framebuffer_size.x, framebuffer_size.y = glfw.GetFramebufferSize(display.window)
+	gl.Viewport(0, 0, framebuffer_size.x, framebuffer_size.y)
+	vao: u32
+	gl.GenVertexArrays(1, &vao)
+	gl.BindVertexArray(vao)
+	vbo: u32
+	gl.GenBuffers(1, &vbo)
+	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
+	gl.ClearColor(f32(0xFB) / 255, f32(0xF8) / 255, f32(0xEF) / 255, 1)
+	gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
+	gl.DepthFunc(gl.LESS)
+	gl.FrontFace(gl.CW)
+	gl.Enable(gl.CULL_FACE)
+	gl.Enable(gl.MULTISAMPLE)
+	gl.CullFace(gl.FRONT)
+	gl.Enable(gl.BLEND)
+	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA) }
 
 
-window_res: [2]i32= {1664, 936}
-render_res: [2]i32= {240, 160}
-window: glfw.WindowHandle
 TARGET_FPS:: 60
 
 
@@ -271,7 +307,7 @@ VIDEO_MODE_CONFIGS: [6]Video_Mode_Config = {
 Background_Size_Config:: struct {
 	text_mode:             [2]uint,
 	rotation_scaling_mode: [2]uint }
-BACKGROUND_SIZE_CONFIGS: [4]Background_Size_Config = {
+@(rodata) BACKGROUND_SIZE_CONFIGS: [4]Background_Size_Config = {
 	Background_Size_Config{
 		text_mode             = { 256, 256 },
 		rotation_scaling_mode = { 128, 128 } },
@@ -294,45 +330,12 @@ Background_Tile:: bit_field u16 {
 	Palette_Number:  uint | 4 }
 
 
-init_display:: proc() {
-	glfw.Init()
-	//glfw.SetErrorCallback(glfw_error_callback)
-	glfw.WindowHint(glfw.CONTEXT_VERSION_MAJOR, 4)
-	glfw.WindowHint(glfw.CONTEXT_VERSION_MINOR, 3)
-	glfw.WindowHint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
-	glfw.WindowHint(glfw.SAMPLES, 16)
-	window= glfw.CreateWindow(window_res.x, window_res.y, "gbana", nil, nil)
-	glfw.MakeContextCurrent(window)
-	glfw.SwapInterval(0)
-	gl.load_up_to(4, 3, glfw.gl_set_proc_address)
-	//glfw.SetKeyCallback(window, key_callback)
-	//glfw.SetCursorPosCallback(window, cursor_pos_callback)
-	glfw.SetDropCallback(window, drag_and_drop_callback)
-	//glfw.SetInputMode(window, glfw.CURSOR, glfw.CURSOR_CAPTURED)
-	//glfw.SetInputMode(window, glfw.CURSOR, glfw.CURSOR_DISABLED)
-	framebuffer_size: [2]i32
-	framebuffer_size.x, framebuffer_size.y= glfw.GetFramebufferSize(window)
-	gl.Viewport(0, 0, framebuffer_size.x, framebuffer_size.y)
-	vao: u32
-	gl.GenVertexArrays(1, &vao)
-	gl.BindVertexArray(vao)
-	vbo: u32
-	gl.GenBuffers(1, &vbo)
-	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
-	gl.ClearColor(f32(0xFB) / 255, f32(0xF8) / 255, f32(0xEF) / 255, 1)
-	gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
-	gl.DepthFunc(gl.LESS)
-	gl.FrontFace(gl.CW)
-	gl.Enable(gl.CULL_FACE)
-	gl.Enable(gl.MULTISAMPLE)
-	gl.CullFace(gl.FRONT)
-	gl.Enable(gl.BLEND)
-	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA) }
 draw_display:: proc() {
+	using state: ^State = cast(^State)context.user_ptr
 	glfw.PollEvents()
 	gl.Clear(gl.COLOR_BUFFER_BIT)
 	gl.Clear(gl.DEPTH_BUFFER_BIT)
 	//select_render_buffer(canvas_rb)
 	//select_frame_buffer(0)
 	//render_render_buffer(canvas_rb)
-	glfw.SwapBuffers(window) }
+	glfw.SwapBuffers(display.window) }
