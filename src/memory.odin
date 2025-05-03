@@ -25,21 +25,34 @@ Memory_Interface:: struct {
 	read_write:                     Signal(GBA_Read_Write)      } // RW
 init_memory_interface:: proc() {
 	using state: ^State = cast(^State)context.user_ptr
-	signal_init("MCLK", &memory.main_clock,           2, gba_main_clock_callback,           write_phase = { LOW_PHASE, HIGH_PHASE })
-	signal_init("OPC",  &memory.op_code_fetch,        1, gba_op_code_fetch_callback,        write_phase = { HIGH_PHASE            })
-	signal_init("A",    &memory.address,              1, gba_address_callback,              write_phase = { LOW_PHASE             })
-	signal_init("DOUT", &memory.data_out,             1, gba_data_out_callback,             write_phase = { LOW_PHASE             })
-	signal_init("MREQ", &memory.memory_request,       1, gba_memory_request_callback,       write_phase = { LOW_PHASE             })
-	signal_init("SEQ",  &memory.sequential_cycle,     1, gba_sequential_cycle_callback,     write_phase = { LOW_PHASE             })
-	signal_init("RW",   &memory.read_write,           1, gba_read_write_callback,           write_phase = { HIGH_PHASE            })
-	signal_init("MAS",  &memory.memory_access_size,   1, gba_memory_access_size_callback,   write_phase = { HIGH_PHASE            })
-	signal_init("BL",   &memory.byte_latch_control,   1, gba_byte_latch_control_callback,   write_phase = { LOW_PHASE             })
-	signal_init("LOCK", &memory.lock,                 1, gba_lock_callback,                 write_phase = { HIGH_PHASE            })
+	memory.interface = {}
+	signal_init("MCLK", &memory.main_clock,           2, main_clock_callback,           write_phase = { LOW_PHASE, HIGH_PHASE })
+	signal_init("OPC",  &memory.op_code_fetch,        1, memory_op_code_fetch_callback,        write_phase = { HIGH_PHASE            })
+	signal_init("A",    &memory.address,              1, memory_address_callback,              write_phase = { LOW_PHASE             })
+	signal_init("DOUT", &memory.data_out,             1, memory_data_out_callback,             write_phase = { LOW_PHASE             })
+	signal_init("MREQ", &memory.memory_request,       1, memory_memory_request_callback,       write_phase = { LOW_PHASE             })
+	signal_init("SEQ",  &memory.sequential_cycle,     1, memory_sequential_cycle_callback,     write_phase = { LOW_PHASE             })
+	signal_init("RW",   &memory.read_write,           1, memory_read_write_callback,           write_phase = { HIGH_PHASE            })
+	signal_init("MAS",  &memory.memory_access_size,   1, memory_memory_access_size_callback,   write_phase = { HIGH_PHASE            })
+	signal_init("BL",   &memory.byte_latch_control,   1, memory_byte_latch_control_callback,   write_phase = { LOW_PHASE             })
+	signal_init("LOCK", &memory.lock,                 1, memory_lock_callback,                 write_phase = { HIGH_PHASE            })
 	signal_put(&memory.main_clock, true) }
 
 
 // THREAD //
 memory_thread_proc:: proc(t: ^thread.Thread) { }
+
+
+// SIGNAL LOGIC //
+memory_op_code_fetch_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
+memory_address_callback:: proc(self: ^Signal(u32), old_output, new_output: u32) { }
+memory_data_out_callback:: proc(self: ^Signal(u32), old_output, new_output: u32) {  }
+memory_memory_request_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
+memory_sequential_cycle_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
+memory_read_write_callback:: proc(self: ^Signal(GBA_Read_Write), old_output, new_output: GBA_Read_Write) { }
+memory_memory_access_size_callback:: proc(self: ^Signal(Memory_Access_Size), old_output, new_output: Memory_Access_Size) {  }
+memory_byte_latch_control_callback:: proc(self: ^Signal(u8), old_output, new_output: u8) {  }
+memory_lock_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
 
 
 // ENDIANNESS //
@@ -106,6 +119,21 @@ CARTRIDGE_GAME_DATA_0_RANGE::  [2]u32{ 0x08000000, 0x09ffffff } // this is the g
 CARTRIDGE_GAME_DATA_1_RANGE::  [2]u32{ 0x0a000000, 0x0bffffff } // this is a mirror of game ROM
 CARTRIDGE_GAME_DATA_2_RANGE::  [2]u32{ 0x0c000000, 0x0dffffff } // this is a mirror of game ROM
 CARTRIDGE_SAVE_DATA_RANGE::    [2]u32{ 0x0e000000, 0x0e00ffff } // SRAM or flash ROM, used for game save data
+
+
+// VALIDITY //
+memory_address_is_valid:: proc(address: u32) -> bool {
+	switch address {
+	case BIOS_RANGE[START]                  ..= BIOS_RANGE[END]:                  return true
+	case EXTERNAL_WORK_RAM_RANGE[START]     ..= EXTERNAL_WORK_RAM_RANGE[END]:     return true
+	case INTERNAL_WORK_RAM_RANGE[START]     ..= INTERNAL_WORK_RAM_RANGE[END]:     return true
+	case INPUT_OUTPUT_RAM_RANGE[START]      ..= INPUT_OUTPUT_RAM_RANGE[END]:      return true
+	case OAM_RANGE[START]                   ..= OAM_RANGE[END]:                   return true
+	case PALETTE_RAM_RANGE[START]           ..= PALETTE_RAM_RANGE[END]:           return true
+	case VIDEO_RAM_RANGE[START]             ..= VIDEO_RAM_RANGE[END]:             return true
+	case CARTRIDGE_GAME_DATA_0_RANGE[START] ..= CARTRIDGE_GAME_DATA_2_RANGE[END]: return true
+	case CARTRIDGE_SAVE_DATA_RANGE[START]   ..= CARTRIDGE_SAVE_DATA_RANGE[END]:   return true
+	case:                                                                         return false } }
 
 
 // MEMORY BUS WIDTH [BYTES] //
@@ -435,41 +463,50 @@ WIDTH:: 1
 // 	byte_index: = address - word_address
 // 	return 0
 // }
-memory_read_u8:: proc(address: u32) -> (value: u8) {
+memory_read_u8:: proc(address: u32) -> (value: u8, ok: bool) #optional_ok {
 	using state: ^State = cast(^State)context.user_ptr
+	if ! memory_address_is_valid(address) do return 0, false
 	word_address: u32 = cast(u32)mem.align_backward_uint(uint(address), 4)
 	byte_index: = address - word_address
 	word: u32 = transmute(u32)cast(u32be)transmute(u32le)(memory.data[word_address / 4])
-	return cast(u8)((word >> (byte_index * 8)) & 0b_11111111) }
-memory_read_u16:: proc(address: u32) -> (value: u16) {
+	return cast(u8)((word >> (byte_index * 8)) & 0b_11111111), true }
+memory_read_u16:: proc(address: u32) -> (value: u16, ok: bool) #optional_ok {
 	using state: ^State = cast(^State)context.user_ptr
+	if ! memory_address_is_valid(address) do return 0, false
 	address: = address & (~ u32(0b_1))
 	word_address: u32 = cast(u32)mem.align_backward_uint(uint(address), 4)
 	byte_index: = address - word_address
 	word: u32 = transmute(u32)cast(u32be)transmute(u32le)(memory.data[word_address / 4])
-	return cast(u16)((word >> (byte_index * 8)) & 0b_11111111_11111111) }
-memory_read_u32:: proc(address: u32) -> (value: u32) {
+	return cast(u16)((word >> (byte_index * 8)) & 0b_11111111_11111111), true }
+memory_read_u32:: proc(address: u32) -> (value: u32, ok: bool) #optional_ok {
 	using state: ^State = cast(^State)context.user_ptr
+	if ! memory_address_is_valid(address) do return 0, false
 	address: = address & (~ u32(0b_11))
 	word: u32 = transmute(u32)cast(u32be)transmute(u32le)(memory.data[address / 4])
-	return word }
-memory_write_u8:: proc(address: u32, value: u8) {
+	return word, true }
+memory_write_u8:: proc(address: u32, value: u8) -> (ok: bool) {
 	using state: ^State = cast(^State)context.user_ptr
+	if ! memory_address_is_valid(address) do return false
 	bytes: = slice.reinterpret([]u8, memory.data)
 	word_address: u32 = cast(u32)mem.align_backward_uint(uint(address), 4)
 	byte_index: = address - word_address
-	bytes[word_address * 4 + 3 - byte_index] = value }
-memory_write_u16:: proc(address: u32, value: u16) {
+	bytes[word_address * 4 + 3 - byte_index] = value
+	return true }
+memory_write_u16:: proc(address: u32, value: u16) -> (ok: bool) {
 	using state: ^State = cast(^State)context.user_ptr
+	if ! memory_address_is_valid(address) do return false
 	address: = address & (~ u32(0b_1))
 	halfwords: = slice.reinterpret([]u16, memory.data)
 	word_address: u32 = cast(u32)mem.align_backward_uint(uint(address), 4)
 	halfword_index: = (address - word_address) / 2
-	halfwords[word_address * 2 + 1 - halfword_index] = transmute(u16)cast(u16le)transmute(u16be)value }
-memory_write_u32:: proc(address: u32, value: u32) {
+	halfwords[word_address * 2 + 1 - halfword_index] = transmute(u16)cast(u16le)transmute(u16be)value
+	return true }
+memory_write_u32:: proc(address: u32, value: u32) -> (ok: bool) {
 	using state: ^State = cast(^State)context.user_ptr
+	if ! memory_address_is_valid(address) do return false
 	address: = address & (~ u32(0b_11))
-	memory.data[address / 4] = cast(u32le)transmute(u32be)value }
+	memory.data[address / 4] = cast(u32le)transmute(u32be)value
+	return true }
 // bios_read:: proc(address: u32, $width: int) -> (value: [width]u8, cycles: int) {
 // 	#assert((width == 1) || (width == 2) || (width == 4))
 // 	return memory.bios_region[address : address + width - 1], 1 }
@@ -727,7 +764,7 @@ load_bios:: proc(filename: string)-> bool {
 	if ! success do return false
 	n: = len(bios)
 	assert(n <= len(memory.bios_region) * 4)
-	fmt.println("bios loaded | ", fmt_units(n), "/", fmt_units(len(memory.bios_region)))
+	// fmt.println("bios loaded | ", fmt_units(n), "/", fmt_units(len(memory.bios_region)))
 	copy_slice(memory.bios_region[0:n], bios[0:n])
 	return true }
 load_cartridge:: proc(filename: string)-> bool {
@@ -737,7 +774,7 @@ load_cartridge:: proc(filename: string)-> bool {
 	if ! success do return false
 	n: = len(cartridge)
 	assert(n <= len(memory.cartridge_game_data_0_region))
-	fmt.println("cartridge loaded | ", fmt_units(n), "/", fmt_units(len(memory.cartridge_game_data_0_region)))
+	// fmt.println("cartridge loaded | ", fmt_units(n), "/", fmt_units(len(memory.cartridge_game_data_0_region)))
 	copy_slice(memory.cartridge_game_data_0_region[0:n], cartridge[0:n])
 	copy_slice(memory.cartridge_game_data_1_region[0:n], cartridge[0:n])
 	copy_slice(memory.cartridge_game_data_2_region[0:n], cartridge[0:n])
@@ -745,9 +782,9 @@ load_cartridge:: proc(filename: string)-> bool {
 
 
 // SEQUENCES //
-memory_respond_memory_sequence:: proc(sequential_cycle: bool = LOW, read_write: GBA_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0) {
+memory_respond_memory_sequence:: proc(sequential_cycle: bool = LOW, read_write: GBA_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
 	using state: ^State = cast(^State)context.user_ptr
-	assert(phase_index == 0, "Memory Sequence response may only be initiated in phase 1")
+	assert(phase_index == 0, "Sequence may only be initiated in phase 1")
 	access_latency: = memory_bus_latency_from_address(address = address, width = 4/*memory.memory_access_size.output*/)
 	read_write: = memory.read_write.output
 	if access_latency == 1 do signal_force(&gba_core.wait, LOW)
@@ -756,9 +793,12 @@ memory_respond_memory_sequence:: proc(sequential_cycle: bool = LOW, read_write: 
 		signal_put(&gba_core.wait, LOW, latency_override = (access_latency - 1) * 2 + 1) }
 	switch read_write {
 	case .READ:
-		signal_put(&gba_core.data_in, memory_read_u32(address), latency_override = (access_latency - 1) * 2 + 1)
+		data_in, ok: = memory_read_u32(address)
+		if ok do signal_put(&gba_core.data_in, data_in, latency_override = (access_latency - 1) * 2 + 1)
+		else do signal_put(&gba_core.abort, HIGH, latency_override = (access_latency - 1) * 2 + 1)
 	case .WRITE:
-		memory_write_u32(address = address, value = data_out) } }
+		ok: = memory_write_u32(address = address, value = data_out)
+		if ! ok do signal_put(&gba_core.abort, HIGH, latency_override = (access_latency - 1) * 2 + 1) } }
 memory_respond_n_cycle:: proc() { }
 memory_respond_s_cycle:: proc() { }
 memory_respond_merged_is_cycle:: proc() { }

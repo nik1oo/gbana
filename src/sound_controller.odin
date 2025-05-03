@@ -1,4 +1,5 @@
 package gbana
+import "core:thread"
 
 
 Sound_Controller:: struct { }
@@ -101,3 +102,7 @@ SOUNDBIAS:: bit_field u32 {
 WAVE_RAM:: [2][16]u8
 FIFO_A:: [4]u8
 FIFO_B:: FIFO_A
+
+
+// THREAD //
+sound_controller_thread_proc:: proc(t: ^thread.Thread) { }

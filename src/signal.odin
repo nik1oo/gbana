@@ -24,7 +24,7 @@ Signal:: struct($T: typeid) {
 	_queue:      queue.Queue(Signal_Data(T)),
 	latency:     int,
 	write_phase: bit_set[0..=1],
-	callback:    proc(self: ^Signal(T), new_output: T) }
+	callback:    proc(self: ^Signal(T), old_output, new_output: T) }
 signals_tick:: proc(current_tick_index:  uint, current_cycle_index: uint, current_phase_index: uint) {
 	using state: ^State = cast(^State)context.user_ptr
 	timeline_append(current_tick_index, current_cycle_index, current_phase_index)
@@ -37,7 +37,7 @@ signals_tick:: proc(current_tick_index:  uint, current_cycle_index: uint, curren
 Signal_Data:: struct($T: typeid) {
 	data:    T,
 	latency: int }
-signal_init:: proc(name: string, signal: ^Signal($T), latency: int = 1, callback: proc(self: ^Signal(T), new_output: T) = nil, enabled: bool = true, write_phase: bit_set[0..=1] = { LOW_PHASE, HIGH_PHASE }, loc: = #caller_location) {
+signal_init:: proc(name: string, signal: ^Signal($T), latency: int = 1, callback: proc(self: ^Signal(T), old_output, new_output: T) = nil, enabled: bool = true, write_phase: bit_set[0..=1] = { LOW_PHASE, HIGH_PHASE }, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
 	if signal == nil do log.fatal("Signal is nil.", location = loc)
 	signal.name        = name
@@ -68,7 +68,7 @@ signal_tick:: proc(signal: ^Signal($T), loc: = #caller_location) {
 			if int(phase_index) not_in signal.write_phase do log.error("Attempted to update signal ", signal.name, " during phase ", phase_index, " but it is only allowed to be updated during phases ", signal.write_phase, ".", sep = "", location = loc)
 			old_output: = signal.output
 			signal.output = signal_data.data
-			if (signal.output != old_output) && (signal.callback != nil) do signal.callback(signal, signal.output)
+			if (signal.output != old_output) && (signal.callback != nil) do signal.callback(signal, old_output, signal.output)
 			queue.consume_back(&signal._queue, 1) }
 		else do break }
 	for i in 0 ..< queue.len(signal._queue) {
@@ -76,4 +76,4 @@ signal_tick:: proc(signal: ^Signal($T), loc: = #caller_location) {
 		signal_data.latency -= 1
 		// fmt.println("signal", signal.name, "ticks down to", signal_data.latency)
 } }
-signal_stub_callback:: proc(self: ^Signal(bool), new_output: bool) { }
+signal_stub_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }

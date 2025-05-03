@@ -12,7 +12,7 @@ run:
 
 test:
 	clear
-	odin test . -define:ODIN_TEST_TRACK_MEMORY=true -define:ODIN_TEST_THREADS=1 -disable-assert # -debug
+	odin test . -define:ODIN_TEST_TRACK_MEMORY=false -define:ODIN_TEST_THREADS=1 -define:PRINT_ALL_TEST_TIMELINES=true -disable-assert # -debug
 
 sanitize:
 	clear

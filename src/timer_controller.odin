@@ -1,4 +1,5 @@
 package gbana
+import "core:thread"
 
 
 Timer_Controller:: struct { }
@@ -21,3 +22,7 @@ TM0CNT_H:: bit_field u16 {
 TM1CNT_H:: TM0CNT_H
 TM2CNT_H:: TM0CNT_H
 TM3CNT_H:: TM0CNT_H
+
+
+// THREAD //
+timer_controller_thread_proc:: proc(t: ^thread.Thread) { }

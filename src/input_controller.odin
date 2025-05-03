@@ -1,7 +1,8 @@
 package gbana
-import		"base:runtime"
-import		"core:fmt"
-import		"vendor:glfw"
+import "base:runtime"
+import "core:fmt"
+import "vendor:glfw"
+import "core:thread"
 
 
 Input_Controller:: struct { }
@@ -45,3 +46,7 @@ key_callback:: proc "c"(window: glfw.WindowHandle, key: i32, scancode: i32, acti
 drag_and_drop_callback:: proc "c"(window: glfw.WindowHandle, count: i32, paths: [^]cstring) {
 	context= runtime.default_context()
 	insert_cartridge(string(paths[0])) }
+
+
+// THREAD //
+input_controller_thread_proc:: proc(t: ^thread.Thread) { }

@@ -1,6 +1,7 @@
 package gbana
-import		"vendor:glfw"
-import gl	"vendor:OpenGL"
+import "vendor:glfw"
+import gl "vendor:OpenGL"
+import "core:thread"
 
 
 // REGISTERS //
@@ -339,3 +340,7 @@ draw_display:: proc() {
 	//select_frame_buffer(0)
 	//render_render_buffer(canvas_rb)
 	glfw.SwapBuffers(display.window) }
+
+
+// THREAD //
+display_thread_proc:: proc(t: ^thread.Thread) { }

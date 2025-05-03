@@ -22,14 +22,14 @@ timeline_append:: proc(current_tick_index: uint, current_cycle_index: uint, curr
 		gba_core_interface = gba_core.interface,
 		memory_interface = memory.interface }) }
 format_line:: proc(line: bool) -> string { return line ? "HIGH" : "LOW" }
-timeline_print:: proc(handle: os.Handle = 0) -> string {
+timeline_print:: proc(handle: os.Handle = 0, name: string = "") -> string {
 	using state: ^State = cast(^State)context.user_ptr
 	sb: strings.Builder
 	strings.builder_init_len_cap(&sb, 0, 1024)
 	stream: = table.strings_builder_writer(&sb)
 	tbl: = table.init(&table.Table{})
 	defer table.destroy(tbl)
-	table.caption(tbl, "Timeline")
+	table.caption(tbl, (name == "") ? "Timeline" : name)
 	table.padding(tbl, 1, 1)
 	table.header(tbl, "tick", "cycle", "phase", "MCLK", "MREQ", "SEQ", "RW", "A", "DOUT", "WAIT", "DIN")
 	for node, i in timeline {

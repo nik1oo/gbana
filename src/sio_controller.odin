@@ -1,4 +1,5 @@
 package gbana
+import "core:thread"
 
 
 SIO_Controller:: struct { }
@@ -47,3 +48,7 @@ JOYSTAT:: bit_field u32 {
 	general_purpose_flag_1: bool | 1,
 	general_purpose_flag_2: bool | 1,
 	_:                      int  | 26 }
+
+
+// THREAD //
+sio_controller_thread_proc:: proc(t: ^thread.Thread) { }

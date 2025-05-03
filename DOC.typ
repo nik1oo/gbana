@@ -868,7 +868,8 @@ This is irrelevant for the emulator.
   columns: (60%, 40%),
   table.header([*Related Procedures*], []),
   `test_branch_and_branch_with_link_instruction_cycle`, [Test procedure.],
-  `gba_initiate_branch_and_branch_with_link_instruction_cycle`, [Initiation procedure, must be called during phase 1.])
+  `gba_request_branch_and_branch_with_link_instruction_cycle`, [Request procedure, must be called during phase 1.],
+  `memory_respond_branch_and_branch_with_link_instruction_cycle`, [Response procedure, must be called during phase 1.])
 
 #figure(caption: [Branch and Branch with Link Instruction Cycle], wavy.render(height: 33%, "{
   signal:
@@ -923,7 +924,8 @@ This is irrelevant for the emulator.
   columns: (60%, 40%),
   table.header([*Related Procedures*], []),
   `test_thumb_branch_with_link_instruction_cycle`, [Test procedure.],
-  `gba_initiate_thumb_branch_with_link_instruction_cycle`, [Initiation procedure.])
+  `gba_request_thumb_branch_with_link_instruction_cycle`, [Request procedure.],
+  `memory_respond_thumb_branch_with_link_instruction_cycle`, [Response procedure.])
 
 #figure(caption: [Thumb Branch with Link Instruction Cycle], wavy.render(height: 33%, "{
   signal:
@@ -980,7 +982,8 @@ This is irrelevant for the emulator.
   columns: (60%, 40%),
   table.header([*Related Procedures*], []),
   `test_branch_and_exchange_instruction_cycle`, [Test procedure.],
-  `gba_initiate_branch_and_exchange_instruction_cycle`, [Initiation procedure.])
+  `gba_request_branch_and_exchange_instruction_cycle`, [Request procedure.],
+  `memory_respond_branch_and_exchange_instruction_cycle`, [Response procedure.])
 
 #figure(caption: [Branch and Exchange Instruction Cycle], wavy.render(height: 36%, "{
   signal:
@@ -1037,7 +1040,8 @@ This is irrelevant for the emulator.
   columns: (60%, 40%),
   table.header([*Related Procedures*], []),
   `test_data_processing_instruction_cycle`, [Test procedure.],
-  `gba_initiate_data_processing_instruction_cycle`, [Initiation procedure.])
+  `gba_request_data_processing_instruction_cycle`, [Request procedure.],
+  `memory_respond_data_processing_instruction_cycle`, [Response procedure.])
 
 _It seems like whenever `SEQ` is high, the address will always increment in the post cycle._
 
@@ -1182,7 +1186,8 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   columns: (60%, 40%),
   table.header([*Related Procedures*], []),
   `test_multiply_and_multiply_accumulate_instruction_cycle`, [Test procedure.],
-  `gba_initiate_multiply_and_multiply_accumulate_instruction_cycle`, [Initiation procedure.])
+  `gba_request_multiply_and_multiply_accumulate_instruction_cycle`, [Request procedure.],
+  `memory_respond_multiply_and_multiply_accumulate_instruction_cycle`, [Response procedure.])
 
 #figure(caption: [Multiply Instruction Cycle], wavy.render(height: 38%, "{
   signal:
@@ -1364,7 +1369,8 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   columns: (60%, 40%),
   table.header([*Related Procedures*], []),
   `test_load_register_instruction_cycle`, [Test procedure.],
-  `gba_initiate_load_register_instruction_cycle`, [Initiation procedure.])
+  `gba_request_load_register_instruction_cycle`, [Request procedure.],
+  `memory_respond_load_register_instruction_cycle`, [Response procedure.])
 
 #figure(caption: [Load Register Instruction Cycle (normal)], wavy.render(height: 38%, "{
   signal:
@@ -1463,7 +1469,8 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   columns: (60%, 40%),
   table.header([*Related Procedures*], []),
   `test_store_register_instruction_cycle`, [Test procedure.],
-  `gba_initiate_store_register_instruction_cycle`, [Initiation procedure.])
+  `gba_request_store_register_instruction_cycle`, [Request procedure.],
+  `memory_respond_store_register_instruction_cycle`, [Response procedure.])
 
 #figure(caption: [Store Register Instruction Cycle], wavy.render(height: 36%, "{
   signal:
@@ -1499,7 +1506,8 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   columns: (60%, 40%),
   table.header([*Related Procedures*], []),
   `test_load_multiple_register_instruction_cycle`, [Test procedure.],
-  `gba_initiate_load_multiple_register_instruction_cycle`, [Initiation procedure.])
+  `gba_request_load_multiple_register_instruction_cycle`, [Request procedure.],
+  `memory_respond_load_multiple_register_instruction_cycle`, [Response procedure.])
 
 #figure(caption: [Load Multiple Register Instruction Cycle (single register)], wavy.render(height: 38%, "{
   signal:
@@ -1685,7 +1693,8 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   columns: (60%, 40%),
   table.header([*Related Procedures*], []),
   `test_store_multiple_register_instruction_cycle`, [Test procedure.],
-  `gba_initiate_store_multiple_register_instruction_cycle`, [Initiation procedure.])
+  `gba_request_store_multiple_register_instruction_cycle`, [Request procedure.],
+  `memory_respond_store_multiple_register_instruction_cycle`, [Response procedure.])
 
 #figure(caption: [Store Multiple Register Instruction Cycle (single register)], wavy.render(height: 42%, "{
   signal:
@@ -1765,7 +1774,8 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   columns: (60%, 40%),
   table.header([*Related Procedures*], []),
   `test_data_swap_instruction_cycle`, [Test procedure.],
-  `gba_initiate_data_swap_instruction_cycle`, [Initiation procedure.])
+  `gba_request_data_swap_instruction_cycle`, [Request procedure.],
+  `memory_respond_data_swap_instruction_cycle`, [Response procedure.])
 
 #figure(caption: [Data Swap Instruction Cycle], wavy.render(height: 36%, "{
   signal:
@@ -1824,7 +1834,8 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   columns: (60%, 40%),
   table.header([*Related Procedures*], []),
   `test_software_interrupt_and_exception_instruction_cycle`, [Test procedure.],
-  `gba_initiate_software_interrupt_and_exception_instruction_cycle`, [Initiation procedure.])
+  `gba_request_software_interrupt_and_exception_instruction_cycle`, [Request procedure.],
+  `memory_respond_software_interrupt_and_exception_instruction_cycle`, [Response procedure.])
 
 #figure(caption: [Software Interrupt and Exception Instruction Cycle], wavy.render(height: 36%, "{
   signal:
@@ -1876,7 +1887,8 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   columns: (60%, 40%),
   table.header([*Related Procedures*], []),
   `test_undefined_instruction_cycle`, [Test procedure.],
-  `gba_initiate_undefined_instruction_cycle`, [Initiation procedure.])
+  `gba_request_undefined_instruction_cycle`, [Request procedure.],
+  `memory_respond_undefined_instruction_cycle`, [Response procedure.])
 
 #figure(caption: [Undefined Instruction Cycle], wavy.render(height: 36%, "{
   signal:
@@ -1930,7 +1942,8 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   columns: (60%, 40%),
   table.header([*Related Procedures*], []),
   `test_unexecuted_instruction_cycle`, [Test procedure.],
-  `gba_initiate_unexecuted_instruction_cycle`, [Initiation procedure.])
+  `gba_request_unexecuted_instruction_cycle`, [Request procedure.],
+  `memory_respond_unexecuted_instruction_cycle`, [Response procedure.])
 
 #figure(caption: [Unexecuted Instruction Cycle], wavy.render(height: 33%, "{
   signal:

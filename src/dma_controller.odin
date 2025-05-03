@@ -1,4 +1,5 @@
 package gbana
+import "core:thread"
 
 
 // REGISTERS //
@@ -32,3 +33,7 @@ DMA3CNT_H:: DMA0CNT_H
 DMA_Controller:: struct { }
 initialize_dma_controller:: proc() {
 	using state: ^State = cast(^State)context.user_ptr }
+
+
+// THREAD //
+dma_controller_thread_proc:: proc(t: ^thread.Thread) { }

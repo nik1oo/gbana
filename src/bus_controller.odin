@@ -1,4 +1,5 @@
 package gbana
+import "core:thread"
 
 
 // BUS CYCLE TYPES //
@@ -42,3 +43,7 @@ tick_bus_controller_phase_1:: proc(state: ^State) {
 	case .INTERNAL:
 	} }
 tick_bus_controller_phase_2:: proc() {}
+
+
+// THREAD //
+bus_controller_thread_proc:: proc(t: ^thread.Thread) { }

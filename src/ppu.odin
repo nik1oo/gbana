@@ -1,5 +1,6 @@
 package gbana
 import "core:slice"
+import "core:thread"
 
 
 REG_DISPCNT_ADDR::  0x04000000
@@ -402,3 +403,7 @@ tilemap_2d:: proc(tile_number: int, shape: [2]int)-> (tilemap: [][]int) {
 			tilemap[col][row]= index
 			index+= 1 } }
 	return tilemap }
+
+
+// THREAD //
+ppu_thread_proc:: proc(t: ^thread.Thread) { }
