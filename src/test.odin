@@ -627,19 +627,103 @@ test_general_timing:: proc(test_runner: ^testing.T) {
 
 
 @(test)
-test_address_bus_control:: proc(test_runner: ^testing.T) { }
+test_address_bus_control:: proc(test_runner: ^testing.T) {
+	using state: State
+	context = initialize_context(&state)
+	allocate()
+	initialize()
+	tick(times = 2)
+
+	expect_tick(test_runner, tick_index, 1)
+	memory_initiate_address_bus_control(LOW)
+	expect_signal(test_runner, 1, "A.enabled", memory.address.enabled, LOW)
+	expect_signal(test_runner, 1, "RW.enabled", memory.read_write.enabled, LOW)
+	expect_signal(test_runner, 1, "LOCK.enabled", memory.lock.enabled, LOW)
+	expect_signal(test_runner, 1, "OPC.enabled", memory.op_code_fetch.enabled, LOW)
+	expect_signal(test_runner, 1, "MAS.enabled", memory.memory_access_size.enabled, LOW)
+	tick(times = 2)
+
+	expect_tick(test_runner, tick_index, 3)
+	memory_initiate_address_bus_control(LOW)
+	expect_signal(test_runner, 3, "A.enabled", memory.address.enabled, LOW)
+	expect_signal(test_runner, 3, "RW.enabled", memory.read_write.enabled, LOW)
+	expect_signal(test_runner, 3, "LOCK.enabled", memory.lock.enabled, LOW)
+	expect_signal(test_runner, 3, "OPC.enabled", memory.op_code_fetch.enabled, LOW)
+	expect_signal(test_runner, 3, "MAS.enabled", memory.memory_access_size.enabled, LOW)
+
+	if testing.failed(test_runner) || PRINT_ALL_TEST_TIMELINES do log.info("\n", timeline_print(name = "Address Bus Control"), sep = "") }
 
 
 @(test)
-test_data_bus_control:: proc(test_runner: ^testing.T) { }
+test_data_bus_control:: proc(test_runner: ^testing.T) {
+	using state: State
+	context = initialize_context(&state)
+	allocate()
+	initialize()
+	tick(times = 2)
+
+	expect_tick(test_runner, tick_index, 1)
+	memory_initiate_data_bus_control(LOW)
+	expect_signal(test_runner, 1, "DIN.enabled", gba_core.data_in.enabled, LOW)
+	expect_signal(test_runner, 1, "DOUT.enabled", memory.data_out.enabled, LOW)
+	tick(times = 2)
+
+	expect_tick(test_runner, tick_index, 3)
+	memory_initiate_data_bus_control(LOW)
+	expect_signal(test_runner, 3, "DIN.enabled", gba_core.data_in.enabled, LOW)
+	expect_signal(test_runner, 3, "DOUT.enabled", memory.data_out.enabled, LOW)
+
+	if testing.failed(test_runner) || PRINT_ALL_TEST_TIMELINES do log.info("\n", timeline_print(name = "Data Bus Control"), sep = "") }
 
 
 @(test)
-test_expection_control:: proc(test_runner: ^testing.T) { }
+test_expection_control:: proc(test_runner: ^testing.T) {
+	using state: State
+	context = initialize_context(&state)
+	allocate()
+	initialize()
+	tick()
+
+	expect_tick(test_runner, tick_index, 0)
+	signal_put(&gba_core.abort, HIGH, latency_override = 1)
+	signal_put(&gba_core.reset, HIGH, latency_override = 1)
+	signal_put(&gba_core.fast_interrupt_request, HIGH, latency_override = 2)
+	signal_put(&gba_core.interrupt_request, HIGH, latency_override = 2)
+	signal_put(&gba_core.abort, LOW, latency_override = 2)
+	tick()
+
+	expect_tick(test_runner, tick_index, 1)
+	tick()
+
+	expect_tick(test_runner, tick_index, 2)
+	tick()
+
+	if testing.failed(test_runner) || PRINT_ALL_TEST_TIMELINES do log.info("\n", timeline_print(name = "Exception Control"), sep = "") }
 
 
 @(test)
-test_address_pipeline_control:: proc(test_runner: ^testing.T) { }
+test_address_pipeline_control:: proc(test_runner: ^testing.T) {
+	using state: State
+	context = initialize_context(&state)
+	allocate()
+	initialize()
+	tick()
+
+	expect_tick(test_runner, tick_index, 0)
+	signal_put(&memory.address, 0b0, latency_override = 1)
+	signal_put(&memory.read_write, Memory_Read_Write.READ, latency_override = 1)
+	signal_put(&memory.lock, true, latency_override = 1)
+	signal_put(&memory.op_code_fetch, true, latency_override = 1)
+	signal_put(&memory.memory_access_size, Memory_Access_Size.HALFWORD, latency_override = 1)
+	tick()
+
+	expect_tick(test_runner, tick_index, 1)
+	tick()
+
+	expect_tick(test_runner, tick_index, 2)
+	tick()
+
+	if testing.failed(test_runner) || PRINT_ALL_TEST_TIMELINES do log.info("\n", timeline_print(name = "Address Pipeline Control"), sep = "") }
 
 
 @(test)

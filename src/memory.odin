@@ -26,8 +26,8 @@ Memory_Interface:: struct {
 init_memory_interface:: proc() {
 	using state: ^State = cast(^State)context.user_ptr
 	memory.interface = {}
-	signal_init("MCLK", &memory.main_clock,           2, main_clock_callback,           write_phase = { LOW_PHASE, HIGH_PHASE })
-	signal_init("OPC",  &memory.op_code_fetch,        1, memory_op_code_fetch_callback,        write_phase = { HIGH_PHASE            })
+	signal_init("MCLK", &memory.main_clock,           2, main_clock_callback,                  write_phase = { LOW_PHASE, HIGH_PHASE })
+	signal_init("OPC",  &memory.op_code_fetch,        1, memory_op_code_fetch_callback,        write_phase = { LOW_PHASE, HIGH_PHASE })
 	signal_init("A",    &memory.address,              1, memory_address_callback,              write_phase = { LOW_PHASE             })
 	signal_init("DOUT", &memory.data_out,             1, memory_data_out_callback,             write_phase = { LOW_PHASE             })
 	signal_init("MREQ", &memory.memory_request,       1, memory_memory_request_callback,       write_phase = { LOW_PHASE             })
@@ -35,7 +35,7 @@ init_memory_interface:: proc() {
 	signal_init("RW",   &memory.read_write,           1, memory_read_write_callback,           write_phase = { HIGH_PHASE            })
 	signal_init("MAS",  &memory.memory_access_size,   1, memory_memory_access_size_callback,   write_phase = { HIGH_PHASE            })
 	signal_init("BL",   &memory.byte_latch_control,   1, memory_byte_latch_control_callback,   write_phase = { LOW_PHASE             })
-	signal_init("LOCK", &memory.lock,                 1, memory_lock_callback,                 write_phase = { HIGH_PHASE            })
+	signal_init("LOCK", &memory.lock,                 1, memory_lock_callback,                 write_phase = { LOW_PHASE, HIGH_PHASE })
 	signal_put(&memory.main_clock, true) }
 
 
@@ -823,6 +823,21 @@ memory_respond_reset_sequence:: proc(loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
 	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc)
 	signal_put(&gba_core.data_in, memory_read_u32(0), latency_override = 9) }
+memory_initiate_address_bus_control:: proc(address_bus_enable: bool, loc: = #caller_location) {
+	using state: ^State = cast(^State)context.user_ptr
+	if phase_index != 0 do log.fatal("ABE may only be updated in phase 1", location = loc)
+	signal_force(&gba_core.address_bus_enable, address_bus_enable)
+	memory.address.enabled = address_bus_enable
+	memory.read_write.enabled = address_bus_enable
+	memory.lock.enabled = address_bus_enable
+	memory.op_code_fetch.enabled = address_bus_enable
+	memory.memory_access_size.enabled = address_bus_enable }
+memory_initiate_data_bus_control:: proc(data_bus_enable: bool, loc: = #caller_location) {
+	using state: ^State = cast(^State)context.user_ptr
+	if phase_index != 0 do log.fatal("DBE may only be updated in phase 1", location = loc)
+	signal_force(&gba_core.data_bus_enable, data_bus_enable)
+	gba_core.data_in.enabled = data_bus_enable
+	memory.data_out.enabled = data_bus_enable }
 memory_respond_branch_and_branch_with_link_instruction_cycle:: proc(instruction: GBA_Branch_and_Link_Instruction_Decoded) { }
 memory_respond_thumb_branch_with_link_instruction_cycle:: proc() { }
 memory_respond_branch_and_exchange_instruction_cycle:: proc(instruction: GBA_Branch_and_Exchange_Instruction_Decoded) { }

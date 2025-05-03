@@ -750,10 +750,10 @@ The General Timing diagram defines in which phase of the cycle each of the contr
 #figure(caption: [Data Bus Control timing diagram], wavy.render(height: 16%, "{
   signal:
   [
-    {name:'MCLK',  wave:'hlhl'},
-    {name:'DBE',   wave:'10..',  phase: 0, node:'.M..'},
-    {name:'DIN/DOUT',     wave:'8.z.',  phase: 0, node:'..Q.'},
-    {              node:'.A.B.', phase: 0.15},
+    {name:'MCLK',     wave:'hlhl'},
+    {name:'DBE',      wave:'10..',  phase: 0, node:'.M..'},
+    {name:'DIN/DOUT', wave:'8z..',  phase: 0, node:'..Q.'},
+    {                 node:'.A.B.', phase: 0.15},
   ],
   edge: [
 	'A+B cycle',
