@@ -448,7 +448,7 @@ test_delayed_memory_sequence:: proc(test_runner: ^testing.T) {
 		tick(times = 4)
 
 		expect_tick(test_runner, tick_index, 3)
-		gba_request_memory_sequence(sequential_cycle = LOW, read_write = read_write, address = address, data_out = data_out)
+		gba_request_memory_sequence(sequential_cycle = LOW, read_write = read_write, address = address, data_out = data_out, memory_access_size = .HALFWORD)
 		expect_signal(test_runner, 3, "MREQ", memory.memory_request.output, HIGH)
 		expect_signal(test_runner, 3, "SEQ", memory.sequential_cycle.output, LOW)
 		tick()
@@ -459,7 +459,7 @@ test_delayed_memory_sequence:: proc(test_runner: ^testing.T) {
 		expect_signal(test_runner, 4, "RW", memory.read_write.output, read_write)
 		tick()
 
-		memory_respond_memory_sequence(sequential_cycle = LOW, read_write = read_write, address = address)
+		memory_respond_memory_sequence(sequential_cycle = LOW, read_write = read_write, address = address, memory_access_size = .HALFWORD)
 		wait_cycles: uint = uint(memory_bus_latency_from_address(address, 4)) - 1
 		for i in 0 ..< wait_cycles {
 			expect_signal(test_runner, 5 + 2 * i, "WAIT", gba_core.wait.output, HIGH)

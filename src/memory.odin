@@ -787,19 +787,28 @@ memory_respond_memory_sequence:: proc(sequential_cycle: bool = LOW, read_write: 
 	assert(phase_index == 0, "Sequence may only be initiated in phase 1")
 	access_latency: = memory_bus_latency_from_address(address = address, width = 4/*memory.memory_access_size.output*/)
 	read_write: = memory.read_write.output
-	if access_latency == 1 do signal_force(&gba_core.wait, LOW)
+	latency: = (access_latency - 1) * 2
+	bus_width: = memory_bus_width_from_address(address)
+	if (bus_width != 2) && (bus_width != 4) {
+		signal_force(&gba_core.abort, HIGH)
+		signal_put(&gba_core.abort, HIGH, latency_override = 2) }
+	if (bus_width == 2) && (memory_access_size == .WORD) do latency *= 2
+	if latency == 0 do signal_force(&gba_core.wait, LOW)
 	else {
 		signal_force(&gba_core.wait, HIGH)
-		// log.info("wait scheduled to go low after", (access_latency - 1) * 2 + 1)
-		signal_put(&gba_core.wait, LOW, latency_override = (access_latency - 1) * 2) }
+		signal_put(&gba_core.wait, LOW, latency_override = latency) }
 	switch read_write {
 	case .READ:
 		data_in, ok: = memory_read_u32(address)
-		if ok do signal_put(&gba_core.data_in, data_in, latency_override = (access_latency - 1) * 2 + 1)
-		else do signal_put(&gba_core.abort, HIGH, latency_override = (access_latency - 1) * 2 + 1)
+		if ok do signal_put(&gba_core.data_in, data_in, latency_override = latency + 1)
+		else {
+			signal_put(&gba_core.abort, HIGH, latency_override = latency)
+			signal_put(&gba_core.abort, LOW, latency_override = latency + 2) }
 	case .WRITE:
 		ok: = memory_write_u32(address = address, value = data_out)
-		if ! ok do signal_put(&gba_core.abort, HIGH, latency_override = (access_latency - 1) * 2 + 1) } }
+		if ! ok {
+			signal_put(&gba_core.abort, HIGH, latency_override = latency)
+			signal_put(&gba_core.abort, HIGH, latency_override = latency + 2) } } }
 memory_respond_n_cycle:: proc(read_write: Memory_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
 	memory_respond_memory_sequence(false, read_write, address, data_out, memory_access_size) }
 memory_respond_s_cycle:: proc(read_write: Memory_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {

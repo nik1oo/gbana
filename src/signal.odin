@@ -49,7 +49,7 @@ signal_init:: proc(name: string, signal: ^Signal($T), latency: int = 1, callback
 	append_elem(&signals, signal) }
 signal_put:: proc(signal: ^Signal($T), data: T, latency_override: int = -1, loc: = #caller_location) {
 	if signal == nil do log.fatal("Signal is nil.", location = loc)
-	// fmt.println("Put", data, "on signal", signal.name, "at", loc)
+	if latency_override == 0 do signal_force(signal, data)
 	queue.push_front(&signal._queue, Signal_Data(T) { data = data, latency = (latency_override == -1) ? (signal.latency - 1) : (latency_override - 1) }) }
 signal_force:: proc(signal: ^Signal($T), data: T) {
 	signal.output = data
