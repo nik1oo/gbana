@@ -20,7 +20,9 @@ generate_random_addresses:: proc() -> [2]u32 {
 	valid_address: u32 = cast(u32)rand.int31_max(0x00003fff/4)
 	invalid_address: u32 = max(0x0e010000, rand.uint32())
 	return [2]u32{ valid_address, invalid_address } }
-generate_random_halfword_bus_address:: proc() -> u32 {
+generate_random_VRAM_address:: proc() -> u32 {
+	return VIDEO_RAM_RANGE[START] + cast(u32)rand.int31_max(i32(VIDEO_RAM_RANGE[END] - VIDEO_RAM_RANGE[START])) }
+generate_random_EWRAM_address:: proc() -> u32 {
 	return EXTERNAL_WORK_RAM_RANGE[START] + cast(u32)rand.int31_max(i32(EXTERNAL_WORK_RAM_RANGE[END] - EXTERNAL_WORK_RAM_RANGE[START])) }
 generate_random_byte_bus_address:: proc(loc: = #caller_location) -> u32 {
 	log.fatal("There is no byte-wide bus on the GBA.", location = loc)
@@ -358,7 +360,7 @@ test_data_write_sequence:: proc(test_runner: ^testing.T) {
 		tick(times = 4)
 
 		expect_tick(test_runner, tick_index, 3)
-		gba_request_memory_sequence(sequential_cycle = LOW, read_write = .WRITE, address = address, data_out = data_out)
+		gba_request_data_write_cycle(sequential_cycle = LOW, address = address, data_out = data_out)
 		expect_signal(test_runner, 3, "MREQ", memory.memory_request.output, HIGH)
 		expect_signal(test_runner, 3, "SEQ", memory.sequential_cycle.output, LOW)
 		tick()
@@ -370,7 +372,7 @@ test_data_write_sequence:: proc(test_runner: ^testing.T) {
 		tick()
 
 		expect_tick(test_runner, tick_index, 5)
-		memory_respond_memory_sequence(sequential_cycle = LOW, read_write = .WRITE, address = address)
+		memory_respond_data_write_cycle(sequential_cycle = LOW, address = address)
 		expect_signal(test_runner, 5, "RW", memory.read_write.output, Memory_Read_Write.WRITE)
 		expect_signal(test_runner, 5, "A", memory.address.output, address)
 		expect_signal(test_runner, 5, "DOUT", memory.data_out.output, data_out)
@@ -388,7 +390,7 @@ test_data_write_sequence:: proc(test_runner: ^testing.T) {
 		else do expect_signal(test_runner, 7, "ABORT", gba_core.abort.output, HIGH)
 		tick()
 
-		if testing.failed(test_runner) || PRINT_ALL_TEST_TIMELINES do log.info("\n", timeline_print(name = "Memory Sequence"), sep = "") } }
+		if testing.failed(test_runner) || PRINT_ALL_TEST_TIMELINES do log.info("\n", timeline_print(name = "Data Write Sequence"), sep = "") } }
 
 
 @(test)
@@ -397,14 +399,13 @@ test_data_read_sequence:: proc(test_runner: ^testing.T) {
 	context = initialize_context(&state)
 	allocate()
 	addresses: = generate_random_addresses()
-	data_out: = rand.uint32()
 
 	for address in addresses {
 		initialize()
 		tick(times = 4)
 
 		expect_tick(test_runner, tick_index, 3)
-		gba_request_memory_sequence(sequential_cycle = LOW, read_write = .READ, address = address, data_out = data_out)
+		gba_request_data_read_cycle(sequential_cycle = LOW, address = address)
 		expect_signal(test_runner, 3, "MREQ", memory.memory_request.output, HIGH)
 		expect_signal(test_runner, 3, "SEQ", memory.sequential_cycle.output, LOW)
 		tick()
@@ -416,7 +417,7 @@ test_data_read_sequence:: proc(test_runner: ^testing.T) {
 		tick()
 
 		expect_tick(test_runner, tick_index, 5)
-		memory_respond_memory_sequence(sequential_cycle = LOW, read_write = .READ, address = address)
+		memory_respond_data_read_cycle(sequential_cycle = LOW, address = address)
 		expect_signal(test_runner, 5, "RW", memory.read_write.output, Memory_Read_Write.READ)
 		expect_signal(test_runner, 5, "A", memory.address.output, address)
 		expect_signal(test_runner, 5, "WAIT", gba_core.wait.output, LOW)
@@ -432,7 +433,7 @@ test_data_read_sequence:: proc(test_runner: ^testing.T) {
 		else do expect_signal(test_runner, 7, "ABORT", gba_core.abort.output, HIGH)
 		tick()
 
-		if testing.failed(test_runner) || PRINT_ALL_TEST_TIMELINES do log.info("\n", timeline_print(name = "Memory Sequence"), sep = "") } }
+		if testing.failed(test_runner) || PRINT_ALL_TEST_TIMELINES do log.info("\n", timeline_print(name = "Data Read Sequence"), sep = "") } }
 
 
 @(test)
@@ -440,7 +441,7 @@ test_delayed_memory_sequence:: proc(test_runner: ^testing.T) {
 	using state: State
 	context = initialize_context(&state)
 	allocate()
-	address: = generate_random_halfword_bus_address()
+	address: = generate_random_EWRAM_address()
 	data_out: = rand.uint32()
 
 	for read_write in Memory_Read_Write {
@@ -485,45 +486,144 @@ test_delayed_memory_sequence:: proc(test_runner: ^testing.T) {
 		if read_write == .WRITE do expect_signal(test_runner, 7 + 2 * wait_cycles, "DOUT", memory.data_out.output, data_out)
 		tick()
 
-		if testing.failed(test_runner) || PRINT_ALL_TEST_TIMELINES do log.info("\n", timeline_print(name = "Memory Sequence"), sep = "") } }
+		if testing.failed(test_runner) || PRINT_ALL_TEST_TIMELINES do log.info("\n", timeline_print(name = "Delayed Memory Sequence"), sep = "") } }
 
 
 @(test)
-test_halfword_memory_sequence:: proc(test_runner: ^testing.T) { }
+test_halfword_memory_sequence:: proc(test_runner: ^testing.T) {
+	using state: State
+	context = initialize_context(&state)
+	allocate()
+	address: = generate_random_VRAM_address()
+	data_out: = rand.uint32()
+
+	for read_write in Memory_Read_Write {
+		initialize()
+		tick(times = 4)
+
+		expect_tick(test_runner, tick_index, 3)
+		gba_request_memory_sequence(sequential_cycle = LOW, read_write = read_write, address = address, data_out = data_out)
+		expect_signal(test_runner, 3, "MREQ", memory.memory_request.output, HIGH)
+		expect_signal(test_runner, 3, "SEQ", memory.sequential_cycle.output, LOW)
+		tick()
+
+		expect_tick(test_runner, tick_index, 4)
+		expect_signal(test_runner, 4, "MREQ", memory.memory_request.output, HIGH)
+		expect_signal(test_runner, 4, "SEQ", memory.sequential_cycle.output, LOW)
+		expect_signal(test_runner, 4, "RW", memory.read_write.output, read_write)
+		tick()
+
+		expect_tick(test_runner, tick_index, 5)
+		memory_respond_memory_sequence(sequential_cycle = LOW, read_write = read_write, address = address)
+		// VRAM has a 16-bit-wide bus and an access latency of 2 cycles for word-sized requests. //
+		for i in 0 ..< 4 {
+			expect_signal(test_runner, 5 + uint(i), "WAIT", gba_core.wait.output, HIGH)
+			tick() }
+
+		expect_signal(test_runner, 9, "WAIT", gba_core.wait.output, LOW)
+		expect_signal(test_runner, 9, "RW", memory.read_write.output, read_write)
+		expect_signal(test_runner, 9, "A", memory.address.output, address)
+		if read_write == .WRITE do expect_signal(test_runner, 9, "DOUT", memory.data_out.output, data_out)
+		expect_signal(test_runner, 9, "WAIT", gba_core.wait.output, LOW)
+		tick()
+
+		expect_tick(test_runner, tick_index, 10)
+		expect_signal(test_runner, 10, "A", memory.address.output, address)
+		if read_write == .WRITE do expect_signal(test_runner, 10, "DOUT", memory.data_out.output, data_out)
+		else do expect_signal(test_runner, 10, "DIN", gba_core.data_in.output, memory_read_u32(address))
+		tick()
+
+		expect_tick(test_runner, tick_index, 11)
+		if read_write == .WRITE do expect_signal(test_runner, 11, "DOUT", memory.data_out.output, data_out)
+		expect_signal(test_runner, 11, "ABORT", gba_core.abort.output, LOW)
+		tick()
+
+		if testing.failed(test_runner) || PRINT_ALL_TEST_TIMELINES do log.info("\n", timeline_print(name = "Halfword Memory Sequence"), sep = "") } }
 
 
 @(test)
-test_byte_memory_sequence:: proc(test_runner: ^testing.T) { }
+test_byte_memory_sequence:: proc(test_runner: ^testing.T) {
+	/* Byte-wide-bus memory exists only on cartridges with SRAM memory. GBANA emulates a cartridge with Flash memory. */ }
 
 
 @(test)
 test_reset_sequence:: proc(test_runner: ^testing.T) {
-	// test_runner._log_allocator = runtime.heap_allocator()
-	// init()
-	// address_sequence: [dynamic]u32
-	// tick()
-	// for tick(n = 8) {
-	// 	if tick_index <= 1 do testing.expect(test_runner, gba_core.reset.output == HIGH)
-	// 	else do testing.expect(test_runner, gba_core.reset.output == LOW)
-	// 	if tick_index <= 5 do testing.expect(test_runner, memory.memory_request.output == LOW)
-	// 	else do testing.expect(test_runner, memory.memory_request.output == HIGH)
-	// 	if tick_index <= 7 do testing.expect(test_runner, memory.sequential_cycle.output == LOW)
-	// 	else do testing.expect(test_runner, memory.sequential_cycle.output == HIGH)
-	// 	if tick_index <= 5 do testing.expect(test_runner, gba_core.execute_cycle.output == LOW)
-	// 	else do testing.expect(test_runner, gba_core.execute_cycle.output == HIGH)
-	// 	append(&address_sequence, memory.address.output) }
-	// for i in 0 ..< 6 {
-	// 	testing.expect(test_runner, address_sequence[1 + 2 * i] == address_sequence[2 + 2 * i]) }
-	// testing.expect(test_runner, (address_sequence[3] == address_sequence[1] + 2) || (address_sequence[3] == address_sequence[1] + 4))
-	// testing.expect(test_runner, (address_sequence[5] == address_sequence[3] + 2) || (address_sequence[5] == address_sequence[3] + 4))
-	// testing.expect(test_runner, address_sequence[7] == 0)
-	// testing.expect(test_runner, address_sequence[9] == address_sequence[7] + 4)
-	// testing.expect(test_runner, address_sequence[11] == address_sequence[9] + 4)
-}
+	using state: State
+	context = initialize_context(&state)
+	allocate()
+	initialize()
+	tick(times = 2)
+
+	gba_request_reset_sequence()
+	memory_respond_reset_sequence()
+
+	for i in uint(1) ..= uint(2) {
+		expect_tick(test_runner, tick_index, i)
+		expect_signal(test_runner, i, "RESET", gba_core.reset.output, HIGH)
+		expect_signal(test_runner, i, "MREQ", memory.memory_request.output, LOW)
+		expect_signal(test_runner, i, "SEQ", memory.sequential_cycle.output, LOW)
+		expect_signal(test_runner, i, "EXEC", gba_core.execute_cycle.output, LOW)
+		tick() }
+
+	for i in uint(3) ..= uint(6) {
+		expect_tick(test_runner, tick_index, i)
+		expect_signal(test_runner, i, "RESET", gba_core.reset.output, LOW)
+		expect_signal(test_runner, i, "MREQ", memory.memory_request.output, LOW)
+		expect_signal(test_runner, i, "SEQ", memory.sequential_cycle.output, LOW)
+		expect_signal(test_runner, i, "EXEC", gba_core.execute_cycle.output, LOW)
+		tick() }
+
+	for i in uint(7) ..= uint(8) {
+		expect_tick(test_runner, tick_index, i)
+		expect_signal(test_runner, i, "RESET", gba_core.reset.output, LOW)
+		expect_signal(test_runner, i, "MREQ", memory.memory_request.output, HIGH)
+		expect_signal(test_runner, i, "SEQ", memory.sequential_cycle.output, LOW)
+		expect_signal(test_runner, i, "EXEC", gba_core.execute_cycle.output, HIGH)
+		tick() }
+
+	for i in uint(9) ..= uint(10) {
+		expect_tick(test_runner, tick_index, i)
+		expect_signal(test_runner, i, "RESET", gba_core.reset.output, LOW)
+		expect_signal(test_runner, i, "MREQ", memory.memory_request.output, HIGH)
+		expect_signal(test_runner, i, "SEQ", memory.sequential_cycle.output, HIGH)
+		expect_signal(test_runner, i, "EXEC", gba_core.execute_cycle.output, HIGH)
+		if tick_index % 2 == 0 do expect_signal(test_runner, 10, "DIN", gba_core.data_in.output, memory_read_u32(0))
+		tick() }
+
+	if testing.failed(test_runner) || PRINT_ALL_TEST_TIMELINES do log.info("\n", timeline_print(name = "Reset Sequence"), sep = "") }
 
 
 @(test)
-test_general_timing:: proc(test_runner: ^testing.T) { }
+test_general_timing:: proc(test_runner: ^testing.T) {
+	using state: State
+	context = initialize_context(&state)
+	allocate()
+	initialize()
+	tick()
+
+	expect_tick(test_runner, tick_index, 0)
+	signal_put(&memory.memory_request, HIGH, latency_override = 1)
+	signal_put(&memory.sequential_cycle, HIGH, latency_override = 1)
+	signal_put(&gba_core.execute_cycle, HIGH, latency_override = 1)
+	signal_put(&memory.address, 0b0, latency_override = 1)
+	signal_put(&gba_core.big_endian, HIGH, latency_override = 1)
+	signal_put(&gba_core.synchronous_interrupts_enable, HIGH, latency_override = 1)
+	signal_put(&memory.read_write, Memory_Read_Write.READ, latency_override = 2)
+	signal_put(&memory.memory_access_size, Memory_Access_Size.WORD, latency_override = 2)
+	signal_put(&memory.lock, HIGH, latency_override = 2)
+	signal_put(&gba_core.processor_mode, GBA_Processor_Mode.System, latency_override = 2)
+	signal_put(&gba_core.executing_thumb, HIGH, latency_override = 2)
+	signal_put(&memory.op_code_fetch, HIGH, latency_override = 2)
+	signal_put(&gba_core.synchronous_interrupts_enable, HIGH, latency_override = 2)
+	tick()
+
+	expect_tick(test_runner, tick_index, 1)
+	tick()
+
+	expect_tick(test_runner, tick_index, 2)
+	tick()
+
+	if testing.failed(test_runner) || PRINT_ALL_TEST_TIMELINES do log.info("\n", timeline_print(name = "General Timing"), sep = "") }
 
 
 @(test)

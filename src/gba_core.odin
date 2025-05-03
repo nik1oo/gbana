@@ -41,7 +41,7 @@ initialize_gba_core_interface:: proc() {
 	signal_init("FIQ",    &gba_core.fast_interrupt_request,        1, gba_fast_interrupt_request_callback,        write_phase = { HIGH_PHASE            })
 	signal_init("ISYNC",  &gba_core.synchronous_interrupts_enable, 1, gba_synchronous_interrupts_enable_callback, write_phase = { LOW_PHASE, HIGH_PHASE })
 	signal_init("RESET",  &gba_core.reset,                         1, gba_reset_callback,                         write_phase = { LOW_PHASE             })
-	signal_init("BIGEND", &gba_core.big_endian,                    1, gba_big_endian_callback,                    write_phase = { HIGH_PHASE            })
+	signal_init("BIGEND", &gba_core.big_endian,                    1, gba_big_endian_callback,                    write_phase = { LOW_PHASE             })
 	signal_init("ENIN",   &gba_core.input_enable,                  1, gba_input_enable_callback,                  write_phase = { LOW_PHASE, HIGH_PHASE })
 	signal_init("ENOUT",  &gba_core.output_enable,                 1, gba_output_enable_callback,                 write_phase = { LOW_PHASE, HIGH_PHASE })
 	signal_init("DBE",    &gba_core.data_bus_enable,               1, gba_data_bus_enable_callback,               write_phase = { LOW_PHASE             })
@@ -91,12 +91,7 @@ gba_wait_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
 gba_interrupt_request_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
 gba_fast_interrupt_request_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
 gba_synchronous_interrupts_enable_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
-gba_reset_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) {
-	using state: ^State = cast(^State)context.user_ptr
-	if new_output == false {
-		signal_put(&memory.memory_request, true, latency_override = 4)
-		signal_put(&gba_core.execute_cycle, true, latency_override = 5)
-		signal_put(&memory.sequential_cycle, true, latency_override = 6) } }
+gba_reset_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
 gba_big_endian_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
 gba_input_enable_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
 gba_output_enable_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
@@ -152,15 +147,22 @@ gba_request_data_write_cycle:: proc(sequential_cycle: bool = false, address: u32
 	gba_request_memory_sequence(sequential_cycle, .WRITE, address, data_out, memory_access_size, loc) }
 gba_request_data_read_cycle:: proc(sequential_cycle: bool = false, address: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD, loc: = #caller_location) {
 	gba_request_memory_sequence(sequential_cycle, .READ, address, 0b0, memory_access_size, loc) }
-gba_request_halfword_memory_sequence:: proc(sequential_cycle: bool = false, read_write: Memory_Read_Write = .READ, address: u32 = 0b0, loc: = #caller_location) {
+gba_request_reset_sequence:: proc(loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
-	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc) }
-gba_request_byte_memory_sequence:: proc(sequential_cycle: bool = false, read_write: Memory_Read_Write = .READ, address: u32 = 0b0, loc: = #caller_location) {
-	using state: ^State = cast(^State)context.user_ptr
-	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc) }
-gba_initiate_reset_sequence:: proc(loc: = #caller_location) {
-	using state: ^State = cast(^State)context.user_ptr
-	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc) }
+	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc)
+	signal_force(&gba_core.reset, HIGH)
+	signal_put(&gba_core.reset, LOW, latency_override = 2)
+	initial_address: u32 = cast(u32)rand.int31_max(0x00003fff/4)
+	signal_put(&memory.address, initial_address, latency_override = 2)
+	signal_put(&memory.address, initial_address + 4, latency_override = 4)
+	signal_put(&memory.address, initial_address + 8, latency_override = 6)
+	signal_put(&memory.address, 0, latency_override = 8)
+	signal_force(&memory.memory_request, LOW)
+	signal_put(&memory.memory_request, HIGH, latency_override = 6)
+	signal_force(&memory.sequential_cycle, LOW)
+	signal_put(&memory.sequential_cycle, HIGH, latency_override = 8)
+	signal_force(&gba_core.execute_cycle, LOW)
+	signal_put(&gba_core.execute_cycle, HIGH, latency_override = 6) }
 gba_request_branch_and_branch_with_link_instruction_cycle:: proc(instruction: GBA_Branch_and_Link_Instruction_Decoded, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
 	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc) }

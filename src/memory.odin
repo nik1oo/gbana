@@ -815,17 +815,14 @@ memory_respond_s_cycle:: proc(read_write: Memory_Read_Write = .READ, address: u3
 	memory_respond_memory_sequence(true, read_write, address, data_out, memory_access_size) }
 memory_respond_merged_is_cycle:: proc(read_write: Memory_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
 	memory_respond_memory_sequence(true, read_write, address, data_out, memory_access_size) }
-memory_respond_data_write_cycle:: proc() { }
-memory_respond_data_read_cycle:: proc() { }
-memory_respond_halfword_memory_sequence:: proc() { }
-memory_respond_byte_memory_sequence:: proc() { }
-
-
-
-
-
-
-memory_respond_reset_sequence:: proc() { }
+memory_respond_data_write_cycle:: proc(sequential_cycle: bool = LOW, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
+	memory_respond_memory_sequence(sequential_cycle, .WRITE, address, data_out, memory_access_size) }
+memory_respond_data_read_cycle:: proc(sequential_cycle: bool = LOW, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
+	memory_respond_memory_sequence(sequential_cycle, .READ, address, data_out, memory_access_size) }
+memory_respond_reset_sequence:: proc(loc: = #caller_location) {
+	using state: ^State = cast(^State)context.user_ptr
+	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc)
+	signal_put(&gba_core.data_in, memory_read_u32(0), latency_override = 9) }
 memory_respond_branch_and_branch_with_link_instruction_cycle:: proc(instruction: GBA_Branch_and_Link_Instruction_Decoded) { }
 memory_respond_thumb_branch_with_link_instruction_cycle:: proc() { }
 memory_respond_branch_and_exchange_instruction_cycle:: proc(instruction: GBA_Branch_and_Exchange_Instruction_Decoded) { }
