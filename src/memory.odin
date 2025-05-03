@@ -10,7 +10,7 @@ import "core:log"
 
 
 // INTERFACE //
-GBA_Read_Write:: enum u8 { WRITE, READ }
+Memory_Read_Write:: enum u8 { WRITE, READ }
 Memory_Access_Size:: enum u8 { BYTE, HALFWORD, WORD }
 Memory_Interface:: struct {
 	main_clock:                     Signal(bool),               // MCLK
@@ -22,7 +22,7 @@ Memory_Interface:: struct {
 	memory_request:                 Signal(bool),               // MREQ
 	sequential_cycle:               Signal(bool),               // SEQ
 	op_code_fetch:                  Signal(bool),               // OPC
-	read_write:                     Signal(GBA_Read_Write)      } // RW
+	read_write:                     Signal(Memory_Read_Write)      } // RW
 init_memory_interface:: proc() {
 	using state: ^State = cast(^State)context.user_ptr
 	memory.interface = {}
@@ -49,7 +49,7 @@ memory_address_callback:: proc(self: ^Signal(u32), old_output, new_output: u32) 
 memory_data_out_callback:: proc(self: ^Signal(u32), old_output, new_output: u32) {  }
 memory_memory_request_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
 memory_sequential_cycle_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
-memory_read_write_callback:: proc(self: ^Signal(GBA_Read_Write), old_output, new_output: GBA_Read_Write) { }
+memory_read_write_callback:: proc(self: ^Signal(Memory_Read_Write), old_output, new_output: Memory_Read_Write) { }
 memory_memory_access_size_callback:: proc(self: ^Signal(Memory_Access_Size), old_output, new_output: Memory_Access_Size) {  }
 memory_byte_latch_control_callback:: proc(self: ^Signal(u8), old_output, new_output: u8) {  }
 memory_lock_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
@@ -782,7 +782,7 @@ load_cartridge:: proc(filename: string)-> bool {
 
 
 // SEQUENCES //
-memory_respond_memory_sequence:: proc(sequential_cycle: bool = LOW, read_write: GBA_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
+memory_respond_memory_sequence:: proc(sequential_cycle: bool = LOW, read_write: Memory_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
 	using state: ^State = cast(^State)context.user_ptr
 	assert(phase_index == 0, "Sequence may only be initiated in phase 1")
 	access_latency: = memory_bus_latency_from_address(address = address, width = 4/*memory.memory_access_size.output*/)
@@ -790,7 +790,8 @@ memory_respond_memory_sequence:: proc(sequential_cycle: bool = LOW, read_write: 
 	if access_latency == 1 do signal_force(&gba_core.wait, LOW)
 	else {
 		signal_force(&gba_core.wait, HIGH)
-		signal_put(&gba_core.wait, LOW, latency_override = (access_latency - 1) * 2 + 1) }
+		// log.info("wait scheduled to go low after", (access_latency - 1) * 2 + 1)
+		signal_put(&gba_core.wait, LOW, latency_override = (access_latency - 1) * 2) }
 	switch read_write {
 	case .READ:
 		data_in, ok: = memory_read_u32(address)
@@ -799,9 +800,12 @@ memory_respond_memory_sequence:: proc(sequential_cycle: bool = LOW, read_write: 
 	case .WRITE:
 		ok: = memory_write_u32(address = address, value = data_out)
 		if ! ok do signal_put(&gba_core.abort, HIGH, latency_override = (access_latency - 1) * 2 + 1) } }
-memory_respond_n_cycle:: proc() { }
-memory_respond_s_cycle:: proc() { }
-memory_respond_merged_is_cycle:: proc() { }
+memory_respond_n_cycle:: proc(read_write: Memory_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
+	memory_respond_memory_sequence(false, read_write, address, data_out, memory_access_size) }
+memory_respond_s_cycle:: proc(read_write: Memory_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
+	memory_respond_memory_sequence(true, read_write, address, data_out, memory_access_size) }
+memory_respond_merged_is_cycle:: proc(read_write: Memory_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
+	memory_respond_memory_sequence(true, read_write, address, data_out, memory_access_size) }
 memory_respond_data_write_cycle:: proc() { }
 memory_respond_data_read_cycle:: proc() { }
 memory_respond_halfword_memory_sequence:: proc() { }

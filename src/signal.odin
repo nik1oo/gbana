@@ -8,7 +8,7 @@ HIGH:: true
 LOW:: false
 READ:: HIGH
 WRITE:: LOW
-Any_Signal:: union{ ^Signal(u32), ^Signal(uint), ^Signal(u8), ^Signal(bool), ^Signal(GBA_Processor_Mode), ^Signal(GBA_Read_Write), ^Signal(Memory_Access_Size) }
+Any_Signal:: union{ ^Signal(u32), ^Signal(uint), ^Signal(u8), ^Signal(bool), ^Signal(GBA_Processor_Mode), ^Signal(Memory_Read_Write), ^Signal(Memory_Access_Size) }
 
 
 // @(init) _:: proc() {

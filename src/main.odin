@@ -59,7 +59,7 @@ initialize:: proc() {
 	first_tick = true
 	tick_index = 0
 	cycle_index = 0
-	phase_index = 0
+	phase_index = 1
 	signals = make([dynamic]Any_Signal)
 	timeline = make(Timeline)
 	initialize_memory()
@@ -75,7 +75,7 @@ initialize:: proc() {
 	initialize_sio_controller()
 	initialize_oscillator()
 	initialize_speaker()
-	initialize_display()
+	// initialize_display()
 	initialize_buttons() }
 	// device_reset() }
 tick:: proc(n: uint = 0, times: int = 1) -> bool {

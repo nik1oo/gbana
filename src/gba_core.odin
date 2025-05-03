@@ -36,7 +36,7 @@ initialize_gba_core_interface:: proc() {
 	gba_core.interface = {}
 	signal_init("EXEC",   &gba_core.execute_cycle,                 1, gba_execute_cycle_callback,                 write_phase = { LOW_PHASE             })
 	signal_init("MCLK",   &gba_core.main_clock,                    2, main_clock_callback,                        write_phase = { LOW_PHASE, HIGH_PHASE })
-	signal_init("WAIT",   &gba_core.wait,                          1, gba_wait_callback,                          write_phase = { HIGH_PHASE            })
+	signal_init("WAIT",   &gba_core.wait,                          1, gba_wait_callback,                          write_phase = { LOW_PHASE             })
 	signal_init("IRQ",    &gba_core.interrupt_request,             1, gba_interrupt_request_callback,             write_phase = { HIGH_PHASE            })
 	signal_init("FIQ",    &gba_core.fast_interrupt_request,        1, gba_fast_interrupt_request_callback,        write_phase = { HIGH_PHASE            })
 	signal_init("ISYNC",  &gba_core.synchronous_interrupts_enable, 1, gba_synchronous_interrupts_enable_callback, write_phase = { LOW_PHASE, HIGH_PHASE })
@@ -112,7 +112,7 @@ gba_abort_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
 
 // SEQUENCES //
 GBA_Sequence_Type:: enum { MEMORY, INTERNAL }
-gba_request_memory_sequence:: proc(sequential_cycle: bool = false, read_write: GBA_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD, loc: = #caller_location) {
+gba_request_memory_sequence:: proc(sequential_cycle: bool = false, read_write: Memory_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
 	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc)
 	if sequential_cycle {
@@ -129,46 +129,33 @@ gba_request_memory_sequence:: proc(sequential_cycle: bool = false, read_write: G
 	signal_put(&memory.read_write, read_write, latency_override = 1)
 	signal_put(&memory.address, address, latency_override = 2)
 	if read_write == .WRITE do signal_put(&memory.data_out, data_out, latency_override = 2) }
-gba_request_n_cycle:: proc(read_write: GBA_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD, loc: = #caller_location) {
-	using state: ^State = cast(^State)context.user_ptr
+gba_request_n_cycle:: proc(read_write: Memory_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD, loc: = #caller_location) {
 	gba_request_memory_sequence(sequential_cycle = false, read_write = read_write, address = address, data_out = data_out, memory_access_size = memory_access_size) }
-gba_request_s_cycle:: proc(read_write: GBA_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD, loc: = #caller_location) {
-	using state: ^State = cast(^State)context.user_ptr
+gba_request_s_cycle:: proc(read_write: Memory_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD, loc: = #caller_location) {
 	gba_request_memory_sequence(sequential_cycle = true, read_write = read_write, address = address, data_out = data_out, memory_access_size = memory_access_size) }
 gba_initiate_i_cycle:: proc(loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
 	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc)
 	signal_force(&memory.memory_request, LOW)
 	signal_force(&memory.sequential_cycle, LOW) }
-gba_request_merged_is_cycle:: proc(read_write: GBA_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, loc: = #caller_location) {
+gba_request_merged_is_cycle:: proc(read_write: Memory_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
 	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc)
 	signal_force(&memory.memory_request, LOW)
 	signal_force(&memory.sequential_cycle, LOW)
-	// signal_put(&memory.memory_request, HIGH, latency_override = 2)
-	// signal_put(&memory.sequential_cycle, HIGH, latency_override = 2)
-	// signal_put(&memory.read_write, read_write, latency_override = 2)
+	signal_put(&memory.memory_request, HIGH, latency_override = 2)
+	signal_put(&memory.sequential_cycle, HIGH, latency_override = 2)
+	signal_put(&memory.read_write, read_write, latency_override = 2)
 	signal_put(&memory.address, address, latency_override = 2)
 	if read_write == .WRITE do signal_put(&memory.data_out, data_out, latency_override = 2) }
-gba_request_data_write_cycle:: proc(sequential_cycle: bool = false, address: u32 = 0b0, data_out: u32 = 0b0, loc: = #caller_location) {
-	using state: ^State = cast(^State)context.user_ptr
-	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc)
-	signal_force(&memory.memory_request, HIGH)
-	signal_force(&memory.sequential_cycle, sequential_cycle)
-	signal_put(&memory.read_write, GBA_Read_Write.WRITE, latency_override = 1)
-	signal_put(&memory.address, address, latency_override = 2)
-	signal_put(&memory.data_out, data_out, latency_override = 2) }
-gba_request_data_read_cycle:: proc(sequential_cycle: bool = false, address: u32 = 0b0, loc: = #caller_location) {
-	using state: ^State = cast(^State)context.user_ptr
-	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc)
-	signal_force(&memory.memory_request, HIGH)
-	signal_force(&memory.sequential_cycle, sequential_cycle)
-	signal_put(&memory.read_write, GBA_Read_Write.READ, latency_override = 1)
-	signal_put(&memory.address, address, latency_override = 2) }
-gba_request_halfword_memory_sequence:: proc(sequential_cycle: bool = false, read_write: GBA_Read_Write = .READ, address: u32 = 0b0, loc: = #caller_location) {
+gba_request_data_write_cycle:: proc(sequential_cycle: bool = false, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD, loc: = #caller_location) {
+	gba_request_memory_sequence(sequential_cycle, .WRITE, address, data_out, memory_access_size, loc) }
+gba_request_data_read_cycle:: proc(sequential_cycle: bool = false, address: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD, loc: = #caller_location) {
+	gba_request_memory_sequence(sequential_cycle, .READ, address, 0b0, memory_access_size, loc) }
+gba_request_halfword_memory_sequence:: proc(sequential_cycle: bool = false, read_write: Memory_Read_Write = .READ, address: u32 = 0b0, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
 	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc) }
-gba_request_byte_memory_sequence:: proc(sequential_cycle: bool = false, read_write: GBA_Read_Write = .READ, address: u32 = 0b0, loc: = #caller_location) {
+gba_request_byte_memory_sequence:: proc(sequential_cycle: bool = false, read_write: Memory_Read_Write = .READ, address: u32 = 0b0, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
 	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc) }
 gba_initiate_reset_sequence:: proc(loc: = #caller_location) {
@@ -195,7 +182,7 @@ gba_request_data_processing_instruction_cycle:: proc(alu: u32, destination_is_pc
 		signal_force(&memory.memory_request, HIGH)
 		signal_force(&memory.sequential_cycle, HIGH)
 		signal_force(&memory.op_code_fetch, HIGH)
-		signal_force(&memory.read_write, GBA_Read_Write.READ)
+		signal_force(&memory.read_write, Memory_Read_Write.READ)
 		signal_force(&memory.address, pc + 2 * L)
 		signal_force(&memory.memory_access_size, i)
 	// dest=pc //
