@@ -34,7 +34,7 @@ timeline_print:: proc(handle: os.Handle = 0, name: string = "") -> string {
 	defer table.destroy(tbl)
 	table.caption(tbl, (name == "") ? "Timeline" : name)
 	table.padding(tbl, 1, 1)
-	table.header(tbl, "tick", "cycle", "phase", "MCLK", "MREQ", "SEQ", "RW", "A", "DOUT", "WAIT", "DIN", "EXEC")
+	table.header(tbl, "tick", "cycle", "phase", "MCLK", "MREQ", "SEQ", "RW", "A", "DOUT", "WAIT", "DIN", "EXEC", "ABORT")
 	for node, i in timeline {
 		table.row(tbl,
 			node.tick_index,
@@ -48,6 +48,7 @@ timeline_print:: proc(handle: os.Handle = 0, name: string = "") -> string {
 			format_bus(node.memory_interface.data_out),
 			format_line(node.gba_core_interface.wait),
 			format_bus(node.gba_core_interface.data_in),
-			format_line(node.gba_core_interface.execute_cycle)) }
+			format_line(node.gba_core_interface.execute_cycle),
+			format_line(node.gba_core_interface.abort)) }
 	table.write_plain_table(stream, tbl)
 	return strings.to_string(sb) }

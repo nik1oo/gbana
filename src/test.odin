@@ -37,25 +37,25 @@ test_signal:: proc(test_runner: ^testing.T) {
 	signal: Signal(bool)
 
 	signal_init(name = "S", signal = &signal, latency = 1, callback = signal_stub_callback)
-	signal_force(&signal, LOW)
-	signal_put(&signal, HIGH)
+	signal_put(&signal, LOW, 0)
+	signal_put(&signal, HIGH, 1)
 	expect_signal(test_runner, 0, "S", signal.output, LOW)
 	signal_tick(&signal)
 
 	expect_signal(test_runner, 1, "S", signal.output, HIGH)
-	signal_put(&signal, LOW, latency_override = 1)
+	signal_put(&signal, LOW, 1)
 	signal_tick(&signal)
 
 	expect_signal(test_runner, 2, "S", signal.output, LOW)
-	signal_put(&signal, HIGH, latency_override = 2)
+	signal_put(&signal, HIGH, 2)
 	signal_tick(&signal)
 
 	expect_signal(test_runner, 3, "S", signal.output, LOW)
 	signal_tick(&signal)
 
 	expect_signal(test_runner, 4, "S", signal.output, HIGH)
-	signal_put(&signal, LOW, latency_override = 2)
-	signal_put(&signal, HIGH, latency_override = 4)
+	signal_put(&signal, LOW, 2)
+	signal_put(&signal, HIGH, 4)
 	signal_tick(&signal)
 
 	expect_signal(test_runner, 5, "S", signal.output, HIGH)
@@ -121,19 +121,19 @@ test_memory_sequence:: proc(test_runner: ^testing.T) {
 		expect_signal(test_runner, 6, "A", memory.address.output, address)
 		if read_write == .WRITE do expect_signal(test_runner, 6, "DOUT", memory.data_out.output, data_out)
 		else do expect_signal(test_runner, 6, "DIN", gba_core.data_in.output, memory_read_u32(address))
+		if address == addresses[0] do expect_signal(test_runner, 6, "ABORT", gba_core.abort.output, LOW)
+		else do expect_signal(test_runner, 6, "ABORT", gba_core.abort.output, HIGH)
 		tick()
 
 		expect_tick(test_runner, tick_index, 7)
 		if read_write == .WRITE do expect_signal(test_runner, 7, "DOUT", memory.data_out.output, data_out)
-		if address == addresses[0] do expect_signal(test_runner, 7, "ABORT", gba_core.abort.output, LOW)
-		else do expect_signal(test_runner, 7, "ABORT", gba_core.abort.output, HIGH)
 		tick()
 
 		if testing.failed(test_runner) || PRINT_ALL_TEST_TIMELINES do log.info("\n", timeline_print(name = "Memory Sequence"), sep = "") } }
 
 
 @(test)
-test_n_cycle:: proc(test_runner: ^testing.T) {
+test_N_cycle:: proc(test_runner: ^testing.T) {
 	using state: State
 	context = initialize_context(&state)
 	allocate()
@@ -157,7 +157,7 @@ test_n_cycle:: proc(test_runner: ^testing.T) {
 		tick()
 
 		expect_tick(test_runner, tick_index, 5)
-		memory_respond_n_cycle(read_write = read_write, address = address)
+		memory_respond_N_cycle(read_write = read_write, address = address)
 		expect_signal(test_runner, 5, "RW", memory.read_write.output, read_write)
 		expect_signal(test_runner, 5, "A", memory.address.output, address)
 		if read_write == .WRITE do expect_signal(test_runner, 5, "DOUT", memory.data_out.output, data_out)
@@ -168,19 +168,19 @@ test_n_cycle:: proc(test_runner: ^testing.T) {
 		expect_signal(test_runner, 6, "A", memory.address.output, address)
 		if read_write == .WRITE do expect_signal(test_runner, 6, "DOUT", memory.data_out.output, data_out)
 		else do expect_signal(test_runner, 6, "DIN", gba_core.data_in.output, memory_read_u32(address))
+		if address == addresses[0] do expect_signal(test_runner, 6, "ABORT", gba_core.abort.output, LOW)
+		else do expect_signal(test_runner, 6, "ABORT", gba_core.abort.output, HIGH)
 		tick()
 
 		expect_tick(test_runner, tick_index, 7)
 		if read_write == .WRITE do expect_signal(test_runner, 7, "DOUT", memory.data_out.output, data_out)
-		if address == addresses[0] do expect_signal(test_runner, 7, "ABORT", gba_core.abort.output, LOW)
-		else do expect_signal(test_runner, 7, "ABORT", gba_core.abort.output, HIGH)
 		tick()
 
 		if testing.failed(test_runner) || PRINT_ALL_TEST_TIMELINES do log.info("\n", timeline_print(name = "N-Cycle"), sep = "") } }
 
 
 @(test)
-test_s_cycle:: proc(test_runner: ^testing.T) {
+test_S_cycle:: proc(test_runner: ^testing.T) {
 	using state: State
 	context = initialize_context(&state)
 	allocate()
@@ -205,7 +205,7 @@ test_s_cycle:: proc(test_runner: ^testing.T) {
 
 		expect_tick(test_runner, tick_index, 5)
 		gba_request_memory_sequence(sequential_cycle = HIGH, read_write = read_write, address = address + 0, data_out = data_out)
-		memory_respond_n_cycle(read_write = read_write, address = address)
+		memory_respond_N_cycle(read_write = read_write, address = address)
 		expect_signal(test_runner, 5, "MREQ", memory.memory_request.output, HIGH)
 		expect_signal(test_runner, 5, "SEQ", memory.sequential_cycle.output, HIGH)
 		expect_signal(test_runner, 5, "A", memory.address.output, address)
@@ -222,7 +222,7 @@ test_s_cycle:: proc(test_runner: ^testing.T) {
 
 		expect_tick(test_runner, tick_index, 7)
 		gba_request_memory_sequence(sequential_cycle = HIGH, read_write = read_write, address = address + 4, data_out = data_out)
-		memory_respond_s_cycle(read_write = read_write, address = address)
+		memory_respond_S_cycle(read_write = read_write, address = address)
 		expect_signal(test_runner, 7, "MREQ", memory.memory_request.output, HIGH)
 		expect_signal(test_runner, 7, "SEQ", memory.sequential_cycle.output, HIGH)
 		expect_signal(test_runner, 7, "A", memory.address.output, address)
@@ -238,14 +238,14 @@ test_s_cycle:: proc(test_runner: ^testing.T) {
 		tick()
 
 		expect_tick(test_runner, tick_index, 9)
-		memory_respond_s_cycle(read_write = read_write, address = address)
+		memory_respond_S_cycle(read_write = read_write, address = address)
 		tick()
 
 		if testing.failed(test_runner) || PRINT_ALL_TEST_TIMELINES do log.info("\n", timeline_print(name = "S-Cycle"), sep = "") } }
 
 
 @(test)
-test_i_cycle:: proc(test_runner: ^testing.T) {
+test_I_cycle:: proc(test_runner: ^testing.T) {
 	using state: State
 	context = initialize_context(&state)
 	allocate()
@@ -254,7 +254,7 @@ test_i_cycle:: proc(test_runner: ^testing.T) {
 	tick(times = 2)
 
 	expect_tick(test_runner, tick_index, 1)
-	gba_initiate_i_cycle()
+	gba_initiate_I_cycle()
 	expect_signal(test_runner, 1, "MREQ", memory.memory_request.output, LOW)
 	expect_signal(test_runner, 1, "SEQ", memory.sequential_cycle.output, LOW)
 	tick()
@@ -268,7 +268,7 @@ test_i_cycle:: proc(test_runner: ^testing.T) {
 
 
 @(test)
-test_merged_is_cycle:: proc(test_runner: ^testing.T) {
+test_MIS_cycle:: proc(test_runner: ^testing.T) {
 	using state: State
 	context = initialize_context(&state)
 	allocate()
@@ -281,7 +281,7 @@ test_merged_is_cycle:: proc(test_runner: ^testing.T) {
 	tick(times = 4)
 
 	expect_tick(test_runner, tick_index, 3)
-	gba_request_merged_is_cycle(read_write = read_write, address = address, data_out = data_out)
+	gba_request_MIS_cycle(read_write = read_write, address = address, data_out = data_out)
 	expect_signal(test_runner, 3, "MREQ", memory.memory_request.output, LOW)
 	expect_signal(test_runner, 3, "SEQ", memory.sequential_cycle.output, LOW)
 	tick()
@@ -292,7 +292,7 @@ test_merged_is_cycle:: proc(test_runner: ^testing.T) {
 	tick()
 
 	expect_tick(test_runner, tick_index, 5)
-	memory_respond_merged_is_cycle(read_write = read_write, address = address)
+	memory_respond_MIS_cycle(read_write = read_write, address = address)
 	expect_signal(test_runner, 5, "MREQ", memory.memory_request.output, HIGH)
 	expect_signal(test_runner, 5, "SEQ", memory.sequential_cycle.output, HIGH)
 	expect_signal(test_runner, 5, "A", memory.address.output, address)
@@ -322,8 +322,8 @@ test_depipelined_addressing:: proc(test_runner: ^testing.T) {
 	tick(times = 4)
 
 	expect_tick(test_runner, tick_index, 3)
-	signal_force(&memory.memory_request, HIGH)
-	signal_force(&memory.sequential_cycle, LOW)
+	signal_put(&memory.memory_request, HIGH, 0)
+	signal_put(&memory.sequential_cycle, LOW, 0)
 	tick()
 
 	expect_tick(test_runner, tick_index, 4)
@@ -334,7 +334,7 @@ test_depipelined_addressing:: proc(test_runner: ^testing.T) {
 	expect_tick(test_runner, tick_index, 5)
 	expect_signal(test_runner, 5, "MREQ", memory.memory_request.output, HIGH)
 	expect_signal(test_runner, 5, "SEQ", memory.sequential_cycle.output, LOW)
-	signal_force(&memory.address, address)
+	signal_put(&memory.address, address, 0)
 	tick()
 
 	expect_tick(test_runner, tick_index, 6)
@@ -348,7 +348,7 @@ test_depipelined_addressing:: proc(test_runner: ^testing.T) {
 
 
 @(test)
-test_data_write_sequence:: proc(test_runner: ^testing.T) {
+test_DW_cycle:: proc(test_runner: ^testing.T) {
 	using state: State
 	context = initialize_context(&state)
 	allocate()
@@ -360,7 +360,7 @@ test_data_write_sequence:: proc(test_runner: ^testing.T) {
 		tick(times = 4)
 
 		expect_tick(test_runner, tick_index, 3)
-		gba_request_data_write_cycle(sequential_cycle = LOW, address = address, data_out = data_out)
+		gba_request_DW_cycle(sequential_cycle = LOW, address = address, data_out = data_out)
 		expect_signal(test_runner, 3, "MREQ", memory.memory_request.output, HIGH)
 		expect_signal(test_runner, 3, "SEQ", memory.sequential_cycle.output, LOW)
 		tick()
@@ -372,7 +372,7 @@ test_data_write_sequence:: proc(test_runner: ^testing.T) {
 		tick()
 
 		expect_tick(test_runner, tick_index, 5)
-		memory_respond_data_write_cycle(sequential_cycle = LOW, address = address)
+		memory_respond_DW_cycle(sequential_cycle = LOW, address = address)
 		expect_signal(test_runner, 5, "RW", memory.read_write.output, Memory_Read_Write.WRITE)
 		expect_signal(test_runner, 5, "A", memory.address.output, address)
 		expect_signal(test_runner, 5, "DOUT", memory.data_out.output, data_out)
@@ -382,19 +382,19 @@ test_data_write_sequence:: proc(test_runner: ^testing.T) {
 		expect_tick(test_runner, tick_index, 6)
 		expect_signal(test_runner, 6, "A", memory.address.output, address)
 		expect_signal(test_runner, 6, "DOUT", memory.data_out.output, data_out)
+		if address == addresses[0] do expect_signal(test_runner, 6, "ABORT", gba_core.abort.output, LOW)
+		else do expect_signal(test_runner, 6, "ABORT", gba_core.abort.output, HIGH)
 		tick()
 
 		expect_tick(test_runner, tick_index, 7)
 		expect_signal(test_runner, 7, "DOUT", memory.data_out.output, data_out)
-		if address == addresses[0] do expect_signal(test_runner, 7, "ABORT", gba_core.abort.output, LOW)
-		else do expect_signal(test_runner, 7, "ABORT", gba_core.abort.output, HIGH)
 		tick()
 
 		if testing.failed(test_runner) || PRINT_ALL_TEST_TIMELINES do log.info("\n", timeline_print(name = "Data Write Sequence"), sep = "") } }
 
 
 @(test)
-test_data_read_sequence:: proc(test_runner: ^testing.T) {
+test_DR_cycle:: proc(test_runner: ^testing.T) {
 	using state: State
 	context = initialize_context(&state)
 	allocate()
@@ -405,7 +405,7 @@ test_data_read_sequence:: proc(test_runner: ^testing.T) {
 		tick(times = 4)
 
 		expect_tick(test_runner, tick_index, 3)
-		gba_request_data_read_cycle(sequential_cycle = LOW, address = address)
+		gba_request_DR_cycle(sequential_cycle = LOW, address = address)
 		expect_signal(test_runner, 3, "MREQ", memory.memory_request.output, HIGH)
 		expect_signal(test_runner, 3, "SEQ", memory.sequential_cycle.output, LOW)
 		tick()
@@ -417,7 +417,7 @@ test_data_read_sequence:: proc(test_runner: ^testing.T) {
 		tick()
 
 		expect_tick(test_runner, tick_index, 5)
-		memory_respond_data_read_cycle(sequential_cycle = LOW, address = address)
+		memory_respond_DR_cycle(sequential_cycle = LOW, address = address)
 		expect_signal(test_runner, 5, "RW", memory.read_write.output, Memory_Read_Write.READ)
 		expect_signal(test_runner, 5, "A", memory.address.output, address)
 		expect_signal(test_runner, 5, "WAIT", gba_core.wait.output, LOW)
@@ -426,11 +426,8 @@ test_data_read_sequence:: proc(test_runner: ^testing.T) {
 		expect_tick(test_runner, tick_index, 6)
 		expect_signal(test_runner, 6, "A", memory.address.output, address)
 		expect_signal(test_runner, 6, "DIN", gba_core.data_in.output, memory_read_u32(address))
-		tick()
-
-		expect_tick(test_runner, tick_index, 7)
-		if address == addresses[0] do expect_signal(test_runner, 7, "ABORT", gba_core.abort.output, LOW)
-		else do expect_signal(test_runner, 7, "ABORT", gba_core.abort.output, HIGH)
+		if address == addresses[0] do expect_signal(test_runner, 6, "ABORT", gba_core.abort.output, LOW)
+		else do expect_signal(test_runner, 6, "ABORT", gba_core.abort.output, HIGH)
 		tick()
 
 		if testing.failed(test_runner) || PRINT_ALL_TEST_TIMELINES do log.info("\n", timeline_print(name = "Data Read Sequence"), sep = "") } }
@@ -547,15 +544,15 @@ test_byte_memory_sequence:: proc(test_runner: ^testing.T) {
 
 
 @(test)
-test_reset_sequence:: proc(test_runner: ^testing.T) {
+test_RS_cycle:: proc(test_runner: ^testing.T) {
 	using state: State
 	context = initialize_context(&state)
 	allocate()
 	initialize()
 	tick(times = 2)
 
-	gba_request_reset_sequence()
-	memory_respond_reset_sequence()
+	gba_request_RS_cycle()
+	memory_respond_RS_cycle()
 
 	for i in uint(1) ..= uint(2) {
 		expect_tick(test_runner, tick_index, i)
@@ -602,19 +599,19 @@ test_general_timing:: proc(test_runner: ^testing.T) {
 	tick()
 
 	expect_tick(test_runner, tick_index, 0)
-	signal_put(&memory.memory_request, HIGH, latency_override = 1)
-	signal_put(&memory.sequential_cycle, HIGH, latency_override = 1)
-	signal_put(&gba_core.execute_cycle, HIGH, latency_override = 1)
-	signal_put(&memory.address, 0b0, latency_override = 1)
-	signal_put(&gba_core.big_endian, HIGH, latency_override = 1)
-	signal_put(&gba_core.synchronous_interrupts_enable, HIGH, latency_override = 1)
-	signal_put(&memory.read_write, Memory_Read_Write.READ, latency_override = 2)
-	signal_put(&memory.memory_access_size, Memory_Access_Size.WORD, latency_override = 2)
-	signal_put(&memory.lock, HIGH, latency_override = 2)
-	signal_put(&gba_core.processor_mode, GBA_Processor_Mode.System, latency_override = 2)
-	signal_put(&gba_core.executing_thumb, HIGH, latency_override = 2)
-	signal_put(&memory.op_code_fetch, HIGH, latency_override = 2)
-	signal_put(&gba_core.synchronous_interrupts_enable, HIGH, latency_override = 2)
+	signal_put(&memory.memory_request, HIGH, 1)
+	signal_put(&memory.sequential_cycle, HIGH, 1)
+	signal_put(&gba_core.execute_cycle, HIGH, 1)
+	signal_put(&memory.address, 0b0, 1)
+	signal_put(&gba_core.big_endian, HIGH, 1)
+	signal_put(&gba_core.synchronous_interrupts_enable, HIGH, 1)
+	signal_put(&memory.read_write, Memory_Read_Write.READ, 2)
+	signal_put(&memory.memory_access_size, Memory_Access_Size.WORD, 2)
+	signal_put(&memory.lock, HIGH, 2)
+	signal_put(&gba_core.processor_mode, GBA_Processor_Mode.System, 2)
+	signal_put(&gba_core.executing_thumb, HIGH, 2)
+	signal_put(&memory.op_code_fetch, HIGH, 2)
+	signal_put(&gba_core.synchronous_interrupts_enable, HIGH, 2)
 	tick()
 
 	expect_tick(test_runner, tick_index, 1)
@@ -685,11 +682,11 @@ test_expection_control:: proc(test_runner: ^testing.T) {
 	tick()
 
 	expect_tick(test_runner, tick_index, 0)
-	signal_put(&gba_core.abort, HIGH, latency_override = 1)
-	signal_put(&gba_core.reset, HIGH, latency_override = 1)
-	signal_put(&gba_core.fast_interrupt_request, HIGH, latency_override = 2)
-	signal_put(&gba_core.interrupt_request, HIGH, latency_override = 2)
-	signal_put(&gba_core.abort, LOW, latency_override = 2)
+	signal_put(&gba_core.abort, HIGH, 1)
+	signal_put(&gba_core.reset, HIGH, 1)
+	signal_put(&gba_core.fast_interrupt_request, HIGH, 2)
+	signal_put(&gba_core.interrupt_request, HIGH, 2)
+	signal_put(&gba_core.abort, LOW, 2)
 	tick()
 
 	expect_tick(test_runner, tick_index, 1)
@@ -710,11 +707,11 @@ test_address_pipeline_control:: proc(test_runner: ^testing.T) {
 	tick()
 
 	expect_tick(test_runner, tick_index, 0)
-	signal_put(&memory.address, 0b0, latency_override = 1)
-	signal_put(&memory.read_write, Memory_Read_Write.READ, latency_override = 1)
-	signal_put(&memory.lock, true, latency_override = 1)
-	signal_put(&memory.op_code_fetch, true, latency_override = 1)
-	signal_put(&memory.memory_access_size, Memory_Access_Size.HALFWORD, latency_override = 1)
+	signal_put(&memory.address, 0b0, 1)
+	signal_put(&memory.read_write, Memory_Read_Write.READ, 1)
+	signal_put(&memory.lock, true, 1)
+	signal_put(&memory.op_code_fetch, true, 1)
+	signal_put(&memory.memory_access_size, Memory_Access_Size.HALFWORD, 1)
 	tick()
 
 	expect_tick(test_runner, tick_index, 1)
@@ -727,7 +724,22 @@ test_address_pipeline_control:: proc(test_runner: ^testing.T) {
 
 
 @(test)
-test_branch_and_branch_with_link_instruction_cycle:: proc(test_runner: ^testing.T) { }
+test_BABLI_cycle:: proc(test_runner: ^testing.T) {
+	using state: State
+	context = initialize_context(&state)
+	allocate()
+	alu: u32 = rand.uint32()
+	initialize()
+	tick(times = 2)
+
+	expect_tick(test_runner, tick_index, 1)
+	gba_request_BABLI_cycle(alu)
+	memory_respond_BABLI_cycle(alu)
+	// expect_signal(test_runner, 1, "MREQ", memory.memory_request.output, HIGH)
+	// expect_signal(test_runner, 1, "SEQ", memory.sequential_cycle.output, HIGH)
+	// expect_signal(test_runner, 1, "OPC", memory.op_code_fetch.output, HIGH)
+	// expect_signal(test_runner, 1, "RW", memory.read_write.output, Memory_Read_Write.READ)
+}
 
 
 @(test)
@@ -750,8 +762,8 @@ test_data_processing_instruction_cycle:: proc(test_runner: ^testing.T) {
 	tick(times = 2)
 
 	expect_tick(test_runner, tick_index, 1)
-	gba_request_data_processing_instruction_cycle(alu, destination_is_pc, shift_specified_by_register)
-	memory_respond_data_processing_instruction_cycle(alu, destination_is_pc, shift_specified_by_register)
+	gba_request_DPI_cycle(alu, destination_is_pc, shift_specified_by_register)
+	memory_respond_DPI_cycle(alu, destination_is_pc, shift_specified_by_register)
 	expect_signal(test_runner, 1, "MREQ", memory.memory_request.output, HIGH)
 	expect_signal(test_runner, 1, "SEQ", memory.sequential_cycle.output, HIGH)
 	expect_signal(test_runner, 1, "OPC", memory.op_code_fetch.output, HIGH)
@@ -998,3 +1010,7 @@ test_GBA_UMLAL_instruction:: proc(test_runner: ^testing.T) { }
 
 @(test)
 test_GBA_UMULL_instruction:: proc(test_runner: ^testing.T) { }
+
+
+@(test)
+timing_matrix:: proc(test_runner: ^testing.T) { }

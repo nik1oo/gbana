@@ -463,6 +463,18 @@ WIDTH:: 1
 // 	byte_index: = address - word_address
 // 	return 0
 // }
+memory_read:: proc(address: u32, memory_access_size: Memory_Access_Size) -> (value: u32, ok: bool) #optional_ok {
+	switch memory_access_size {
+	case .BYTE:
+		_value: u8; _value, ok = memory_read_u8(address)
+		return cast(u32)_value, ok
+	case .HALFWORD:
+		_value: u16; _value, ok = memory_read_u16(address)
+		return cast(u32)_value, ok
+	case .WORD:
+		_value: u32; _value, ok = memory_read_u32(address)
+		return cast(u32)_value, ok }
+	return 0, false }
 memory_read_u8:: proc(address: u32) -> (value: u8, ok: bool) #optional_ok {
 	using state: ^State = cast(^State)context.user_ptr
 	if ! memory_address_is_valid(address) do return 0, false
@@ -790,43 +802,43 @@ memory_respond_memory_sequence:: proc(sequential_cycle: bool = LOW, read_write: 
 	latency: = (access_latency - 1) * 2
 	bus_width: = memory_bus_width_from_address(address)
 	if (bus_width != 2) && (bus_width != 4) {
-		signal_force(&gba_core.abort, HIGH)
-		signal_put(&gba_core.abort, HIGH, latency_override = 2) }
+		signal_put(&gba_core.abort, HIGH, 0)
+		signal_put(&gba_core.abort, LOW, 2) }
 	if (bus_width == 2) && (memory_access_size == .WORD) do latency *= 2
-	if latency == 0 do signal_force(&gba_core.wait, LOW)
+	if latency == 0 do signal_put(&gba_core.wait, LOW, 0)
 	else {
-		signal_force(&gba_core.wait, HIGH)
-		signal_put(&gba_core.wait, LOW, latency_override = latency) }
+		signal_put(&gba_core.wait, HIGH, 0)
+		signal_put(&gba_core.wait, LOW, latency) }
 	switch read_write {
 	case .READ:
 		data_in, ok: = memory_read_u32(address)
-		if ok do signal_put(&gba_core.data_in, data_in, latency_override = latency + 1)
+		if ok do signal_put(&gba_core.data_in, data_in, latency + 1)
 		else {
-			signal_put(&gba_core.abort, HIGH, latency_override = latency)
-			signal_put(&gba_core.abort, LOW, latency_override = latency + 2) }
+			signal_put(&gba_core.abort, HIGH, latency)
+			signal_put(&gba_core.abort, LOW, latency + 2) }
 	case .WRITE:
 		ok: = memory_write_u32(address = address, value = data_out)
 		if ! ok {
-			signal_put(&gba_core.abort, HIGH, latency_override = latency)
-			signal_put(&gba_core.abort, HIGH, latency_override = latency + 2) } } }
-memory_respond_n_cycle:: proc(read_write: Memory_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
+			signal_put(&gba_core.abort, HIGH, latency)
+			signal_put(&gba_core.abort, HIGH, latency + 2) } } }
+memory_respond_N_cycle:: proc(read_write: Memory_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
 	memory_respond_memory_sequence(false, read_write, address, data_out, memory_access_size) }
-memory_respond_s_cycle:: proc(read_write: Memory_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
+memory_respond_S_cycle:: proc(read_write: Memory_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
 	memory_respond_memory_sequence(true, read_write, address, data_out, memory_access_size) }
-memory_respond_merged_is_cycle:: proc(read_write: Memory_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
+memory_respond_MIS_cycle:: proc(read_write: Memory_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
 	memory_respond_memory_sequence(true, read_write, address, data_out, memory_access_size) }
-memory_respond_data_write_cycle:: proc(sequential_cycle: bool = LOW, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
+memory_respond_DW_cycle:: proc(sequential_cycle: bool = LOW, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
 	memory_respond_memory_sequence(sequential_cycle, .WRITE, address, data_out, memory_access_size) }
-memory_respond_data_read_cycle:: proc(sequential_cycle: bool = LOW, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
+memory_respond_DR_cycle:: proc(sequential_cycle: bool = LOW, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
 	memory_respond_memory_sequence(sequential_cycle, .READ, address, data_out, memory_access_size) }
-memory_respond_reset_sequence:: proc(loc: = #caller_location) {
+memory_respond_RS_cycle:: proc(loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
-	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc)
-	signal_put(&gba_core.data_in, memory_read_u32(0), latency_override = 9) }
+	if phase_index != 0 do log.fatal("Sequence may only be responded in phase 1.", location = loc)
+	signal_put(&gba_core.data_in, memory_read_u32(0), 9) }
 memory_initiate_address_bus_control:: proc(address_bus_enable: bool, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
 	if phase_index != 0 do log.fatal("ABE may only be updated in phase 1", location = loc)
-	signal_force(&gba_core.address_bus_enable, address_bus_enable)
+	signal_put(&gba_core.address_bus_enable, address_bus_enable, 0)
 	memory.address.enabled = address_bus_enable
 	memory.read_write.enabled = address_bus_enable
 	memory.lock.enabled = address_bus_enable
@@ -835,36 +847,160 @@ memory_initiate_address_bus_control:: proc(address_bus_enable: bool, loc: = #cal
 memory_initiate_data_bus_control:: proc(data_bus_enable: bool, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
 	if phase_index != 0 do log.fatal("DBE may only be updated in phase 1", location = loc)
-	signal_force(&gba_core.data_bus_enable, data_bus_enable)
+	signal_put(&gba_core.data_bus_enable, data_bus_enable, 0)
 	gba_core.data_in.enabled = data_bus_enable
 	memory.data_out.enabled = data_bus_enable }
-memory_respond_branch_and_branch_with_link_instruction_cycle:: proc(instruction: GBA_Branch_and_Link_Instruction_Decoded) { }
-memory_respond_thumb_branch_with_link_instruction_cycle:: proc() { }
-memory_respond_branch_and_exchange_instruction_cycle:: proc(instruction: GBA_Branch_and_Exchange_Instruction_Decoded) { }
-memory_respond_data_processing_instruction_cycle:: proc(alu: u32, destination_is_pc: bool, shift_specified_by_register: bool, loc: = #caller_location) {
+memory_respond_BABLI_cycle:: proc(alu: u32, loc: = #caller_location) {
+	using state: ^State = cast(^State)context.user_ptr
+	if phase_index != 0 do log.fatal("Sequence may only be initiated in phase 1.", location = loc)
+	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
+	L: u32 = gba_core.executing_thumb.output ? 2 : 4
+	i: Memory_Access_Size = gba_core.executing_thumb.output ? .HALFWORD : .WORD
+	signal_put(&gba_core.data_in, memory_read(pc + 2 * L, i), 1)
+	signal_put(&gba_core.data_in, memory_read(alu, i), 3)
+	signal_put(&gba_core.data_in, memory_read(alu + L, i), 5) }
+memory_respond_TBLI_cycle:: proc(alu: u32, loc: = #caller_location) {
+	using state: ^State = cast(^State)context.user_ptr
+	if phase_index != 0 do log.fatal("Sequence may only be initiated in phase 1.", location = loc)
+	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
+	signal_put(&gba_core.data_in, memory_read(pc + 4, .HALFWORD), 1)
+	signal_put(&gba_core.data_in, memory_read(pc + 6, .HALFWORD), 3)
+	signal_put(&gba_core.data_in, memory_read(alu, .HALFWORD), 5)
+	signal_put(&gba_core.data_in, memory_read(alu + 2, .HALFWORD), 7) }
+memory_respond_BAEI_cycle:: proc(alu: u32, loc: = #caller_location) {
+	using state: ^State = cast(^State)context.user_ptr
+	if phase_index != 0 do log.fatal("Sequence may only be responded in phase 1.", location = loc)
+	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
+	T: = gba_core.executing_thumb.output
+	t: = ! T
+	W: u32 = T ? 2 : 4
+	w: u32 = T ? 4 : 2
+	I: Memory_Access_Size = T ? .HALFWORD : .WORD
+	i: Memory_Access_Size = T ? .WORD : .HALFWORD
+	signal_put(&gba_core.data_in, memory_read(pc + 2 * w, i), 1)
+	signal_put(&gba_core.data_in, memory_read(alu, i), 3)
+	signal_put(&gba_core.data_in, memory_read(alu + w, i), 5) }
+memory_respond_DPI_cycle:: proc(alu: u32, destination_is_pc: bool, shift_specified_by_register: bool, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
 	if phase_index != 0 do log.fatal("Data Write Sequence response may only be initiated in the LOW phase.", location = loc)
 	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
 	L: u32 = gba_core.executing_thumb.output ? 2 : 4
+	i: Memory_Access_Size = gba_core.executing_thumb.output ? .HALFWORD : .WORD
 	switch {
-	// normal //
-	case (! shift_specified_by_register) && (! destination_is_pc):
-		signal_put(&gba_core.data_in, memory_read_u32(pc + 2 * L), latency_override = 1)
-	// dest=pc //
-	case (! shift_specified_by_register) && destination_is_pc:
-	// shift(RS) //
-	case shift_specified_by_register && (! destination_is_pc):
-	// shift(RS) dest=pc //
-	case shift_specified_by_register && destination_is_pc:
-	case:
-	}
-}
-memory_respond_multiply_and_multiply_accumulate_instruction_cycle:: proc(instruction: GBA_Multiply_and_Multiply_Accumulate_Instruction_Decoded) { }
-memory_respond_load_register_instruction_cycle:: proc(instruction: GBA_Load_Register_Instruction_Decoded) { }
-memory_respond_store_register_instruction_cycle:: proc(instruction: GBA_Store_Register_Instruction_Decoded) { }
-memory_respond_load_multiple_register_instruction_cycle:: proc(instruction: GBA_Load_Multiple_Register_Instruction_Decoded) { }
-memory_respond_store_multiple_register_instruction_cycle:: proc(instruction: GBA_Store_Multiple_Register_Instruction_Decoded) { }
-memory_respond_data_swap_instruction_cycle:: proc(instruction: GBA_Data_Swap_Instruction_Decoded) { }
-memory_respond_software_interrupt_and_exception_instruction_cycle:: proc(instruction: GBA_Software_Interrupt_Instruction_Decoded) { }
-memory_respond_undefined_instruction_cycle:: proc() { }
-memory_respond_unexecuted_instruction_cycle:: proc() { }
+	case (! shift_specified_by_register) && (! destination_is_pc): // normal //
+		signal_put(&gba_core.data_in, memory_read(pc + 2 * L, i), 1)
+	case (! shift_specified_by_register) && destination_is_pc: // dest=pc //
+		signal_put(&gba_core.data_in, memory_read(pc + 2 * L, i), 1)
+		signal_put(&gba_core.data_in, memory_read(alu, i), 3)
+		signal_put(&gba_core.data_in, memory_read(alu + L, i), 5)
+	case shift_specified_by_register && (! destination_is_pc): // shift(RS) //
+		signal_put(&gba_core.data_in, memory_read(pc + 2 * L, i), 1)
+	case shift_specified_by_register && destination_is_pc: // shift(RS) dest=pc //
+		signal_put(&gba_core.data_in, memory_read(pc + 8, i), 1)
+		signal_put(&gba_core.data_in, memory_read(alu, i), 5)
+		signal_put(&gba_core.data_in, memory_read(alu + 4, i), 7)
+	case: } }
+memory_respond_MAMAI_cycle:: proc(accumulate: bool, long: bool, loc: = #caller_location) {
+	using state: ^State = cast(^State)context.user_ptr
+	if phase_index != 0 do log.fatal("Sequence may only be responded in phase 1.", location = loc)
+	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
+	L: u32 = gba_core.executing_thumb.output ? 2 : 4
+	i: Memory_Access_Size = gba_core.executing_thumb.output ? .HALFWORD : .WORD
+	switch {
+	case (! accumulate) && (! long):
+		signal_put(&gba_core.data_in, memory_read(pc + 2 * L, i), 1)
+	case accumulate && (! long):
+		signal_put(&gba_core.data_in, memory_read(pc + 8, .WORD), 1)
+	case (! accumulate) && long:
+		signal_put(&gba_core.data_in, memory_read(pc + 8, i), 1)
+	case accumulate && long:
+		signal_put(&gba_core.data_in, memory_read(pc + 8, .WORD), 1) } }
+memory_respond_LRI_cycle:: proc(alu: u32, destination_is_pc: bool, pc_prim: u32, loc: = #caller_location) {
+	using state: ^State = cast(^State)context.user_ptr
+	if phase_index != 0 do log.fatal("Sequence may only be responded in phase 1.", location = loc)
+	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
+	L: u32 = gba_core.executing_thumb.output ? 2 : 4
+	i: Memory_Access_Size = gba_core.executing_thumb.output ? .HALFWORD : .WORD
+	switch {
+	case (! destination_is_pc):
+		signal_put(&gba_core.data_in, memory_read(pc + 2 * L, i), 1)
+		signal_put(&gba_core.data_in, memory_read(alu, i), 3)
+	case destination_is_pc:
+		signal_put(&gba_core.data_in, memory_read(pc + 8, i), 1)
+		signal_put(&gba_core.data_in, memory_read(pc_prim, i), 3)
+		signal_put(&gba_core.data_in, memory_read(pc_prim, i), 5)
+		signal_put(&gba_core.data_in, memory_read(pc_prim + 4, i), 7) } }
+memory_respond_SRI_cycle:: proc(alu: u32, Rd: u32, loc: = #caller_location) {
+	using state: ^State = cast(^State)context.user_ptr
+	if phase_index != 0 do log.fatal("Sequence may only be responded in phase 1.", location = loc)
+	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
+	L: u32 = gba_core.executing_thumb.output ? 2 : 4
+	i: Memory_Access_Size = gba_core.executing_thumb.output ? .HALFWORD : .WORD
+	s: = i
+	signal_put(&gba_core.data_in, memory_read(pc + 2 * L, i), 1) }
+memory_respond_LMRI_cycle:: proc(alu: u32, include_pc: bool, n: int, pc_prim: u32, loc: = #caller_location) {
+	using state: ^State = cast(^State)context.user_ptr
+	if phase_index != 0 do log.fatal("Sequence may only be responded in phase 1.", location = loc)
+	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
+	L: u32 = gba_core.executing_thumb.output ? 2 : 4
+	i: Memory_Access_Size = gba_core.executing_thumb.output ? .HALFWORD : .WORD
+	switch {
+	case (n == 1) && (! include_pc): // single register //
+		signal_put(&gba_core.data_in, memory_read(pc + 2 * L, i), 1)
+		signal_put(&gba_core.data_in, memory_read(pc + 2 * L, .WORD), 3)
+	case (n == 1) && include_pc: // single register dest=pc //
+		signal_put(&gba_core.data_in, memory_read(pc + 2 * L, i), 1)
+		signal_put(&gba_core.data_in, pc_prim, 3)
+		signal_put(&gba_core.data_in, memory_read(pc_prim, .WORD), 5)
+		signal_put(&gba_core.data_in, memory_read(pc_prim + L, .WORD), 7)
+	case (n > 1) && (! include_pc): // n registers //
+		signal_put(&gba_core.data_in, memory_read(pc + 2 * L, i), 1)
+		for k in u32(0) ..< u32(n) do signal_put(&gba_core.data_in, memory_read(alu + 4 * k, .WORD), int(3 + 2 * k))
+	case (n > 1) && include_pc: // n registers including pc //
+		signal_put(&gba_core.data_in, memory_read(pc + 2 * L, i), 1)
+		for k in u32(0) ..< u32(n - 1) do signal_put(&gba_core.data_in, memory_read(alu + 4 * k, .WORD), int(3 + 2 * k))
+		signal_put(&gba_core.data_in, memory_read(pc_prim, i), 7 + 2 * n)
+		signal_put(&gba_core.data_in, memory_read(pc_prim + L, i), 9 + 2 * n) } }
+memory_respond_SMRI_cycle:: proc(
+alu: u32, n: int, loc: = #caller_location) {
+	using state: ^State = cast(^State)context.user_ptr
+	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc)
+	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
+	L: u32 = gba_core.executing_thumb.output ? 2 : 4
+	i: Memory_Access_Size = gba_core.executing_thumb.output ? .HALFWORD : .WORD
+	switch {
+	case n == 1: // single register //
+		signal_put(&gba_core.data_in, memory_read(pc + 2 * L, i), 1)
+	case n > 1: // n registers //
+		signal_put(&gba_core.data_in, memory_read(pc + 2 * L, i), 1) } }
+memory_respond_DSI_cycle:: proc(Rn: u32, Rm: u32, s: Memory_Access_Size, loc: = #caller_location) {
+	using state: ^State = cast(^State)context.user_ptr
+	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc)
+	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
+	signal_put(&gba_core.data_in, memory_read(pc + 8, .WORD), 1)
+	signal_put(&gba_core.data_in, memory_read(Rn, s), 3) }
+memory_respond_SIAEI_cycle:: proc(Xn: u32, loc: = #caller_location) {
+	using state: ^State = cast(^State)context.user_ptr
+	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc)
+	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
+	L: u32 = gba_core.executing_thumb.output ? 2 : 4
+	i: Memory_Access_Size = gba_core.executing_thumb.output ? .HALFWORD : .WORD
+	signal_put(&gba_core.data_in, memory_read(pc + 2 * L, i), 1)
+	signal_put(&gba_core.data_in, memory_read(Xn, .WORD), 3)
+	signal_put(&gba_core.data_in, memory_read(Xn + 4, .WORD), 5) }
+memory_respond_UDI_cycle:: proc(Xn: u32, loc: = #caller_location) {
+	using state: ^State = cast(^State)context.user_ptr
+	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc)
+	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
+	L: u32 = gba_core.executing_thumb.output ? 2 : 4
+	i: Memory_Access_Size = gba_core.executing_thumb.output ? .HALFWORD : .WORD
+	signal_put(&gba_core.data_in, memory_read(pc + 2 * L, i), 1)
+	signal_put(&gba_core.data_in, memory_read(Xn, .WORD), 5)
+	signal_put(&gba_core.data_in, memory_read(Xn + 4, .WORD), 7) }
+memory_respond_UEI_cycle:: proc(loc: = #caller_location) {
+	using state: ^State = cast(^State)context.user_ptr
+	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc)
+	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
+	L: u32 = gba_core.executing_thumb.output ? 2 : 4
+	i: Memory_Access_Size = gba_core.executing_thumb.output ? .HALFWORD : .WORD
+	signal_put(&gba_core.data_in, memory_read(pc + 2 * L, i), 1) }

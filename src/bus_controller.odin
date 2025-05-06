@@ -16,9 +16,9 @@ Burst_Transfer_Type:: enum {
 gba_set_bus_cycle_type:: proc(state: ^State, type: Bus_Cycle_Type) {
 	using state
 	switch type {
-	case .NON_SEQUENTIAL_TRANSFER: signal_force(&memory.memory_request, true);  signal_force(&memory.sequential_cycle, false)
-	case .SEQUENTIAL_TRANSFER:     signal_force(&memory.memory_request, true);  signal_force(&memory.sequential_cycle, true)
-	case .INTERNAL:                signal_force(&memory.memory_request, false); signal_force(&memory.sequential_cycle, false) } }
+	case .NON_SEQUENTIAL_TRANSFER: signal_put(&memory.memory_request, true, 0);  signal_put(&memory.sequential_cycle, false, 0)
+	case .SEQUENTIAL_TRANSFER:     signal_put(&memory.memory_request, true, 0);  signal_put(&memory.sequential_cycle, true, 0)
+	case .INTERNAL:                signal_put(&memory.memory_request, false, 0); signal_put(&memory.sequential_cycle, false, 0) } }
 get_get_bus_cycle_type:: proc(state: ^State) -> Bus_Cycle_Type {
 	using state
 	switch {

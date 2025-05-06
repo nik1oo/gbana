@@ -18,7 +18,7 @@ TM0CNT_H:: bit_field u16 {
 	_:                   int                              | 3,
 	timer_irq_enable:    bool                             | 1,
 	timer_start_stop:    bool                             | 1,
-	_:                   int                              |8 }
+	_:                   int                              | 8 }
 TM1CNT_H:: TM0CNT_H
 TM2CNT_H:: TM0CNT_H
 TM3CNT_H:: TM0CNT_H
@@ -26,3 +26,11 @@ TM3CNT_H:: TM0CNT_H
 
 // THREAD //
 timer_controller_thread_proc:: proc(t: ^thread.Thread) { }
+
+
+// 16.78 MHz = 16.777.216 cy/s
+// 59.727500569606 fr/s
+// 16,777,216 / 59.727 = 280,896 cy/fr
+// 16.74270 ms/fr
+CYCLES_PER_FRAME:  f32 : 280_895.9999999992134946289062522
+SECONDS_PER_FRAME: f32 : 0.0167427062988280781206267420204

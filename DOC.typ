@@ -76,7 +76,7 @@ Each rounded reactangle is a *component*. Each component has a state object, whi
 *Related procedures:*
 / `test_main_clock`: Test procedure.
 
-GBANA is phase-accurate. Every phase of every cycle is simulated, and the logic is verified phase-to-phase.
+The core will initially be written as phase-accurate (every phase of every clock cycle is simulated), whose logic will be correct at phase bounds. Then a more high-level core will be implemented, which will be sequence-accurate, whose logic will be correct at sequence bounds, and this core will be verified against the lower-level core.
 
 #align(center,wavy.render(width: 50%, "{
   signal:
@@ -140,14 +140,15 @@ In request/response contexts, request data is in displayed in blue, and respone 
 
 \
 
+#pagebreak()
 == #smallcaps[Memory Sequence]
 
 #table(
-  columns: (50%, 50%),
-  table.header([*Related Procedures*], []),
-  `test_memory_sequence`, [Test procedure.],
-  `gba_request_memory_sequence`, [Request procedure, must be called during phase 1.],
-  `memory_respond_memory_sequence`, [Response procedure, must be called 1 cycle after the request procedure.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_memory_sequence`,
+  `gba_request_memory_sequence`,
+  `memory_respond_memory_sequence`)
 
 #table(
   columns: (50%, 50%),
@@ -156,7 +157,7 @@ In request/response contexts, request data is in displayed in blue, and respone 
 
 The Memory Sequence is an external sequence where the GBA Core requests and the Memory responds. Reads and writes have distinct logic. Word-wide bus access, halfword-wide bus access, and byte-wide bus access have distinct logic. The Memory may extend the time to fulfill the request and it may assert that a request may not be fulfilled.
 
-#figure(caption: [Memory Sequence timing diagram], wavy.render(height: 36%, "{
+#figure(caption: [Memory Sequence timing diagram], wavy.render(height: 37%, "{
   signal:
   [
     {name:'MCLK', wave:'lhlhlhlh'},
@@ -186,21 +187,22 @@ The Memory Sequence is an external sequence where the GBA Core requests and the 
 - The *Memory* must put the data on `DIN` during the high phase of the response cycle.
 \
 
-_Insert Delayed Memory Sequence, same as Memory Sequence but with WAIT set to high for a few cycles._
-
-== #smallcaps[Nonsequential Memory Sequence]
+#pagebreak()
+== #smallcaps[Nonsequential Memory Sequence (N-Cycle)]
 
 #table(
-  columns: (50%, 50%),
-  table.header([*Related Procedures*], []),
-  `test_n_cycle`, [Test procedure.],
-  `gba_request_n_cycle`, [Request procedure, must be called during phase 1.],
-  `memory_respond_n_cycle`, [Response procedure, must be called 1 cycle after the request procedure.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_N_cycle`,
+  `gba_request_N_cycle`,
+  `memory_respond_N_cycle`)
 
 #table(
   columns: (50%, 50%),
   table.header([*Request Signals*], [*Response Signals*]),
   [`MREQ`, `SEQ`, `RW`, `A`, `DOUT`], [`WAIT`, `ABORT`, `DIN`])
+
+#table(columns: (100%))[ #smallcaps[*Duration:*] 1 to 2 clock cycles]
 
 The Nonsequential Memory Sequence (or N-Cycle) is a memory access sequence, preceded by an internal sequence or another memory access sequence to an address other than the address immediately before the current address.
 
@@ -233,23 +235,26 @@ The Nonsequential Memory Sequence (or N-Cycle) is a memory access sequence, prec
 - The *Memory* must put the data on `DIN` during the high phase of the response cycle.
 \
 
-== #smallcaps[Sequential Memory Sequence]
+#pagebreak()
+== #smallcaps[Sequential Memory Sequence (S-Cycle)]
 
 #table(
-  columns: (50%, 50%),
-  table.header([*Related Procedures*], []),
-  `test_s_cycle`, [Test procedure.],
-  `gba_request_s_cycle`, [Request procedure, must be called during phase 1.],
-  `memory_respond_s_cycle`, [Response procedure, must be called 1 cycle after the request procedure.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_S_cycle`,
+  `gba_request_S_cycle`,
+  `memory_respond_S_cycle`)
 
 #table(
   columns: (50%, 50%),
   table.header([*Request Signals*], [*Response Signals*]),
   [`MREQ`, `SEQ`, `RW`, `A`, `DOUT`], [`WAIT`, `ABORT`, `DIN`])
 
+#table(columns: (100%))[ #smallcaps[*Duration:*] 2 clock cycles]
+
 The Sequential Memory Sequence (or S-Cycle) is a memory access sequence, preceded by another memory access sequence to the address immediately before the current address.
 
-#figure(caption: [Sequential Memory Sequence timing diagram], wavy.render(height: 33%, "{
+#figure(caption: [Sequential Memory Sequence timing diagram], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK', wave:'lhlhlhlhlh'},
@@ -279,22 +284,25 @@ The Sequential Memory Sequence (or S-Cycle) is a memory access sequence, precede
 - The *Memory* must put the data on `DIN` during the high phase of the response cycle.
 \
 
+#pagebreak()
 == #smallcaps[Internal Sequence]
 
 #table(
-  columns: (50%, 50%),
-  table.header([*Related Procedures*], []),
-  `test_i_cycle`, [Test procedure.],
-  `gba_initiate_i_cycle`, [Initiation procedure, must be called during phase 1.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_I_cycle`,
+  `gba_initiate_I_cycle`)
 
 #table(
   columns: (100%),
   table.header([*Signals*]),
   [`MREQ`,`SEQ`,`A`,`DIN`,`DOUT`])
 
+#table(columns: (100%))[ #smallcaps[*Duration:*] 1 clock cycle]
+
 The Internal Sequence (or I-Cycle) is a sequence that doesn't involve exchaning data with any components outside of the core.
 
-#figure(caption: [Internal Sequence timing diagram], wavy.render(height: 23%, "{
+#figure(caption: [Internal Sequence timing diagram], wavy.render(height: 22%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlhlh'},
@@ -313,23 +321,26 @@ The Internal Sequence (or I-Cycle) is a sequence that doesn't involve exchaning 
 }"))
 \
 
-== #smallcaps[Merged Internal-Sequential Sequence]
+#pagebreak()
+== #smallcaps[Merged Internal-Sequential Sequence (MIS-Cycle)]
 
 #table(
-  columns: (50%, 50%),
-  table.header([*Related Procedures*], []),
-  `test_merged_is_cycle`, [Test procedure.],
-  `gba_request_merged_is_cycle`, [Request procedure, must be called during phase 1 of the request cycle.],
-  `memory_respond_merged_is_cycle`, [Response procedure, must be called during phase 1 of the response cycle.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_MIS_cycle`,
+  `gba_request_MIS_cycle`,
+  `memory_respond_MIS_cycle`)
 
 #table(
   columns: (50%, 50%),
   table.header([*Request Signals*], [*Response Signals*]),
   [`MREQ`, `SEQ`, `RW`, `A`, `DOUT`], [`WAIT`, `ABORT`, `DIN`])
 
+#table(columns: (100%))[ #smallcaps[*Duration:*] 2 clock cycles]
+
 The Merged Internal-Sequential Sequence (or Merged IS-Cycle) is an internal sequence followed immediately by a sequential memory cycle.
 
-#figure(caption: [Merged Internal-Sequential Sequence timing diagram], wavy.render(height: 34%, "{
+#figure(caption: [Merged Internal-Sequential Sequence timing diagram], wavy.render(height: 33%, "{
   signal:
   [
     {name:'MCLK', wave:'lhlhlhlh'},
@@ -352,25 +363,20 @@ The Merged Internal-Sequential Sequence (or Merged IS-Cycle) is an internal sequ
 }"))
 \
 
-== #smallcaps[Pipelined Addressing]
-
-This is irrelevant to the emulator, since the GBA uses SRAM and the intended address timing for SRAM is depipelined.
-
-\
-
+#pagebreak()
 == #smallcaps[Depipelined Addressing]
 
 #table(
-  columns: (50%, 50%),
-  table.header([*Related Procedures*], []),
-  `test_depipelined_addressing`, [Test procedure.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_depipelined_addressing`)
 
 #table(
   columns: (50%, 50%),
   table.header([*Request Signals*], [*Response Signals*]),
   [`MREQ`, `SEQ`, `RW`, `A`, `DOUT`], [`WAIT`, `ABORT`, `DIN`])
 
-#figure(caption: [Depipelined Addressing timing diagram], wavy.render(height: 20%, "{
+#figure(caption: [Depipelined Addressing timing diagram], wavy.render(height: 18%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlhlhlh'},
@@ -389,23 +395,26 @@ This is irrelevant to the emulator, since the GBA uses SRAM and the intended add
 }"))
 \
 
-== #smallcaps[Data Write Sequence]
+#pagebreak()
+== #smallcaps[Data Write Sequence (DW-Cycle)]
 
 #table(
-  columns: (50%, 50%),
-  table.header([*Related Procedures*], []),
-  `test_data_write_sequence`, [Test procedure.],
-  `gba_request_data_write_cycle`, [Request procedure, must be called during phase 1 of the request cycle.],
-  `memory_respond_data_write_cycle`, [Response procedure, must be called during phase 1 of the response cycle.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_DW_cycle`,
+  `gba_request_DW_cycle`,
+  `memory_respond_DW_cycle`)
 
 #table(
   columns: (50%, 50%),
   table.header([*Request Signals*], [*Response Signals*]),
   [`MREQ`, `RW`, `A`, `DOUT`], [`WAIT`, `ABORT`])
 
+#table(columns: (100%))[ #smallcaps[*Duration:*] 2 clock cycles]
+
 A Data Write Sequence is an external sequence where a write operation is requested by the GBA Core.
 
-#figure(caption: [Data Write Sequence timing diagram], wavy.render(height: 30%, "{
+#figure(caption: [Data Write Sequence timing diagram], wavy.render(height: 29%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlhlh'},
@@ -426,23 +435,26 @@ A Data Write Sequence is an external sequence where a write operation is request
 }"))
 \
 
-== #smallcaps[Data Read Sequence]
+#pagebreak()
+== #smallcaps[Data Read Sequence (DR-Cycle)]
 
 #table(
-  columns: (50%, 50%),
-  table.header([*Related Procedures*], []),
-  `test_data_read_sequence`, [Test procedure.],
-  `gba_request_data_read_cycle`, [Request procedure, must be called during phase 1 of the request cycle.],
-  `memory_respond_data_read_cycle`, [Response procedure, must be called during phase 1 of the response cycle.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_DR_cycle`,
+  `gba_request_DR_cycle`,
+  `memory_respond_DR_cycle`)
 
 #table(
   columns: (50%, 50%),
   table.header([*Request Signals*], [*Response Signals*]),
   [`MREQ`, `RW`, `A`, `DOUT`], [`WAIT`, `ABORT`])
 
+#table(columns: (100%))[ #smallcaps[*Duration:*] 2 clock cycles]
+
 A Data Read Sequence is an external sequence where a read operation is requested by the GBA Core.
 
-#figure(caption: [Data Read Sequence timing diagram], wavy.render(height: 34%, "{
+#figure(caption: [Data Read Sequence timing diagram], wavy.render(height: 33%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlhlh'},
@@ -464,14 +476,15 @@ A Data Read Sequence is an external sequence where a read operation is requested
 }"))
 \
 
+#pagebreak()
 == #smallcaps[Halfword-Wide Memory Sequence]
 
 #table(
-  columns: (50%, 50%),
-  table.header([*Related Procedures*], []),
-  `test_halfword_memory_sequence`, [Test procedure.],
-  `gba_request_halfword_memory_sequence`, [Request procedure, must be called during phase 1.],
-  `memory_respond_halfword_memory_sequence`, [Response procedure, must be called 1 cycle after the request procedure.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_halfword_memory_sequence`,
+  `gba_request_halfword_memory_sequence`,
+  `memory_respond_halfword_memory_sequence`)
 
 #table(
   columns: (50%, 50%),
@@ -525,14 +538,15 @@ The Halfword-Wide Memory Sequence is the same as the basic Memory Sequence, exce
 
 \
 
+#pagebreak()
 == #smallcaps[Byte-Wide Memory Sequence]
 
 #table(
-  columns: (50%, 50%),
-  table.header([*Related Procedures*], []),
-  `test_byte_memory_sequence`, [Test procedure.],
-  `gba_request_byte_memory_sequence`, [Request procedure, must be called during phase 1.],
-  `memory_respond_byte_memory_sequence`, [Response procedure, must be called 1 cycle after the request procedure.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_byte_memory_sequence`,
+  `gba_request_byte_memory_sequence`,
+  `memory_respond_byte_memory_sequence`)
 
 #table(
   columns: (50%, 50%),
@@ -541,7 +555,7 @@ The Halfword-Wide Memory Sequence is the same as the basic Memory Sequence, exce
 
 The Byte-Wide Memory Sequence is the same as the basic Memory Sequence, except for memory with an 8-bit wide bus, thus requiring 4 cycles per word.
 
-#figure(caption: [Byte-Wide Read Memory Sequence timing diagram], wavy.render(height: 36%, "{
+#figure(caption: [Byte-Wide Read Memory Sequence timing diagram], wavy.render(height: 39%, "{
   signal:
   [
     {name:'MCLK',      wave:'hlhlhlhlhlhl'},
@@ -565,7 +579,7 @@ The Byte-Wide Memory Sequence is the same as the basic Memory Sequence, except f
   ],
   head:{ tick:0, every:1 }
 }"))
-#figure(caption: [Byte-Wide Write Memory Sequence timing diagram], wavy.render(height: 36%, "{
+#figure(caption: [Byte-Wide Write Memory Sequence timing diagram], wavy.render(height: 39%, "{
   signal:
   [
     {name:'MCLK',       wave:'hlhlhlhlhlhl'},
@@ -589,24 +603,25 @@ The Byte-Wide Memory Sequence is the same as the basic Memory Sequence, except f
   ],
   head:{ tick:0, every:1 }
 }"))
-
-
 \
 
-== #smallcaps[Reset Sequence]
+#pagebreak()
+== #smallcaps[Reset Sequence (RS-Cycle)]
 
 #table(
-  columns: (50%, 50%),
-  table.header([*Related Procedures*], []),
-  `test_reset_sequence`, [Test procedure.],
-  `gba_initiate_reset_sequence`, [Initiation procedure, must be called during phase 1 of the very first cycle, and during phase of any cycle in which the reset button was pressed.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_RS_cycle`,
+  `gba_initiate_RS_cycle`)
 
 #table(
   columns: (50%, 50%),
   table.header([*Request Signals*], [*Response Signals*]),
   [`MREQ`, `SEQ`, `RW`, `EXEC`, `OPC`, `A`], [`WAIT`, `ABORT`, `DIN`])
 
-#figure(caption: [Reset Sequence timing diagram], wavy.render(height: 30%, "{
+#table(columns: (100%))[ #smallcaps[*Duration:*] 5 clock cycles]
+
+#figure(caption: [Reset Sequence timing diagram], wavy.render(height: 28%, "{
   signal:
   [
     {name:'MCLK',  wave:'lhlhlhl'},
@@ -626,7 +641,7 @@ The Byte-Wide Memory Sequence is the same as the basic Memory Sequence, except f
   ],
   head:{ tick:0, every:1 }
 }"))
-#figure(caption: [Reset Sequence timing diagram (continued)], wavy.render(height: 30%, "{
+#figure(caption: [Reset Sequence timing diagram (continued)], wavy.render(height: 28%, "{
   signal:
   [
     {name:'MCLK',  wave:'hlhlhlh'},
@@ -648,12 +663,13 @@ The Byte-Wide Memory Sequence is the same as the basic Memory Sequence, except f
 }"))
 \
 
+#pagebreak()
 == #smallcaps[General Timing]
 
 #table(
-  columns: (50%, 50%),
-  table.header([*Related Procedures*], []),
-  `test_general_timing`, [Test procedure.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_general_timing`)
 
 #table(
   columns: (50%, 50%),
@@ -662,7 +678,7 @@ The Byte-Wide Memory Sequence is the same as the basic Memory Sequence, except f
 
 The General Timing diagram defines in which phase of the cycle each of the control signals is allowed to change.
 
-#figure(caption: [General timing diagram], wavy.render(height: 46%, "{
+#figure(caption: [General timing diagram], wavy.render(height: 52%, "{
   signal:
   [
     {name:'MCLK',       wave:'hlhl'},
@@ -688,19 +704,20 @@ The General Timing diagram defines in which phase of the cycle each of the contr
 }"))
 \
 
+#pagebreak()
 == #smallcaps[Address Bus Control]
 
 #table(
-  columns: (50%, 50%),
-  table.header([*Related Procedures*], []),
-  `test_address_bus_control`, [Test procedure.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_address_bus_control`)
 
 #table(
   columns: (100%),
   table.header([*Signals*]),
   [`ABE`, `A`, `RW`, `LOCK`, `OPC`, `MAS`])
 
-#figure(caption: [Address Bus Control timing diagram], wavy.render(height: 16%, "{
+#figure(caption: [Address Bus Control timing diagram], wavy.render(height: 15%, "{
   signal:
   [
     {name:'MCLK',              wave:'hlhl'},
@@ -715,7 +732,7 @@ The General Timing diagram defines in which phase of the cycle each of the contr
   head:{ tick:0, every:1 }
 }"))
 
-#figure(caption: [Address Bus Control timing diagram], wavy.render(width: 65%, "{
+#figure(caption: [Address Bus Control timing diagram], wavy.render(height: 15%, "{
   signal:
   [
     {name:'MCLK',              wave:'hlhl'},
@@ -735,19 +752,20 @@ The General Timing diagram defines in which phase of the cycle each of the contr
 - `A`, `RW`, `LOCK`, `OPC`, and `MAS` must be stable at the starts of both phases.
 \
 
+#pagebreak()
 == #smallcaps[Data Bus Control]
 
 #table(
-  columns: (50%, 50%),
-  table.header([*Related Procedures*], []),
-  `test_data_bus_control`, [Test procedure.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_data_bus_control`)
 
 #table(
   columns: (100%),
   table.header([*Signals*]),
   [`DBE`, `DIN`, `DOUT`])
 
-#figure(caption: [Data Bus Control timing diagram], wavy.render(height: 16%, "{
+#figure(caption: [Data Bus Control timing diagram], wavy.render(height: 15%, "{
   signal:
   [
     {name:'MCLK',     wave:'hlhl'},
@@ -764,12 +782,13 @@ The General Timing diagram defines in which phase of the cycle each of the contr
 }"))
 \
 
+#pagebreak()
 == #smallcaps[Exception Control]
 
 #table(
-  columns: (50%, 50%),
-  table.header([*Related Procedures*], []),
-  `test_exception_control`, [Test procedure.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_exception_control`)
 
 #table(
   columns: (100%),
@@ -778,7 +797,7 @@ The General Timing diagram defines in which phase of the cycle each of the contr
 
 The exceptional behaviors are: (1) aborted memory access, (2) interrupt, (3) fast interrupt, (4) reset.
 
-#figure(caption: [Exception Control timing diagram], wavy.render(height: 20%, "{
+#figure(caption: [Exception Control timing diagram], wavy.render(height: 19%, "{
   signal:
   [
     {name:'MCLK',     wave:'hlhl'},
@@ -797,18 +816,13 @@ The exceptional behaviors are: (1) aborted memory access, (2) interrupt, (3) fas
 
 \
 
-== #smallcaps[Address Latch Control]
-
-This is irrelevant for the emulator.
-
-\
-
+#pagebreak()
 == #smallcaps[Address Pipeline Control]
 
 #table(
-  columns: (50%, 50%),
-  table.header([*Related Procedures*], []),
-  `test_address_pipeline_control`, [Test procedure.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_address_pipeline_control`)
 
 #table(
   columns: (100%),
@@ -830,9 +844,10 @@ This is irrelevant for the emulator.
 }"))
 \
 
+#pagebreak()
 == #smallcaps[General Instruction Cycle]
 
-#figure(caption: [General Instruction Cycle timing diagram], wavy.render(height: 23%, "{
+#figure(caption: [General Instruction Cycle timing diagram], wavy.render(height: 22%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlhlh'},
@@ -857,7 +872,8 @@ This is irrelevant for the emulator.
 / 5.: When `OPC` is high, the address is incremented each cycle (epistemic status: _guess_).
 \
 
-== #smallcaps[Branch and Branch with Link Instruction Cycle]
+#pagebreak()
+== #smallcaps[Branch and Branch with Link Instruction Cycle (BABLI-Cycle)]
 
 #table(
   columns: (100%),
@@ -865,13 +881,23 @@ This is irrelevant for the emulator.
   [`B`, `BL`])
 
 #table(
-  columns: (60%, 40%),
-  table.header([*Related Procedures*], []),
-  `test_branch_and_branch_with_link_instruction_cycle`, [Test procedure.],
-  `gba_request_branch_and_branch_with_link_instruction_cycle`, [Request procedure, must be called during phase 1.],
-  `memory_respond_branch_and_branch_with_link_instruction_cycle`, [Response procedure, must be called during phase 1.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_BABLI_cycle`,
+  [`gba_request_BABLI_cycle`],
+  `memory_respond_BABLI_cycle`)
 
-#figure(caption: [Branch and Branch with Link Instruction Cycle], wavy.render(height: 33%, "{
+#table(columns: (100%))[ #smallcaps[*Duration:*] $3$ clock cycles]
+
+#table(
+  columns: (8%, 92%),
+  table.header([], [*Parameters*]),
+  `pc`, [Program counter, before executing the instruction.],
+  `L`, [Instruction length, $4$ for ARM state, $2$ for Thumb state.],
+  `alu`, [The instruction operand---ie, the address to jump to.],
+  `i`, [MAS, $2$ for ARM state, $1$ for Thumb state.])
+
+#figure(caption: [Branch and Branch with Link Instruction Cycle], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlh'},
@@ -891,7 +917,7 @@ This is irrelevant for the emulator.
   head:{ tick:0, every:1 },
   config: { hscale: 2 }
 }"))
-#figure(caption: [Branch and Branch with Link Instruction Cycle (continued)], wavy.render(height: 33%, "{
+#figure(caption: [Branch and Branch with Link Instruction Cycle (continued)], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlh'},
@@ -911,9 +937,9 @@ This is irrelevant for the emulator.
   head:{ tick:4, every:1 },
   config: { hscale: 2 }
 }"))
-\
 
-== #smallcaps[Thumb Branch with Link Instruction Cycle]
+#pagebreak()
+== #smallcaps[Thumb Branch with Link Instruction Cycle (TBLI-Cycle)]
 
 #table(
   columns: (100%),
@@ -921,13 +947,21 @@ This is irrelevant for the emulator.
   [])
 
 #table(
-  columns: (60%, 40%),
-  table.header([*Related Procedures*], []),
-  `test_thumb_branch_with_link_instruction_cycle`, [Test procedure.],
-  `gba_request_thumb_branch_with_link_instruction_cycle`, [Request procedure.],
-  `memory_respond_thumb_branch_with_link_instruction_cycle`, [Response procedure.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_TBLI_cycle`,
+  `gba_request_TBLI_cycle`,
+  `memory_respond_TBLI_cycle`)
 
-#figure(caption: [Thumb Branch with Link Instruction Cycle], wavy.render(height: 33%, "{
+#table(columns: (100%))[ #smallcaps[*Duration:*] $4$ clock cycles]
+
+#table(
+  columns: (8%, 92%),
+  table.header([], [*Parameters*]),
+  `pc`, [Program counter, before executing the instruction.],
+  `alu`, [The instruction operand---ie, the address to jump to.])
+
+#figure(caption: [Thumb Branch with Link Instruction Cycle], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlhl'},
@@ -948,7 +982,7 @@ This is irrelevant for the emulator.
   head:{ tick:0, every:1 },
   config: { hscale: 2 }
 }"))
-#figure(caption: [Thumb Branch with Link Instruction Cycle (continued)], wavy.render(height: 33%, "{
+#figure(caption: [Thumb Branch with Link Instruction Cycle (continued)], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'hlhlx'},
@@ -969,9 +1003,9 @@ This is irrelevant for the emulator.
   head:{ tick:5, every:1 },
   config: { hscale: 2 }
 }"))
-\
 
-== #smallcaps[Branch and Exchange Instruction Cycle]
+#pagebreak()
+== #smallcaps[Branch and Exchange Instruction Cycle (BAEI-Cycle)]
 
 #table(
   columns: (100%),
@@ -979,11 +1013,25 @@ This is irrelevant for the emulator.
   [`BX`])
 
 #table(
-  columns: (60%, 40%),
-  table.header([*Related Procedures*], []),
-  `test_branch_and_exchange_instruction_cycle`, [Test procedure.],
-  `gba_request_branch_and_exchange_instruction_cycle`, [Request procedure.],
-  `memory_respond_branch_and_exchange_instruction_cycle`, [Response procedure.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_BAEI_cycle`,
+  `gba_request_BAEI_cycle`,
+  `memory_respond_BAEI_cycle`)
+
+#table(columns: (100%))[ #smallcaps[*Duration:*] $3$ clock cycles]
+
+#table(
+  columns: (8%, 92%),
+  table.header([], [*Parameters*]),
+  `pc`, [Program counter, before executing the instruction.],
+  `alu`, [The instruction operand---ie, the address to jump to.],
+  `I`, [MAS before executing the instruction.],
+  `i`, [MAS after executing the instruction.],
+  `W`, [Instruction width before executing the instruction.],
+  `w`, [Instruction width after executing the instruction.],
+  `T`, [TBIT before executing the instruction.],
+  `t`, [TBIT after executing the instruction.])
 
 #figure(caption: [Branch and Exchange Instruction Cycle], wavy.render(height: 36%, "{
   signal:
@@ -994,9 +1042,9 @@ This is irrelevant for the emulator.
     {name:'OPC', wave:'1...', phase: 0},
     {name:'RW',  wave:'1...', phase: 0},
     {name:'TBIT',wave:'5.5.', phase: 0, data: ['T', 't']},
-    {name:'A',   wave:'5.5.', phase: 0, data: ['pc + 2w', 'alu']},
+    {name:'A',   wave:'5.5.', phase: 0, data: ['pc + 2W', 'alu']},
     {name:'MAS', wave:'5.5.', phase: 0, data: ['I', 'i']},
-    {name:'DIN', wave:'z8z8', phase: 0, data: ['(pc+ 2w)', '(alu)']},
+    {name:'DIN', wave:'z8z8', phase: 0, data: ['(pc+ 2W)', '(alu)']},
     {node:'A.B.C', phase: 0.15},
   ],
   edge: [
@@ -1027,9 +1075,9 @@ This is irrelevant for the emulator.
   head:{ tick:4, every:1 },
   config: { hscale: 2 }
 }"))
-\
 
-== #smallcaps[Data Processing Instruction Cycle]
+#pagebreak()
+== #smallcaps[Data Processing Instruction Cycle (DPI-Cycle)]
 
 #table(
   columns: (100%),
@@ -1037,15 +1085,23 @@ This is irrelevant for the emulator.
   [`ADC`, `ADD`, `AND`, `BIC`, `CMN`, `CMP`, `EOR`, `MOV`, `MRS`, `MSR`, `MVN`, `ORR`, `RSB`, `RSC`, `SBC`, `SUB`, `TEQ`, `TST`])
 
 #table(
-  columns: (60%, 40%),
-  table.header([*Related Procedures*], []),
-  `test_data_processing_instruction_cycle`, [Test procedure.],
-  `gba_request_data_processing_instruction_cycle`, [Request procedure.],
-  `memory_respond_data_processing_instruction_cycle`, [Response procedure.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_DPI_cycle`,
+  `gba_request_DPI_cycle`,
+  `memory_respond_DPI_cycle`)
 
-_It seems like whenever `SEQ` is high, the address will always increment in the post cycle._
+#table(columns: (100%))[ #smallcaps[*Duration:*] $1$ to $4$ clock cycles]
 
-#figure(caption: [Data Processing Instruction Cycle (normal)], wavy.render(height: 36%, "{
+#table(
+  columns: (8%, 92%),
+  table.header([], [*Parameters*]),
+  `pc`, [Program counter, before executing the instruction.],
+  `L`, [Instruction length, $4$ for ARM state, $2$ for Thumb state.],
+  `alu`, [The instruction operand---ie, the address of the shifter operand.],
+  `i`, [MAS, $2$ for ARM state, $1$ for Thumb state.])
+
+#figure(caption: [Data Processing Instruction Cycle (normal)], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlh'},
@@ -1066,8 +1122,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:0, every:1 },
   config: { hscale: 2 }
 }"))
-
-#figure(caption: [Data Processing Instruction Cycle (dest=pc)], wavy.render(height: 36%, "{
+#figure(caption: [Data Processing Instruction Cycle (dest=pc)], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlh'},
@@ -1087,8 +1142,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:0, every:1 },
   config: { hscale: 2 }
 }"))
-
-#figure(caption: [Data Processing Instruction Cycle (dest=pc) (continued)], wavy.render(height: 33%, "{
+#figure(caption: [Data Processing Instruction Cycle (dest=pc) (continued)], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlh'},
@@ -1108,8 +1162,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:4, every:1 },
   config: { hscale: 2 }
 }"))
-
-#figure(caption: [Data Processing Instruction Cycle (shift(RS))], wavy.render(height: 38%, "{
+#figure(caption: [Data Processing Instruction Cycle (shift(RS))], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlhlh'},
@@ -1131,7 +1184,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   config: { hscale: 2 }
 }"))
 
-#figure(caption: [Data Processing Instruction Cycle (shift(Rs) dest=pc)], wavy.render(height: 38%, "{
+#figure(caption: [Data Processing Instruction Cycle (shift(Rs) dest=pc)], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlhl'},
@@ -1152,7 +1205,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:0, every:1 },
   config: { hscale: 2 }
 }"))
-#figure(caption: [Data Processing Instruction Cycle (shift(Rs) dest=pc) (continued)], wavy.render(height: 33%, "{
+#figure(caption: [Data Processing Instruction Cycle (shift(Rs) dest=pc) (continued)], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'hlhlh'},
@@ -1173,9 +1226,9 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:5, every:1 },
   config: { hscale: 2 }
 }"))
-\
 
-== #smallcaps[Multiply and Multiply Accumulate Instruction Cycle]
+#pagebreak()
+== #smallcaps[Multiply and Multiply Accumulate Instruction Cycle (MAMAI-Cycle)]
 
 #table(
   columns: (100%),
@@ -1183,13 +1236,22 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   [`MLA`, `MUL`, `SMLAL`, `SMULL`, `UMLAL`, `UMULL`])
 
 #table(
-  columns: (60%, 40%),
-  table.header([*Related Procedures*], []),
-  `test_multiply_and_multiply_accumulate_instruction_cycle`, [Test procedure.],
-  `gba_request_multiply_and_multiply_accumulate_instruction_cycle`, [Request procedure.],
-  `memory_respond_multiply_and_multiply_accumulate_instruction_cycle`, [Response procedure.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_MAMAI_cycle`,
+  `gba_request_MAMAI_cycle`,
+  `memory_respond_MAMAI_cycle`)
 
-#figure(caption: [Multiply Instruction Cycle], wavy.render(height: 38%, "{
+#table(columns: (100%))[ #smallcaps[*Duration:*] $3$ to $4$ clock cycles]
+
+#table(
+  columns: (8%, 92%),
+  table.header([], [*Parameters*]),
+  `pc`, [Program counter, before executing the instruction.],
+  `L`, [Instruction length, $4$ for ARM state, $2$ for Thumb state.],
+  `i`, [MAS, $2$ for ARM state, $1$ for Thumb state.])
+
+#figure(caption: [Multiply Instruction Cycle], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlh'},
@@ -1209,7 +1271,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:0, every:1 },
   config: { hscale: 2 }
 }"))
-#figure(caption: [Multiply Instruction Cycle (continued)], wavy.render(height: 33%, "{
+#figure(caption: [Multiply Instruction Cycle (continued)], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlh'},
@@ -1230,7 +1292,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   config: { hscale: 2 }
 }"))
 
-#figure(caption: [Multiply Accumulate Instruction Cycle], wavy.render(height: 38%, "{
+#figure(caption: [Multiply Accumulate Instruction Cycle], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlhl'},
@@ -1251,7 +1313,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:0, every:1 },
   config: { hscale: 2 }
 }"))
-#figure(caption: [Multiply Accumulate Instruction Cycle (continued)], wavy.render(height: 33%, "{
+#figure(caption: [Multiply Accumulate Instruction Cycle (continued)], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'hlhlh'},
@@ -1273,7 +1335,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   config: { hscale: 2 }
 }"))
 
-#figure(caption: [Multiply Long Instruction Cycle], wavy.render(height: 38%, "{
+#figure(caption: [Multiply Long Instruction Cycle], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlh'},
@@ -1281,7 +1343,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
     {name:'SEQ', wave:'0...', phase: 0},
     {name:'OPC', wave:'1.0.', phase: 0},
     {name:'RW',  wave:'1...', phase: 0},
-    {name:'A',   wave:'5.5.', phase: 0, data: ['pc + 12', 'pc + 12']},
+    {name:'A',   wave:'5.5.', phase: 0, data: ['pc + 8', 'pc + 12']},
     {name:'MAS', wave:'5.5.', phase: 0, data: ['i', 'i']},
     {name:'DIN', wave:'z8z.', phase: 0, data: ['(pc+ 8)']},
     {node:'A.B.C', phase: 0.15},
@@ -1293,13 +1355,13 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:0, every:1 },
   config: { hscale: 2 }
 }"))
-#figure(caption: [Multiply Long Instruction Cycle (continued)], wavy.render(height: 33%, "{
+#figure(caption: [Multiply Long Instruction Cycle (continued)], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlh'},
     {name:'MREQ',wave:'1.x.', phase: 0},
     {name:'SEQ', wave:'1.x.', phase: 0},
-    {name:'OPC', wave:'1.x.', phase: 0},
+    {name:'OPC', wave:'0.x.', phase: 0},
     {name:'RW',  wave:'1.x.', phase: 0},
     {name:'A',   wave:'5.5.', phase: 0, data: ['pc + 12', 'pc + 12']},
     {name:'MAS', wave:'5.x.', phase: 0, data: ['i']},
@@ -1314,7 +1376,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   config: { hscale: 2 }
 }"))
 
-#figure(caption: [Multiply Accumlate Long Instruction Cycle], wavy.render(height: 38%, "{
+#figure(caption: [Multiply Accumlate Long Instruction Cycle], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlhl'},
@@ -1322,7 +1384,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
     {name:'SEQ', wave:'0....', phase: 0},
     {name:'OPC', wave:'1.0..', phase: 0},
     {name:'RW',  wave:'1....', phase: 0},
-    {name:'A',   wave:'5.5.5', phase: 0, data: ['pc + 8', 'pc + 12', 'pc + 12']},
+    {name:'A',   wave:'5.5.5', phase: 0, data: ['pc + 8', 'pc + 8', 'pc + 12']},
     {name:'MAS', wave:'5.5.5', phase: 0, data: ['2', '2', '2']},
     {name:'DIN', wave:'z8z..', phase: 0, data: ['(pc + 8)']},
     {node:'A.B.CD', phase: 0.15},
@@ -1335,13 +1397,13 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:0, every:1 },
   config: { hscale: 2 }
 }"))
-#figure(caption: [Multiply Accumulate Long Instruction Cycle (continued)], wavy.render(height: 33%, "{
+#figure(caption: [Multiply Accumulate Long Instruction Cycle (continued)], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'hlhlh'},
     {name:'MREQ',wave:'01.x.', phase: 0},
     {name:'SEQ', wave:'01.x.', phase: 0},
-    {name:'OPC', wave:'1..x.', phase: 0},
+    {name:'OPC', wave:'0..x.', phase: 0},
     {name:'RW',  wave:'1..x.', phase: 0},
     {name:'A',   wave:'55.5.', phase: 0, data: ['pc + 12', 'pc + 12', 'pc + 12']},
     {name:'MAS', wave:'55.x.', phase: 0, data: ['2', '2']},
@@ -1358,7 +1420,8 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
 }"))
 \
 
-== #smallcaps[Load Register Instruction Cycle]
+#pagebreak()
+== #smallcaps[Load Register Instruction Cycle (LRI-Cycle)]
 
 #table(
   columns: (100%),
@@ -1366,13 +1429,24 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   [`LDR`, `LDRB`, `LDRBT`, `LDRH`, `LDRSB`, `LDRSH`, `LDRT`])
 
 #table(
-  columns: (60%, 40%),
-  table.header([*Related Procedures*], []),
-  `test_load_register_instruction_cycle`, [Test procedure.],
-  `gba_request_load_register_instruction_cycle`, [Request procedure.],
-  `memory_respond_load_register_instruction_cycle`, [Response procedure.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_LRI_cycle`,
+  `gba_request_LRI_cycle`,
+  `memory_respond_LRI_cycle`)
 
-#figure(caption: [Load Register Instruction Cycle (normal)], wavy.render(height: 38%, "{
+#table(columns: (100%))[ #smallcaps[*Duration:*] $3$ to $5$ clock cycles]
+
+#table(
+  columns: (8%, 92%),
+  table.header([], [*Parameters*]),
+  `pc`, [Program counter, before executing the instruction.],
+  `L`, [Instruction length, $4$ for ARM state, $2$ for Thumb state.],
+  `alu`, [The instruction operand---ie, the first source address.],
+  `i`, [MAS, $2$ for ARM state, $1$ for Thumb state.],
+  `s`, [MAS variable (`BYTE`, `HALFWORD`, or `WORD`).])
+
+#figure(caption: [Load Register Instruction Cycle (normal)], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlh'},
@@ -1392,7 +1466,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:0, every:1 },
   config: { hscale: 2 }
 }"))
-#figure(caption: [Load Register Instruction Cycle (normal) (continued)], wavy.render(height: 33%, "{
+#figure(caption: [Load Register Instruction Cycle (normal) (continued)], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlh'},
@@ -1414,7 +1488,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
 }"))
 
 
-#figure(caption: [Load Register Instruction Cycle (dest=pc)], wavy.render(height: 38%, "{
+#figure(caption: [Load Register Instruction Cycle (dest=pc)], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlhlh'},
@@ -1435,13 +1509,13 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:0, every:1 },
   config: { hscale: 2 }
 }"))
-#figure(caption: [Load Register Instruction Cycle (dest=pc) (continued)], wavy.render(height: 33%, "{
+#figure(caption: [Load Register Instruction Cycle (dest=pc) (continued)], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlhlh'},
     {name:'MREQ',wave:'1...x.', phase: 0},
     {name:'SEQ', wave:'1...x.', phase: 0},
-    {name:'OPC', wave:'0...x.', phase: 0},
+    {name:'OPC', wave:'1...x.', phase: 0},
     {name:'RW',  wave:'1...x.', phase: 0},
     {name:'A',   wave:'5.5.5.', phase: 0, data: ['pc\'', 'pc\' + 4', 'pc\' + 8']},
     {name:'MAS', wave:'5.5.x.', phase: 0, data: ['2', '2']},
@@ -1458,7 +1532,8 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
 }"))
 \
 
-== #smallcaps[Store Register Instruction Cycle]
+#pagebreak()
+== #smallcaps[Store Register Instruction Cycle (SRI-Cycle)]
 
 #table(
   columns: (100%),
@@ -1466,11 +1541,22 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   [`STR`, `STRB`, `STRBT`, `STRH`, `STRT`])
 
 #table(
-  columns: (60%, 40%),
-  table.header([*Related Procedures*], []),
-  `test_store_register_instruction_cycle`, [Test procedure.],
-  `gba_request_store_register_instruction_cycle`, [Request procedure.],
-  `memory_respond_store_register_instruction_cycle`, [Response procedure.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_SRI_cycle`,
+  `gba_request_SRI_cycle`,
+  `memory_respond_SRI_cycle`)
+
+#table(columns: (100%))[ #smallcaps[*Duration:*] $2$ clock cycles]
+
+#table(
+  columns: (8%, 92%),
+  table.header([], [*Parameters*]),
+  `pc`, [Program counter, before executing the instruction.],
+  `L`, [Instruction length, $4$ for ARM state, $2$ for Thumb state.],
+  `alu`, [The instruction operand---ie, the first target address.],
+  `i`, [MAS, $2$ for ARM state, $1$ for Thumb state.],
+  `s`, [MAS variable (`BYTE`, `HALFWORD`, or `WORD`).])
 
 #figure(caption: [Store Register Instruction Cycle], wavy.render(height: 36%, "{
   signal:
@@ -1495,7 +1581,8 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
 }"))
 \
 
-== #smallcaps[Load Multiple Register Instruction Cycle]
+#pagebreak()
+== #smallcaps[Load Multiple Register Instruction Cycle (LMRI-Cycle)]
 
 #table(
   columns: (100%),
@@ -1503,18 +1590,29 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   [`LDM`])
 
 #table(
-  columns: (60%, 40%),
-  table.header([*Related Procedures*], []),
-  `test_load_multiple_register_instruction_cycle`, [Test procedure.],
-  `gba_request_load_multiple_register_instruction_cycle`, [Request procedure.],
-  `memory_respond_load_multiple_register_instruction_cycle`, [Response procedure.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_LMRI_cycle`,
+  `gba_request_LMRI_cycle`,
+  `memory_respond_LMRI_cycle`)
 
-#figure(caption: [Load Multiple Register Instruction Cycle (single register)], wavy.render(height: 38%, "{
+#table(columns: (100%))[ #smallcaps[*Duration:*] $3$ to $6$ clock cycles]
+
+#table(
+  columns: (8%, 92%),
+  table.header([], [*Parameters*]),
+  `pc`, [Program counter, before executing the instruction.],
+  `L`, [Instruction length, $4$ for ARM state, $2$ for Thumb state.],
+  `alu`, [The instruction operand---ie, the first source address.],
+  `i`, [MAS, $2$ for ARM state, $1$ for Thumb state.],
+  `s`, [MAS variable (`BYTE`, `HALFWORD`, or `WORD`).])
+
+#figure(caption: [Load Multiple Register Instruction Cycle (single register)], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlh'},
     {name:'MREQ',wave:'1.0.', phase: 0},
-    {name:'SEQ', wave:'1...', phase: 0},
+    {name:'SEQ', wave:'0...', phase: 0},
     {name:'OPC', wave:'1.0.', phase: 0},
     {name:'RW',  wave:'1...', phase: 0},
     {name:'A',   wave:'5.5.', phase: 0, data: ['pc + 2L', 'alu']},
@@ -1529,12 +1627,12 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:0, every:1 },
   config: { hscale: 2 }
 }"))
-#figure(caption: [Load Multiple Register Instruction Cycle (single register) (continued)], wavy.render(height: 33%, "{
+#figure(caption: [Load Multiple Register Instruction Cycle (single register) (continued)], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlh'},
     {name:'MREQ',wave:'1.x.', phase: 0},
-    {name:'SEQ', wave:'0.x.', phase: 0},
+    {name:'SEQ', wave:'1.x.', phase: 0},
     {name:'OPC', wave:'0.x.', phase: 0},
     {name:'RW',  wave:'1.x.', phase: 0},
     {name:'A',   wave:'5.5.', phase: 0, data: ['pc + 3L', 'pc + 3L']},
@@ -1549,8 +1647,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:4, every:1 },
   config: { hscale: 2 }
 }"))
-
-#figure(caption: [Load Multiple Register Instruction Cycle (single regiser dest=pc)], wavy.render(height: 38%, "{
+#figure(caption: [Load Multiple Register Instruction Cycle (single regiser dest=pc)], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlhlh'},
@@ -1571,7 +1668,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:0, every:1 },
   config: { hscale: 2 }
 }"))
-#figure(caption: [Load Multiple Register Instruction Cycle (single register dest=pc) (continued)], wavy.render(height: 33%, "{
+#figure(caption: [Load Multiple Register Instruction Cycle (single register dest=pc) (continued)], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlhlh'},
@@ -1593,7 +1690,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   config: { hscale: 2 }
 }"))
 
-#figure(caption: [Load Multiple Register Instruction Cycle (n registers)], wavy.render(height: 38%, "{
+#figure(caption: [Load Multiple Register Instruction Cycle (n registers)], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlhl'},
@@ -1601,9 +1698,9 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
     {name:'SEQ', wave:'0.1.0', phase: 0},
     {name:'OPC', wave:'1.0..', phase: 0},
     {name:'RW',  wave:'1....', phase: 0},
-    {name:'A',   wave:'5.5.5', phase: 0, data: ['pc + 2L', 'alu', 'alu + k - 2']},
+    {name:'A',   wave:'5.5.5', phase: 0, data: ['pc + 2L', 'alu + 4 (k - 2)', 'alu + 4 n']},
     {name:'MAS', wave:'5.5.5', phase: 0, data: ['i', '2', '2']},
-    {name:'DIN', wave:'z8z8z', phase: 0, data: ['(pc + 2L)', '(alu + k - 2)']},
+    {name:'DIN', wave:'z8z8z', phase: 0, data: ['(pc + 2L)', '(alu+4(k-2))']},
     {node:'A.B.CD', phase: 0.15},
   ],
   edge: [
@@ -1614,7 +1711,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:0, every:1 },
   config: { hscale: 2 }
 }"))
-#figure(caption: [Load Multiple Register Instruction Cycle (n registers) (continued)], wavy.render(height: 33%, "{
+#figure(caption: [Load Multiple Register Instruction Cycle (n registers) (continued)], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'hlhlh'},
@@ -1622,9 +1719,9 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
     {name:'SEQ', wave:'01.x.', phase: 0},
     {name:'OPC', wave:'0..x.', phase: 0},
     {name:'RW',  wave:'1..x.', phase: 0},
-    {name:'A',   wave:'55.5.', phase: 0, data: ['alu + k - 2', 'pc + 3L', 'pc + 3L']},
+    {name:'A',   wave:'55.5.', phase: 0, data: ['alu + 4 n', 'pc + 3L', 'pc + 3L']},
     {name:'MAS', wave:'55.x.', phase: 0, data: ['2', 'i']},
-    {name:'DIN', wave:'8z.x.', phase: 0, data: ['(alu + k - 2)']},
+    {name:'DIN', wave:'8z.x.', phase: 0, data: ['(alu+4n)']},
     {node:'AB.C.D', phase: 0.15},
   ],
   edge: [
@@ -1635,7 +1732,6 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:0, every:1 },
   config: { hscale: 2 }
 }"))
-
 #figure(caption: [Load Multiple Register Instruction Cycle (n registers including pc)], wavy.render(height: 30%, "{
   signal:
   [
@@ -1644,9 +1740,9 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
     {name:'SEQ', wave:'0.1.0..', phase: 0},
     {name:'OPC', wave:'1.0....', phase: 0},
     {name:'RW',  wave:'1......', phase: 0},
-    {name:'A',   wave:'5.5.5.5', phase: 0, data: ['pc + 2L', 'alu + k - 2', 'alu + k - 2', 'pc + 3L']},
+    {name:'A',   wave:'5.5.5.5', phase: 0, data: ['pc + 2L', 'alu + 4(k - 2)', 'alu + 4 n', 'pc + 3L']},
     {name:'MAS', wave:'5.5.5.5', phase: 0, data: ['i', '2', '2', 'i']},
-    {name:'DIN', wave:'z8z8z8z', phase: 0, data: ['(pc + 2L)', '(alu + k - 2)', 'pc\'']},
+    {name:'DIN', wave:'z8z8z8z', phase: 0, data: ['(pc + 2L)', '(alu + 4(k - 2))', 'pc\'']},
     {node:'A.B.C.DE', phase: 0.15},
   ],
   edge: [
@@ -1680,9 +1776,9 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:7, every:1 },
   config: { hscale: 2 }
 }"))
-\
 
-== #smallcaps[Store Multiple Register Instruction Cycle]
+#pagebreak()
+== #smallcaps[Store Multiple Register Instruction Cycle (SMRI-Cycle)]
 
 #table(
   columns: (100%),
@@ -1690,13 +1786,25 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   [`STM`])
 
 #table(
-  columns: (60%, 40%),
-  table.header([*Related Procedures*], []),
-  `test_store_multiple_register_instruction_cycle`, [Test procedure.],
-  `gba_request_store_multiple_register_instruction_cycle`, [Request procedure.],
-  `memory_respond_store_multiple_register_instruction_cycle`, [Response procedure.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_SMRI_cycle`,
+  `gba_request_SMRI_cycle`,
+  `memory_respond_SMRI_cycle`)
 
-#figure(caption: [Store Multiple Register Instruction Cycle (single register)], wavy.render(height: 42%, "{
+#table(columns: (100%))[ #smallcaps[*Duration:*] $2$ to $3$ clock cycles]
+
+#table(
+  columns: (8%, 92%),
+  table.header([], [*Parameters*]),
+  `pc`, [Program counter, before executing the instruction.],
+  `L`, [Instruction length, $4$ for ARM state, $2$ for Thumb state.],
+  `alu`, [The instruction operand---ie, the first target address.],
+  `i`, [MAS, $2$ for ARM state, $1$ for Thumb state.],
+  `s`, [MAS variable (`BYTE`, `HALFWORD`, or `WORD`).],
+  `R[k]`, [The value in the $k$-th register.])
+
+#figure(caption: [Store Multiple Register Instruction Cycle (single register)], wavy.render(height: 35%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlhlh'},
@@ -1718,8 +1826,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:0, every:1 },
   config: { hscale: 2 }
 }"))
-
-#figure(caption: [Store Multiple Register Instruction Cycle (n registers)], wavy.render(height: 43%, "{
+#figure(caption: [Store Multiple Register Instruction Cycle (n registers)], wavy.render(height: 35%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlh'},
@@ -1727,10 +1834,10 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
     {name:'SEQ', wave:'0.1.', phase: 0},
     {name:'OPC', wave:'1.0.', phase: 0},
     {name:'RW',  wave:'1.0.', phase: 0},
-    {name:'A',   wave:'5.5.', phase: 0, data: ['pc + 8', 'alu + k - 2']},
+    {name:'A',   wave:'5.5.', phase: 0, data: ['pc + 8', 'alu + 4(k - 2)']},
     {name:'MAS', wave:'5.5.', phase: 0, data: ['i', '2']},
-    {name:'DIN', wave:'z8z.', phase: 0, data: ['(pc+ 2L)', 'R(k - 2)']},
-    {name:'DOUT', wave:'z.8.', phase: 0, data: ['R(k - 2)']},
+    {name:'DIN', wave:'z8z.', phase: 0, data: ['(pc+ 2L)', 'R[k-2]']},
+    {name:'DOUT', wave:'z.8.', phase: 0, data: ['R[k-2]']},
     {node:'A.B.C', phase: 0.15},
   ],
   edge: [
@@ -1740,7 +1847,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:0, every:1 },
   config: { hscale: 2 }
 }"))
-#figure(caption: [Store Multiple Register Instruction Cycle (n registers) (continued)], wavy.render(height: 38%, "{
+#figure(caption: [Store Multiple Register Instruction Cycle (n registers) (continued)], wavy.render(height: 35%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlh'},
@@ -1748,10 +1855,10 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
     {name:'SEQ', wave:'0.x.', phase: 0},
     {name:'OPC', wave:'0.x.', phase: 0},
     {name:'RW',  wave:'0.x.', phase: 0},
-    {name:'A',   wave:'5.5.', phase: 0, data: ['pc + 8', 'alu + k - 2', 'alu + k - 2', 'pc + 12']},
-    {name:'MAS', wave:'5.x.', phase: 0, data: ['i', '2', '2']},
+    {name:'A',   wave:'5.5.', phase: 0, data: ['alu + 4 n', 'pc + 12']},
+    {name:'MAS', wave:'5.x.', phase: 0, data: ['2']},
     {name:'DIN', wave:'z...', phase: 0},
-    {name:'DOUT', wave:'8.x.', phase: 0, data: ['R(k - 2)']},
+    {name:'DOUT', wave:'8.x.', phase: 0, data: ['R[k-2]']},
     {node:'A.B.C', phase: 0.15},
   ],
   edge: [
@@ -1761,9 +1868,9 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:4, every:1 },
   config: { hscale: 2 }
 }"))
-\
 
-== #smallcaps[Data Swap Instruction Cycle]
+#pagebreak()
+== #smallcaps[Data Swap Instruction Cycle (DSI-Cycle)]
 
 #table(
   columns: (100%),
@@ -1771,13 +1878,23 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   [`SWP`, `SWPB`])
 
 #table(
-  columns: (60%, 40%),
-  table.header([*Related Procedures*], []),
-  `test_data_swap_instruction_cycle`, [Test procedure.],
-  `gba_request_data_swap_instruction_cycle`, [Request procedure.],
-  `memory_respond_data_swap_instruction_cycle`, [Response procedure.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_DSI_cycle`,
+  `gba_request_DSI_cycle`,
+  `memory_respond_DSI_cycle`)
 
-#figure(caption: [Data Swap Instruction Cycle], wavy.render(height: 36%, "{
+#table(columns: (100%))[ #smallcaps[*Duration:*] $4$ clock cycles]
+
+#table(
+  columns: (8%, 92%),
+  table.header([], [*Parameters*]),
+  `pc`, [Program counter, before executing the instruction.],
+  `alu`, [The instruction operand---ie, the first target address.],
+  `s`, [MAS variable (`BYTE` or `WORD`).],
+  `R[k]`, [The value in the $k$-th register.])
+
+#figure(caption: [Data Swap Instruction Cycle], wavy.render(height: 39%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlhl'},
@@ -1785,10 +1902,11 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
     {name:'SEQ', wave:'0....', phase: 0},
     {name:'OPC', wave:'1.0..', phase: 0},
     {name:'RW',  wave:'1...0', phase: 0},
-    {name:'A',   wave:'5.5.5', phase: 0, data: ['pc + 8', 'Rn', 'Rn']},
-    {name:'MAS', wave:'5.5.5', phase: 0, data: ['2', 'b/w', 'b/w']},
-    {name:'DIN', wave:'z8z8z', phase: 0, data: ['(pc + 8)', '(Rn)']},
-    {name:'DOUT', wave:'z...8', phase: 0, data: ['Rm']},
+    {name:'LOCK',wave:'0.1..', phase: 0},
+    {name:'A',   wave:'5.5.5', phase: 0, data: ['pc + 8', 'R[n]', 'R[n]']},
+    {name:'MAS', wave:'5.5.5', phase: 0, data: ['2', 's', 's']},
+    {name:'DIN', wave:'z8z8z', phase: 0, data: ['(pc + 8)', '(R[n])']},
+    {name:'DOUT', wave:'z...8', phase: 0, data: ['R[m]']},
     {node:'A.B.C.D', phase: 0.15},
   ],
   edge: [
@@ -1799,7 +1917,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:0, every:1 },
   config: { hscale: 2 }
 }"))
-#figure(caption: [Data Swap Instruction Cycle (continued)], wavy.render(height: 36%, "{
+#figure(caption: [Data Swap Instruction Cycle (continued)], wavy.render(height: 39%, "{
   signal:
   [
     {name:'MCLK',wave:'hlhlh'},
@@ -1807,10 +1925,11 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
     {name:'SEQ', wave:'01.x.', phase: 0},
     {name:'OPC', wave:'0..x.', phase: 0},
     {name:'RW',  wave:'01.x.', phase: 0},
-    {name:'A',   wave:'55.5.', phase: 0, data: ['Rn', 'pc + 12', 'pc + 12']},
-    {name:'MAS', wave:'55.x.', phase: 0, data: ['b/w', '2']},
+    {name:'LOCK',wave:'10.x.', phase: 0},
+    {name:'A',   wave:'55.5.', phase: 0, data: ['R[n]', 'pc + 12', 'pc + 12']},
+    {name:'MAS', wave:'55.x.', phase: 0, data: ['s', '2']},
     {name:'DIN', wave:'z..x.', phase: 0},
-    {name:'DOUT', wave:'8z.x.', phase: 0, data: ['Rm']},
+    {name:'DOUT', wave:'8z.x.', phase: 0, data: ['R[m]']},
     {node:'A.B.C.D', phase: 0.15},
   ],
   edge: [
@@ -1821,9 +1940,9 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:5, every:1 },
   config: { hscale: 2 }
 }"))
-\
 
-== #smallcaps[Software Interrupt and Exception Instruction Cycle]
+#pagebreak()
+== #smallcaps[Software Interrupt and Exception Instruction Cycle (SIAEI-Cycle)]
 
 #table(
   columns: (100%),
@@ -1831,20 +1950,33 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   [`SWI`])
 
 #table(
-  columns: (60%, 40%),
-  table.header([*Related Procedures*], []),
-  `test_software_interrupt_and_exception_instruction_cycle`, [Test procedure.],
-  `gba_request_software_interrupt_and_exception_instruction_cycle`, [Request procedure.],
-  `memory_respond_software_interrupt_and_exception_instruction_cycle`, [Response procedure.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_SIAEI_cycle`,
+  `gba_request_SIAEI_cycle`,
+  `memory_respond_SIAEI_cycle`)
 
-#figure(caption: [Software Interrupt and Exception Instruction Cycle], wavy.render(height: 36%, "{
+#table(columns: (100%))[ #smallcaps[*Duration:*] $3$ clock cycles]
+
+#table(
+  columns: (8%, 92%),
+  table.header([], [*Parameters*]),
+  `pc`, [Program counter, before executing the instruction.],
+  `L`, [Instruction length, $4$ for ARM state, $2$ for Thumb state.],
+  `old`, [The processor mode, before executing the instruction],
+  `i`, [MAS, $2$ for ARM state, $1$ for Thumb state.],
+  `T`, [TBIT, before executing the instruction.],
+  `Xn`, [The exception address.])
+
+#figure(caption: [Software Interrupt and Exception Instruction Cycle], wavy.render(height: 41%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlh'},
     {name:'MREQ',wave:'1...', phase: 0},
     {name:'SEQ', wave:'0.1.', phase: 0},
-    {name:'OPC', wave:'0.1.', phase: 0},
+    {name:'OPC', wave:'1...', phase: 0},
     {name:'TBIT',wave:'5.5.', phase: 0, data: ['T', '0']},
+    {name:'M',   wave:'5.5.', phase: 0, data: ['old', 'exception']},
     {name:'RW',  wave:'1...', phase: 0},
     {name:'A',   wave:'5.5.', phase: 0, data: ['pc + 2L', 'Xn']},
     {name:'MAS', wave:'5.5.', phase: 0, data: ['i', '2']},
@@ -1858,7 +1990,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:0, every:1 },
   config: { hscale: 2 }
 }"))
-#figure(caption: [Software Interrupt and Exception Instruction Cycle (continued)], wavy.render(height: 36%, "{
+#figure(caption: [Software Interrupt and Exception Instruction Cycle (continued)], wavy.render(height: 41%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlh'},
@@ -1866,6 +1998,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
     {name:'SEQ', wave:'1.x.', phase: 0},
     {name:'OPC', wave:'1.x.', phase: 0},
     {name:'TBIT',wave:'5.x.', phase: 0, data: ['0']},
+    {name:'M',   wave:'5.x.', phase: 0, data: ['exception']},
     {name:'RW',  wave:'1.x.', phase: 0},
     {name:'A',   wave:'5.5.', phase: 0, data: ['Xn + 4', 'Xn + 8']},
     {name:'MAS', wave:'5.x.', phase: 0, data: ['2']},
@@ -1879,18 +2012,30 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:4, every:1 },
   config: { hscale: 2 }
 }"))
-\
 
-== #smallcaps[Undefined Instruction Cycle]
+#pagebreak()
+== #smallcaps[Undefined Instruction Cycle (UDI-Cycle)]
 
 #table(
-  columns: (60%, 40%),
-  table.header([*Related Procedures*], []),
-  `test_undefined_instruction_cycle`, [Test procedure.],
-  `gba_request_undefined_instruction_cycle`, [Request procedure.],
-  `memory_respond_undefined_instruction_cycle`, [Response procedure.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_UDI_cycle`,
+  `gba_request_UDI_cycle`,
+  `memory_respond_UDI_cycle`)
 
-#figure(caption: [Undefined Instruction Cycle], wavy.render(height: 36%, "{
+#table(columns: (100%))[ #smallcaps[*Duration:*] $4$ clock cycles]
+
+#table(
+  columns: (8%, 92%),
+  table.header([], [*Parameters*]),
+  `pc`, [Program counter, before executing the instruction.],
+  `L`, [Instruction length, $4$ for ARM state, $2$ for Thumb state.],
+  `old`, [The processor mode, before executing the instruction],
+  `i`, [MAS, $2$ for ARM state, $1$ for Thumb state.],
+  `T`, [TBIT, before executing the instruction.],
+  `Xn`, [The exception address.])
+
+#figure(caption: [Undefined Instruction Cycle], wavy.render(height: 35%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlhl'},
@@ -1898,6 +2043,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
     {name:'SEQ', wave:'0...1', phase: 0},
     {name:'OPC', wave:'1....', phase: 0},
     {name:'TBIT',wave:'5.5.5', phase: 0, data: ['T', 'T', '0', '0']},
+    {name:'M',wave:'5.5.5', phase: 0, data: ['old', 'old', '00100']},
     {name:'RW',  wave:'1....', phase: 0},
     {name:'A',   wave:'5.5.5', phase: 0, data: ['pc + 2L', 'pc + 2L', 'Xn']},
     {name:'MAS', wave:'5.5.5', phase: 0, data: ['i', 'i', '2']},
@@ -1912,7 +2058,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:0, every:1 },
   config: { hscale: 2 }
 }"))
-#figure(caption: [Undefined Instruction Cycle (continued)], wavy.render(height: 36%, "{
+#figure(caption: [Undefined Instruction Cycle (continued)], wavy.render(height: 35%, "{
   signal:
   [
     {name:'MCLK',wave:'hlhlh'},
@@ -1920,6 +2066,7 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
     {name:'SEQ', wave:'1..x.', phase: 0},
     {name:'OPC', wave:'1..x.', phase: 0},
     {name:'TBIT',wave:'55.x.', phase: 0, data: ['0', '0']},
+    {name:'M',wave:'55.x.', phase: 0, data: ['00100', '00100']},
     {name:'RW',  wave:'1..x.', phase: 0},
     {name:'A',   wave:'55.5.', phase: 0, data: ['Xn', 'Xn + 4', 'Xn + 8']},
     {name:'MAS', wave:'55.x.', phase: 0, data: ['2', '2']},
@@ -1934,18 +2081,27 @@ _It seems like whenever `SEQ` is high, the address will always increment in the 
   head:{ text:'', tick:5, every:1 },
   config: { hscale: 2 }
 }"))
-\
 
-== #smallcaps[Unexecuted Instruction Cycle]
+#pagebreak()
+== #smallcaps[Unexecuted Instruction Cycle (UEI-Cycle)]
 
 #table(
-  columns: (60%, 40%),
-  table.header([*Related Procedures*], []),
-  `test_unexecuted_instruction_cycle`, [Test procedure.],
-  `gba_request_unexecuted_instruction_cycle`, [Request procedure.],
-  `memory_respond_unexecuted_instruction_cycle`, [Response procedure.])
+  columns: (100%),
+  table.header([*Related Procedures*]),
+  `test_UEI_cycle`,
+  `gba_request_UEI_cycle`,
+  `memory_respond_UEI_cycle`)
 
-#figure(caption: [Unexecuted Instruction Cycle], wavy.render(height: 33%, "{
+#table(columns: (100%))[ #smallcaps[*Duration:*] $1$ clock cycle]
+
+#table(
+  columns: (8%, 92%),
+  table.header([], [*Parameters*]),
+  `pc`, [Program counter, before executing the instruction.],
+  `L`, [Instruction length, $4$ for ARM state, $2$ for Thumb state.],
+  `i`, [MAS, $2$ for ARM state, $1$ for Thumb state.])
+
+#figure(caption: [Unexecuted Instruction Cycle], wavy.render(height: 32%, "{
   signal:
   [
     {name:'MCLK',wave:'lhlh'},

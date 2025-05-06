@@ -27,6 +27,7 @@ WARN: string: "\e[0;33m[ warn ]\e[0m"
 
 LOW_PHASE:: 0
 HIGH_PHASE:: 1
+frame_timer: time.Stopwatch
 State:: struct {
 	first_tick:           bool,
 	tick_index:           uint,
@@ -96,6 +97,10 @@ tick:: proc(n: uint = 0, times: int = 1) -> bool {
 	tick_index += 1
 	signals_tick(current_tick_index, current_cycle_index, current_phase_index)
 	return true }
+execute_next:: proc() {
+	// gba_request_memory_sequence()
+	// x: = 4 / 3
+}
 main:: proc() {
 	using state: State
 	context = initialize_context(&state)
@@ -131,8 +136,13 @@ main:: proc() {
 	thread.start(speaker_thread)
 	thread.start(display_thread)
 	thread.start(buttons_thread)
-	for tick(n = 8) { }
-	// time.sleep(10 * time.Second)
+	for tick(n = 8) {
+		zero_and_start_timer(&frame_timer)
+		for i in 0 ..< CYCLES_PER_FRAME do execute_next()
+		elapsed_time: f32 = read_timer(&frame_timer)
+		utilization: f32 = elapsed_time / SECONDS_PER_FRAME
+		fmt.println("utilization:", utilization)
+		time.sleep(time.Duration(max(SECONDS_PER_FRAME - elapsed_time, 0) * f32(time.Second))) }
 	thread.join(memory_thread)
 	thread.join(gba_core_thread)
 	thread.join(gb_core_thread)
@@ -147,5 +157,4 @@ main:: proc() {
 	thread.join(oscillator_thread)
 	thread.join(speaker_thread)
 	thread.join(display_thread)
-	thread.join(buttons_thread)
-	fmt.println(timeline_print()) }
+	thread.join(buttons_thread) }

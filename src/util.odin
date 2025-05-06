@@ -1,5 +1,8 @@
 package gbana
-import		"core:fmt"
+import "core:fmt"
+import "core:time"
+
+
 fmt_units:: proc(x: int, allocator:= context.temp_allocator)-> string {
 	switch {
 	case x >= 1_000_000_000:
@@ -19,6 +22,16 @@ try::proc(x:$T,ok:bool,loc:=#caller_location)->T {
 	return x }
 bit_range:: proc($start: int, $end: int) -> int {
 	return end - start + 1 }
+
+
+// TIMER //
+zero_and_start_timer:: proc(timer: ^time.Stopwatch) {
+	time.stopwatch_reset(timer)
+	time.stopwatch_start(timer) }
+pause_timer:: proc(timer: ^time.Stopwatch) {
+	time.stopwatch_stop(timer) }
+read_timer:: proc(timer: ^time.Stopwatch) -> f32 {
+	return f32(time.duration_seconds(time.stopwatch_duration(timer^))) }
 
 
 // BIT OPERATIONS //
