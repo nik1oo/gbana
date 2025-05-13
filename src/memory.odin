@@ -877,7 +877,7 @@ memory_respond_BAEI_cycle:: proc(alu: u32, loc: = #caller_location) {
 	w: u32 = T ? 4 : 2
 	I: Memory_Access_Size = T ? .HALFWORD : .WORD
 	i: Memory_Access_Size = T ? .WORD : .HALFWORD
-	signal_put(&gba_core.data_in, memory_read(pc + 2 * w, i), 1)
+	signal_put(&gba_core.data_in, memory_read(pc + 2 * W, I), 1)
 	signal_put(&gba_core.data_in, memory_read(alu, i), 3)
 	signal_put(&gba_core.data_in, memory_read(alu + w, i), 5) }
 memory_respond_DPI_cycle:: proc(alu: u32, destination_is_pc: bool, shift_specified_by_register: bool, loc: = #caller_location) {

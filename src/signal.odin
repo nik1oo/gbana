@@ -2,6 +2,7 @@ package gbana
 import "core:fmt"
 import "core:container/queue"
 import "core:log"
+import "core:strings"
 
 
 HIGH:: true
@@ -25,15 +26,27 @@ Signal:: struct($T: typeid) {
 	latency:     int,
 	write_phase: bit_set[0..=1],
 	callback:    proc(self: ^Signal(T), old_output, new_output: T) }
-signals_tick:: proc(current_tick_index:  uint, current_cycle_index: uint, current_phase_index: uint) {
+signal_tprint_queue:: proc(signal: ^Signal($T)) -> string {
+	sb: strings.Builder
+	strings.builder_init_len_cap(&sb, 0, 1024, allocator = context.temp_allocator)
+	fmt.sbprint(&sb, "[", queue.len(signal._queue), "]{ ", sep = "")
+	for i in 0 ..< queue.len(signal._queue) {
+		signal_data: = queue.get_ptr(&signal._queue, i)
+		fmt.sbprint(&sb, signal_data.latency, " ", sep = "") }
+	fmt.sbprint(&sb, "}", sep = "")
+	return strings.to_string(sb) }
+signals_tick:: proc(current_tick_index:  uint, current_cycle_index: uint, current_phase_index: uint, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
 	timeline_append(current_tick_index, current_cycle_index, current_phase_index)
 	for signal in signals do #partial switch v in signal {
-	case ^Signal(u32):                signal_tick(v)
-	case ^Signal(uint):               signal_tick(v)
-	case ^Signal(u8):                 signal_tick(v)
-	case ^Signal(bool):               signal_tick(v)
-	case ^Signal(GBA_Processor_Mode): signal_tick(v) } }
+	case ^Signal(u32):                signal_tick(v, loc = loc)
+	case ^Signal(uint):               signal_tick(v, loc = loc)
+	case ^Signal(u8):                 signal_tick(v, loc = loc)
+	case ^Signal(bool):               signal_tick(v, loc = loc)
+	case ^Signal(GBA_Processor_Mode): signal_tick(v, loc = loc)
+	case ^Signal(Memory_Read_Write):  signal_tick(v, loc = loc)
+	case ^Signal(Memory_Access_Size): signal_tick(v, loc = loc)
+	case:                             log.fatal("Unhandled signal tick case.") } }
 Signal_Data:: struct($T: typeid) {
 	data:    T,
 	latency: int }
