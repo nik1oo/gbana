@@ -2,6 +2,7 @@ package gbana
 import "vendor:glfw"
 import gl "vendor:OpenGL"
 import "core:thread"
+import "core:sync"
 
 
 // REGISTERS //
@@ -154,6 +155,7 @@ BLDY:: bit_field u32 {
 
 // DISPLAY I/O MEMORY //
 Display:: struct {
+	mutex:                                 sync.Recursive_Mutex,
 	window_res:                            [2]i32,
 	render_res:                            [2]i32,
 	window:                                glfw.WindowHandle,
@@ -197,6 +199,7 @@ Display:: struct {
 	brightness_coefficient:                ^BLDY }
 initialize_display:: proc() {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&display.mutex); defer sync.recursive_mutex_unlock(&display.mutex)
 	display.window_res = {1664, 936}
 	display.render_res = {240, 160}
 	glfw.Init()
@@ -331,7 +334,7 @@ Background_Tile:: bit_field u16 {
 	Palette_Number:  uint | 4 }
 
 
-draw_display:: proc() {
+@(private="file") draw_display:: proc() {
 	using state: ^State = cast(^State)context.user_ptr
 	glfw.PollEvents()
 	gl.Clear(gl.COLOR_BUFFER_BIT)

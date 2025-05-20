@@ -1,10 +1,13 @@
 package gbana
 import "core:thread"
+import "core:sync"
 
 
-Sound_Controller:: struct { }
+Sound_Controller:: struct {
+	mutex: sync.Recursive_Mutex }
 initialize_sound_controller:: proc() {
-	using state: ^State = cast(^State)context.user_ptr }
+	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&sound_controller.mutex); defer sync.recursive_mutex_unlock(&sound_controller.mutex) }
 
 
 // REGISTERS //

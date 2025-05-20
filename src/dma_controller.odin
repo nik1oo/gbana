@@ -1,5 +1,6 @@
 package gbana
 import "core:thread"
+import "core:sync"
 
 
 // REGISTERS //
@@ -30,9 +31,11 @@ DMA2CNT_H:: DMA0CNT_H
 DMA3CNT_H:: DMA0CNT_H
 
 
-DMA_Controller:: struct { }
+DMA_Controller:: struct {
+	mutex: sync.Recursive_Mutex }
 initialize_dma_controller:: proc() {
-	using state: ^State = cast(^State)context.user_ptr }
+	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&dma_controller.mutex); defer sync.recursive_mutex_unlock(&dma_controller.mutex) }
 
 
 // THREAD //

@@ -1,10 +1,13 @@
 package gbana
 import "core:thread"
+import "core:sync"
 
 
-SIO_Controller:: struct { }
+SIO_Controller:: struct {
+	mutex: sync.Recursive_Mutex }
 initialize_sio_controller:: proc() {
-	using state: ^State = cast(^State)context.user_ptr }
+	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&sio_controller.mutex); defer sync.recursive_mutex_unlock(&sio_controller.mutex) }
 
 
 // REGISTERS //

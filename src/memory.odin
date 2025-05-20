@@ -7,6 +7,7 @@ import "core:mem"
 import "core:slice"
 import "core:thread"
 import "core:log"
+import "core:sync"
 
 
 // INTERFACE //
@@ -23,7 +24,7 @@ Memory_Interface:: struct {
 	sequential_cycle:               Signal(bool),               // SEQ
 	op_code_fetch:                  Signal(bool),               // OPC
 	read_write:                     Signal(Memory_Read_Write)      } // RW
-init_memory_interface:: proc() {
+@(private="file") init_memory_interface:: proc() {
 	using state: ^State = cast(^State)context.user_ptr
 	memory.interface = {}
 	signal_init("MCLK", &memory.main_clock,           2, main_clock_callback,                  write_phase = { LOW_PHASE, HIGH_PHASE })
@@ -44,15 +45,15 @@ memory_thread_proc:: proc(t: ^thread.Thread) { }
 
 
 // SIGNAL LOGIC //
-memory_op_code_fetch_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
-memory_address_callback:: proc(self: ^Signal(u32), old_output, new_output: u32) { }
-memory_data_out_callback:: proc(self: ^Signal(u32), old_output, new_output: u32) {  }
-memory_memory_request_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
-memory_sequential_cycle_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
-memory_read_write_callback:: proc(self: ^Signal(Memory_Read_Write), old_output, new_output: Memory_Read_Write) { }
-memory_memory_access_size_callback:: proc(self: ^Signal(Memory_Access_Size), old_output, new_output: Memory_Access_Size) {  }
-memory_byte_latch_control_callback:: proc(self: ^Signal(u8), old_output, new_output: u8) {  }
-memory_lock_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
+@(private="file") memory_op_code_fetch_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
+@(private="file") memory_address_callback:: proc(self: ^Signal(u32), old_output, new_output: u32) { }
+@(private="file") memory_data_out_callback:: proc(self: ^Signal(u32), old_output, new_output: u32) {  }
+@(private="file") memory_memory_request_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
+@(private="file") memory_sequential_cycle_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
+@(private="file") memory_read_write_callback:: proc(self: ^Signal(Memory_Read_Write), old_output, new_output: Memory_Read_Write) { }
+@(private="file") memory_memory_access_size_callback:: proc(self: ^Signal(Memory_Access_Size), old_output, new_output: Memory_Access_Size) {  }
+@(private="file") memory_byte_latch_control_callback:: proc(self: ^Signal(u8), old_output, new_output: u8) {  }
+@(private="file") memory_lock_callback:: proc(self: ^Signal(bool), old_output, new_output: bool) { }
 
 
 // ENDIANNESS //
@@ -66,25 +67,25 @@ Big_Endian_Word:: struct #raw_union {
 	using words: struct { word_0: u32 },
 	using halfwords: struct { halfword_1: u16, halfword_0: u16 },
 	using bytes: struct { byte_3: u8, byte_2: u8, byte_1: u8, byte_0: u8 } }
-endian_word_get_word_0:: proc(word: $T) -> u32 {
+@(private="file") endian_word_get_word_0:: proc(word: $T) -> u32 {
 	#assert((T == Little_Endian_Word) || (T == Big_Endian_Word))
 	return word.word_0 }
-endian_word_get_halfword_0:: proc(word: $T) -> u16 {
+@(private="file") endian_word_get_halfword_0:: proc(word: $T) -> u16 {
 	#assert((T == Little_Endian_Word) || (T == Big_Endian_Word))
 	return word.halfword_0 }
-endian_word_get_halfword_1:: proc(word: $T) -> u16 {
+@(private="file") endian_word_get_halfword_1:: proc(word: $T) -> u16 {
 	#assert((T == Little_Endian_Word) || (T == Big_Endian_Word))
 	return word.halfword_1 }
-endian_word_get_byte_0:: proc(word: $T) -> u8 {
+@(private="file") endian_word_get_byte_0:: proc(word: $T) -> u8 {
 	#assert((T == Little_Endian_Word) || (T == Big_Endian_Word))
 	return word.byte_0 }
-endian_word_get_byte_1:: proc(word: $T) -> u8 {
+@(private="file") endian_word_get_byte_1:: proc(word: $T) -> u8 {
 	#assert((T == Little_Endian_Word) || (T == Big_Endian_Word))
 	return word.byte_1 }
-endian_word_get_byte_2:: proc(word: $T) -> u8 {
+@(private="file") endian_word_get_byte_2:: proc(word: $T) -> u8 {
 	#assert((T == Little_Endian_Word) || (T == Big_Endian_Word))
 	return word.byte_2 }
-endian_word_get_byte_3:: proc(word: $T) -> u8 {
+@(private="file") endian_word_get_byte_3:: proc(word: $T) -> u8 {
 	#assert((T == Little_Endian_Word) || (T == Big_Endian_Word))
 	return word.byte_3 }
 
@@ -122,7 +123,7 @@ CARTRIDGE_SAVE_DATA_RANGE::    [2]u32{ 0x0e000000, 0x0e00ffff } // SRAM or flash
 
 
 // VALIDITY //
-memory_address_is_valid:: proc(address: u32) -> bool {
+@(private="file") memory_address_is_valid:: proc(address: u32) -> bool {
 	switch address {
 	case BIOS_RANGE[START]                  ..= BIOS_RANGE[END]:                  return true
 	case EXTERNAL_WORK_RAM_RANGE[START]     ..= EXTERNAL_WORK_RAM_RANGE[END]:     return true
@@ -146,7 +147,7 @@ PALETTE_RAM_BUS_WIDTH::       2
 VIDEO_RAM_BUS_WIDTH::         2
 CARTRIDGE_ROM_BUS_WIDTH::     2
 CARTRIDGE_FLASH_BUS_WIDTH::   2
-memory_bus_width_from_address:: proc(address: u32) -> uint {
+@(private="file") memory_bus_width_from_address:: proc(address: u32) -> uint {
 	switch address {
 	case BIOS_RANGE[START]                  ..= BIOS_RANGE[END]:                  return BIOS_BUS_WIDTH
 	case EXTERNAL_WORK_RAM_RANGE[START]     ..= EXTERNAL_WORK_RAM_RANGE[END]:     return EXTERNAL_WORK_RAM_BUS_WIDTH
@@ -464,6 +465,8 @@ WIDTH:: 1
 // 	return 0
 // }
 memory_read:: proc(address: u32, memory_access_size: Memory_Access_Size) -> (value: u32, ok: bool) #optional_ok {
+	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	switch memory_access_size {
 	case .BYTE:
 		_value: u8; _value, ok = memory_read_u8(address)
@@ -477,6 +480,7 @@ memory_read:: proc(address: u32, memory_access_size: Memory_Access_Size) -> (val
 	return 0, false }
 memory_read_u8:: proc(address: u32) -> (value: u8, ok: bool) #optional_ok {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	if ! memory_address_is_valid(address) do return 0, false
 	word_address: u32 = cast(u32)mem.align_backward_uint(uint(address), 4)
 	byte_index: = address - word_address
@@ -484,6 +488,7 @@ memory_read_u8:: proc(address: u32) -> (value: u8, ok: bool) #optional_ok {
 	return cast(u8)((word >> (byte_index * 8)) & 0b_11111111), true }
 memory_read_u16:: proc(address: u32) -> (value: u16, ok: bool) #optional_ok {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	if ! memory_address_is_valid(address) do return 0, false
 	address: = address & (~ u32(0b_1))
 	word_address: u32 = cast(u32)mem.align_backward_uint(uint(address), 4)
@@ -492,12 +497,14 @@ memory_read_u16:: proc(address: u32) -> (value: u16, ok: bool) #optional_ok {
 	return cast(u16)((word >> (byte_index * 8)) & 0b_11111111_11111111), true }
 memory_read_u32:: proc(address: u32) -> (value: u32, ok: bool) #optional_ok {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	if ! memory_address_is_valid(address) do return 0, false
 	address: = address & (~ u32(0b_11))
 	word: u32 = transmute(u32)cast(u32be)transmute(u32le)(memory.data[address / 4])
 	return word, true }
 memory_write_u8:: proc(address: u32, value: u8) -> (ok: bool) {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	if ! memory_address_is_valid(address) do return false
 	bytes: = slice.reinterpret([]u8, memory.data)
 	word_address: u32 = cast(u32)mem.align_backward_uint(uint(address), 4)
@@ -506,6 +513,7 @@ memory_write_u8:: proc(address: u32, value: u8) -> (ok: bool) {
 	return true }
 memory_write_u16:: proc(address: u32, value: u16) -> (ok: bool) {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	if ! memory_address_is_valid(address) do return false
 	address: = address & (~ u32(0b_1))
 	halfwords: = slice.reinterpret([]u16, memory.data)
@@ -515,6 +523,7 @@ memory_write_u16:: proc(address: u32, value: u16) -> (ok: bool) {
 	return true }
 memory_write_u32:: proc(address: u32, value: u32) -> (ok: bool) {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	if ! memory_address_is_valid(address) do return false
 	address: = address & (~ u32(0b_11))
 	memory.data[address / 4] = cast(u32le)transmute(u32be)value
@@ -605,6 +614,7 @@ CARTRIDGE_GAME_DATA_2_ENTRY_POINT::     0x0c000000
 
 
 Memory:: struct {
+	mutex:                                     sync.Recursive_Mutex,
 	data:                                      []u32le,
 	system_rom_region:                         []u32le,
 	bios_region:                               []u32le,
@@ -688,6 +698,7 @@ Memory:: struct {
 	using interface: Memory_Interface }
 allocate_memory:: proc() {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	memory.data =                          runtime.make_aligned([]u32le, len = 0x0e00ffff/4+1, alignment = 4); assert(memory.data != nil)
 	memory.system_rom_region =             make_memslice(SYSTEM_ROM_RANGE)
 	memory.bios_region =                   make_memslice(BIOS_RANGE)
@@ -706,13 +717,15 @@ allocate_memory:: proc() {
 	memory.cartridge_save_data_region =    make_memslice(CARTRIDGE_SAVE_DATA_RANGE) }
 initialize_memory:: proc() {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	init_memory_interface()
 	load_bios(`C:\Games\GBA Roms\bios.bin`)
-	load_cartridge(`C:\Games\GBA Roms\Doom.gba`) }
+	insert_cartridge(`C:\Games\GBA Roms\Doom.gba`) }
 
 
 print_memory_regions::proc() {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	print_memslice("data                          ", memory.data)
 	print_memslice("system_rom_region             ", memory.system_rom_region)
 	print_memslice("bios_region                   ", memory.bios_region)
@@ -732,29 +745,29 @@ print_memory_regions::proc() {
 
 
 // BYTE ORDERING //
-is_aligned:: proc(x: u32, $align: int) -> bool {
+@(private="file") is_aligned:: proc(x: u32, $align: int) -> bool {
 	when align == 2 do return x & 0b_1 == 0b_0
 	when align == 4 do return x & 0b_11 == 0b_00 }
-align_byte:: proc(addr: uintptr)-> uintptr {
+@(private="file") align_byte:: proc(addr: uintptr)-> uintptr {
 	return bool(0b1&addr) ? addr+1 : addr }
-le_to_be:: proc(le: u32) -> u32 {
+@(private="file") le_to_be:: proc(le: u32) -> u32 {
 	return transmute(u32)cast(u32be)transmute(u32le)le }
-be_to_le:: proc(be: u32) -> u32 {
+@(private="file") be_to_le:: proc(be: u32) -> u32 {
 	return transmute(u32)cast(u32le)transmute(u32be)be }
 
 
-make_memslice:: proc(range: [2]u32, loc: = #caller_location)-> []u32le {
+@(private="file") make_memslice:: proc(range: [2]u32, loc: = #caller_location)-> []u32le {
 	using state: ^State = cast(^State)context.user_ptr
 	assert(is_aligned(range[START], 4) && is_aligned(range[END]+1, 4), loc = loc)
 	return memory.data[range[START]/4:range[END]/4+1] }
-print_memslice:: proc(name: string, memslice: []u32le) {
+@(private="file") print_memslice:: proc(name: string, memslice: []u32le) {
 	fmt.printfln("%s | %x - %x | %s ", name, memslice_region_start(memslice), memslice_region_end(memslice), fmt_units(len(memslice))) }
-memslice_region:: proc(memslice: []u32le)-> (region: [2]uint) {
+@(private="file") memslice_region:: proc(memslice: []u32le)-> (region: [2]uint) {
 	return { memslice_region_start(memslice), memslice_region_end(memslice) } }
-memslice_region_start:: proc(memslice: []u32le)-> uint {
+@(private="file") memslice_region_start:: proc(memslice: []u32le)-> uint {
 	using state: ^State = cast(^State)context.user_ptr
 	return uint(uintptr(&memslice[0]) - uintptr(&memory.data[0])) }
-memslice_region_end:: proc(memslice: []u32le)-> uint {
+@(private="file") memslice_region_end:: proc(memslice: []u32le)-> uint {
 	using state: ^State = cast(^State)context.user_ptr
 	return uint(uintptr(&memslice[len(memslice)-1]) - uintptr(&memory.data[0])) }
 
@@ -769,7 +782,7 @@ Instruction_Set:: enum {
 	THUMB_16 }
 
 
-load_bios:: proc(filename: string)-> bool {
+@(private="file") load_bios:: proc(filename: string)-> bool {
 	using state: ^State = cast(^State)context.user_ptr
 	bios_bytes, success: = os.read_entire_file_from_filename(filename)
 	bios: []u32le = slice.reinterpret([]u32le, bios_bytes)
@@ -779,23 +792,12 @@ load_bios:: proc(filename: string)-> bool {
 	// fmt.println("bios loaded | ", fmt_units(n), "/", fmt_units(len(memory.bios_region)))
 	copy_slice(memory.bios_region[0:n], bios[0:n])
 	return true }
-load_cartridge:: proc(filename: string)-> bool {
-	using state: ^State = cast(^State)context.user_ptr
-	cartridge_bytes, success: = os.read_entire_file_from_filename(filename)
-	cartridge: []u32le = slice.reinterpret([]u32le, cartridge_bytes)
-	if ! success do return false
-	n: = len(cartridge)
-	assert(n <= len(memory.cartridge_game_data_0_region))
-	// fmt.println("cartridge loaded | ", fmt_units(n), "/", fmt_units(len(memory.cartridge_game_data_0_region)))
-	copy_slice(memory.cartridge_game_data_0_region[0:n], cartridge[0:n])
-	copy_slice(memory.cartridge_game_data_1_region[0:n], cartridge[0:n])
-	copy_slice(memory.cartridge_game_data_2_region[0:n], cartridge[0:n])
-	return true }
 
 
 // SEQUENCES //
 memory_respond_memory_sequence:: proc(sequential_cycle: bool = LOW, read_write: Memory_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	assert(phase_index == 0, "Sequence may only be initiated in phase 1")
 	access_latency: = memory_bus_latency_from_address(address = address, width = 4/*memory.memory_access_size.output*/)
 	read_write: = memory.read_write.output
@@ -822,21 +824,33 @@ memory_respond_memory_sequence:: proc(sequential_cycle: bool = LOW, read_write: 
 			signal_put(&gba_core.abort, HIGH, latency)
 			signal_put(&gba_core.abort, HIGH, latency + 2) } } }
 memory_respond_N_cycle:: proc(read_write: Memory_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
+	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	memory_respond_memory_sequence(false, read_write, address, data_out, memory_access_size) }
 memory_respond_S_cycle:: proc(read_write: Memory_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
+	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	memory_respond_memory_sequence(true, read_write, address, data_out, memory_access_size) }
 memory_respond_MIS_cycle:: proc(read_write: Memory_Read_Write = .READ, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
+	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	memory_respond_memory_sequence(true, read_write, address, data_out, memory_access_size) }
 memory_respond_DW_cycle:: proc(sequential_cycle: bool = LOW, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
+	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	memory_respond_memory_sequence(sequential_cycle, .WRITE, address, data_out, memory_access_size) }
 memory_respond_DR_cycle:: proc(sequential_cycle: bool = LOW, address: u32 = 0b0, data_out: u32 = 0b0, memory_access_size: Memory_Access_Size = .WORD) {
+	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	memory_respond_memory_sequence(sequential_cycle, .READ, address, data_out, memory_access_size) }
 memory_respond_RS_cycle:: proc(loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	if phase_index != 0 do log.fatal("Sequence may only be responded in phase 1.", location = loc)
 	signal_put(&gba_core.data_in, memory_read_u32(0), 9) }
 memory_initiate_address_bus_control:: proc(address_bus_enable: bool, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	if phase_index != 0 do log.fatal("ABE may only be updated in phase 1", location = loc)
 	signal_put(&gba_core.address_bus_enable, address_bus_enable, 0)
 	memory.address.enabled = address_bus_enable
@@ -846,12 +860,14 @@ memory_initiate_address_bus_control:: proc(address_bus_enable: bool, loc: = #cal
 	memory.memory_access_size.enabled = address_bus_enable }
 memory_initiate_data_bus_control:: proc(data_bus_enable: bool, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	if phase_index != 0 do log.fatal("DBE may only be updated in phase 1", location = loc)
 	signal_put(&gba_core.data_bus_enable, data_bus_enable, 0)
 	gba_core.data_in.enabled = data_bus_enable
 	memory.data_out.enabled = data_bus_enable }
 memory_respond_BABLI_cycle:: proc(alu: u32, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	if phase_index != 0 do log.fatal("Sequence may only be initiated in phase 1.", location = loc)
 	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
 	L: u32 = gba_core.executing_thumb.output ? 2 : 4
@@ -861,6 +877,7 @@ memory_respond_BABLI_cycle:: proc(alu: u32, loc: = #caller_location) {
 	signal_put(&gba_core.data_in, memory_read(alu + L, i), 5) }
 memory_respond_TBLI_cycle:: proc(alu: u32, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	if phase_index != 0 do log.fatal("Sequence may only be initiated in phase 1.", location = loc)
 	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
 	signal_put(&gba_core.data_in, memory_read(pc + 4, .HALFWORD), 1)
@@ -869,6 +886,7 @@ memory_respond_TBLI_cycle:: proc(alu: u32, loc: = #caller_location) {
 	signal_put(&gba_core.data_in, memory_read(alu + 2, .HALFWORD), 7) }
 memory_respond_BAEI_cycle:: proc(alu: u32, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	if phase_index != 0 do log.fatal("Sequence may only be responded in phase 1.", location = loc)
 	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
 	T: = gba_core.executing_thumb.output
@@ -882,6 +900,7 @@ memory_respond_BAEI_cycle:: proc(alu: u32, loc: = #caller_location) {
 	signal_put(&gba_core.data_in, memory_read(alu + w, i), 5) }
 memory_respond_DPI_cycle:: proc(alu: u32, destination_is_pc: bool, shift_specified_by_register: bool, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	if phase_index != 0 do log.fatal("Data Write Sequence response may only be initiated in the LOW phase.", location = loc)
 	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
 	L: u32 = gba_core.executing_thumb.output ? 2 : 4
@@ -902,6 +921,7 @@ memory_respond_DPI_cycle:: proc(alu: u32, destination_is_pc: bool, shift_specifi
 	case: } }
 memory_respond_MAMAI_cycle:: proc(accumulate: bool, long: bool, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	if phase_index != 0 do log.fatal("Sequence may only be responded in phase 1.", location = loc)
 	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
 	L: u32 = gba_core.executing_thumb.output ? 2 : 4
@@ -917,6 +937,7 @@ memory_respond_MAMAI_cycle:: proc(accumulate: bool, long: bool, loc: = #caller_l
 		signal_put(&gba_core.data_in, memory_read(pc + 8, .WORD), 1) } }
 memory_respond_LRI_cycle:: proc(alu: u32, destination_is_pc: bool, pc_prim: u32, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	if phase_index != 0 do log.fatal("Sequence may only be responded in phase 1.", location = loc)
 	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
 	L: u32 = gba_core.executing_thumb.output ? 2 : 4
@@ -932,6 +953,7 @@ memory_respond_LRI_cycle:: proc(alu: u32, destination_is_pc: bool, pc_prim: u32,
 		signal_put(&gba_core.data_in, memory_read(pc_prim + 4, i), 7) } }
 memory_respond_SRI_cycle:: proc(alu: u32, Rd: u32, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	if phase_index != 0 do log.fatal("Sequence may only be responded in phase 1.", location = loc)
 	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
 	L: u32 = gba_core.executing_thumb.output ? 2 : 4
@@ -940,6 +962,7 @@ memory_respond_SRI_cycle:: proc(alu: u32, Rd: u32, loc: = #caller_location) {
 	signal_put(&gba_core.data_in, memory_read(pc + 2 * L, i), 1) }
 memory_respond_LMRI_cycle:: proc(alu: u32, include_pc: bool, n: int, pc_prim: u32, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	if phase_index != 0 do log.fatal("Sequence may only be responded in phase 1.", location = loc)
 	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
 	L: u32 = gba_core.executing_thumb.output ? 2 : 4
@@ -961,9 +984,9 @@ memory_respond_LMRI_cycle:: proc(alu: u32, include_pc: bool, n: int, pc_prim: u3
 		for k in u32(0) ..< u32(n - 1) do signal_put(&gba_core.data_in, memory_read(alu + 4 * k, .WORD), int(3 + 2 * k))
 		signal_put(&gba_core.data_in, memory_read(pc_prim, i), 7 + 2 * n)
 		signal_put(&gba_core.data_in, memory_read(pc_prim + L, i), 9 + 2 * n) } }
-memory_respond_SMRI_cycle:: proc(
-alu: u32, n: int, loc: = #caller_location) {
+memory_respond_SMRI_cycle:: proc(alu: u32, n: int, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc)
 	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
 	L: u32 = gba_core.executing_thumb.output ? 2 : 4
@@ -975,12 +998,14 @@ alu: u32, n: int, loc: = #caller_location) {
 		signal_put(&gba_core.data_in, memory_read(pc + 2 * L, i), 1) } }
 memory_respond_DSI_cycle:: proc(Rn: u32, Rm: u32, s: Memory_Access_Size, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc)
 	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
 	signal_put(&gba_core.data_in, memory_read(pc + 8, .WORD), 1)
 	signal_put(&gba_core.data_in, memory_read(Rn, s), 3) }
 memory_respond_SIAEI_cycle:: proc(Xn: u32, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc)
 	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
 	L: u32 = gba_core.executing_thumb.output ? 2 : 4
@@ -990,6 +1015,7 @@ memory_respond_SIAEI_cycle:: proc(Xn: u32, loc: = #caller_location) {
 	signal_put(&gba_core.data_in, memory_read(Xn + 4, .WORD), 5) }
 memory_respond_UDI_cycle:: proc(Xn: u32, loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc)
 	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
 	L: u32 = gba_core.executing_thumb.output ? 2 : 4
@@ -999,6 +1025,7 @@ memory_respond_UDI_cycle:: proc(Xn: u32, loc: = #caller_location) {
 	signal_put(&gba_core.data_in, memory_read(Xn + 4, .WORD), 7) }
 memory_respond_UEI_cycle:: proc(loc: = #caller_location) {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&memory.mutex); defer sync.recursive_mutex_unlock(&memory.mutex)
 	if phase_index != 0 do log.fatal("Sequence may only be requested in phase 1.", location = loc)
 	pc: = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
 	L: u32 = gba_core.executing_thumb.output ? 2 : 4

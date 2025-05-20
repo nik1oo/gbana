@@ -1,10 +1,13 @@
 package gbana
 import "core:thread"
+import "core:sync"
 
 
-Speaker:: struct { }
+Speaker:: struct {
+	mutex: sync.Recursive_Mutex }
 initialize_speaker:: proc() {
-	using state: ^State = cast(^State)context.user_ptr }
+	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&speaker.mutex); defer sync.recursive_mutex_unlock(&speaker.mutex) }
 
 
 // THREAD //

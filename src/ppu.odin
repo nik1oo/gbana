@@ -1,6 +1,7 @@
 package gbana
 import "core:slice"
 import "core:thread"
+import "core:sync"
 
 
 REG_DISPCNT_ADDR::  0x04000000
@@ -58,9 +59,8 @@ Color:: bit_field u16 {
 	green: u8 | 5,
 	blue:  u8 | 5 }
 PPU:: struct {
+	mutex:           sync.Recursive_Mutex,
 	using registers: PPU_Registers }
-initialize_ppu:: proc() {
-	using state: ^State = cast(^State)context.user_ptr }
 PPU_Registers:: struct {
 	dispcnt:  ^DISPCNT_Register,   // display control register
 	dispstat: ^DISPSTAT_Register,  // display status register
@@ -97,8 +97,9 @@ PPU_Registers:: struct {
 	winout:   ^WINOUT_Register,
 	mosaic:   ^MOSAIC_Register,
 	bldcnt:   ^BLDCNT_Register }
-init_ppu:: proc() {
+initialize_ppu:: proc() {
 	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&ppu.mutex); defer sync.recursive_mutex_unlock(&ppu.mutex)
 	ppu.dispcnt =  (^DISPCNT_Register) (&slice.reinterpret([]u8, memory.data)[REG_DISPCNT_ADDR])
 	ppu.dispstat = (^DISPSTAT_Register)(&slice.reinterpret([]u8, memory.data)[REG_DISPSTAT_ADDR])
 	ppu.vcount =   (^i16)              (&slice.reinterpret([]u8, memory.data)[REG_VCOUNT_ADDR])
@@ -291,7 +292,7 @@ Scale_Rotate_Tile:: bit_field u8 {
 	tile_number: int | 8 }
 // Scene = 4 background layers + sprites
 // Each background has a tilemap.
-query_text_tile:: proc(background_tilemap: []Text_Tile, background_type: Background_Type, background_size: [2]int, tilemap_size: [2]int, x, y: int)-> Text_Tile {
+@(private="file") query_text_tile:: proc(background_tilemap: []Text_Tile, background_type: Background_Type, background_size: [2]int, tilemap_size: [2]int, x, y: int)-> Text_Tile {
 	switch {
 	case (background_size=={256,256}) || (background_size=={256,512}):
 		return background_tilemap[(y*32) + x]
@@ -350,7 +351,7 @@ Window_Index:: enum {
 	WIN_1= 1,    // rendered above WIN_OBJ.
 	WIN_OBJ= 2,  // rendered above WIN_OUT.
 	WIN_OUT= 3 } // rendered bellow everything else.
-decode_sprite_shape:: proc(shape_lo: i8, shape_hi: i8)-> (shape: [2]int) {
+@(private="file") decode_sprite_shape:: proc(shape_lo: i8, shape_hi: i8)-> (shape: [2]int) {
 	switch (shape_hi<<2)|shape_lo {
 	case 0b0000: return { 8, 8}
 	case 0b0001: return {16,16}
@@ -382,7 +383,7 @@ SPRITE_SHAPES:[12][2]int: {
 	{ 8,32},
 	{16,32},
 	{32,64} }
-tilemap_1d:: proc(tile_number: int, shape: [2]int)-> (tilemap: [][]int) {
+@(private="file") tilemap_1d:: proc(tile_number: int, shape: [2]int)-> (tilemap: [][]int) {
 	tilemap= make([][]int, shape.x/8)
 	for i in 0 ..< shape.y/8 {
 		tilemap[i]= make([]int, shape.y/8) }
@@ -392,7 +393,7 @@ tilemap_1d:: proc(tile_number: int, shape: [2]int)-> (tilemap: [][]int) {
 			tilemap[col][row]= index
 			index+= 1 } }
 	return tilemap }
-tilemap_2d:: proc(tile_number: int, shape: [2]int)-> (tilemap: [][]int) {
+@(private="file") tilemap_2d:: proc(tile_number: int, shape: [2]int)-> (tilemap: [][]int) {
 	tilemap= make([][]int, shape.x/8)
 	for i in 0 ..< shape.y/8 {
 		tilemap[i]= make([]int, shape.y/8) }

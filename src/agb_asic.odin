@@ -67,7 +67,7 @@ UNDOCUMENTED_0x4000800:: bit_field u32 {
 	_:                      int  | 4 }
 
 
-device_reset:: proc() {
+@(private="file") device_reset:: proc() {
 	using state: ^State = cast(^State)context.user_ptr
 	signal_put(&gba_core.reset, true, 0)
 	signal_put(&gba_core.reset, false, 3) }
