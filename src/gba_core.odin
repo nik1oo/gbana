@@ -734,13 +734,13 @@ gba_execute_next:: proc() {
 	using state: ^State = cast(^State)context.user_ptr
 	sync.recursive_mutex_lock(&gba_core.mutex); defer sync.recursive_mutex_unlock(&gba_core.mutex)
 	pc: ^u32 = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]
-	fmt.println("fetching instruction from", pc^)
-	ins: GBA_Instruction = cast(GBA_Instruction)memory_read_u32(pc^)
+	ins_address: = pc^
+	ins: GBA_Instruction = cast(GBA_Instruction)memory_read_u32(ins_address)
 	ins_identified, _: = gba_identify_instruction(ins)
 	ins_decoded: GBA_Instruction_Decoded
 	defined: bool
 	ins_decoded, defined = gba_decode_identified(ins_identified, pc^)
-	fmt.println("executing instruction", aprint_instruction(ins_decoded), ins)
+	fmt.println(aprint_instruction_info(ins_address, ins, ins_decoded))
 	gba_execute(ins_decoded) }
 @(private="file") gba_execute:: proc(ins_decoded: GBA_Instruction_Decoded) {
 	switch ins in ins_decoded {

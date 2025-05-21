@@ -132,6 +132,7 @@ main:: proc() {
 	thread.start(speaker_thread)
 	thread.start(display_thread)
 	thread.start(buttons_thread)
+	fmt.println(aprint_instruction_info_header())
 	for i in 0 ..< 32 do gba_execute_next()
 	// TODO Stop when PC becomes an address outside of the BIOS memory range.
 
