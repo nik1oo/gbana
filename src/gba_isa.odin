@@ -1,7 +1,11 @@
+#+feature dynamic-literals
 package gbana
 import "base:runtime"
+import "core:fmt"
 import "core:math/rand"
 import "core:math/bits"
+import "core:log"
+import "core:strings"
 
 
 // NOTE I have implemented the entire ISA. //
@@ -1319,7 +1323,8 @@ GBA_Instruction_Identified:: union {
 	GBA_TEQ_Instruction,
 	GBA_TST_Instruction,
 	GBA_UMLAL_Instruction,
-	GBA_UMULL_Instruction }
+	GBA_UMULL_Instruction,
+	GBA_Undefined_Instruction }
 GBA_Branch_and_Link_Instruction:: union {
 	GBA_B_Instruction,
 	GBA_BL_Instruction }
@@ -2072,63 +2077,63 @@ GBA_UMULL_CODE_MASK:: 0b_00001111_11100000_00000000_11110000
 GBA_UMULL_CODE::      0b_00000000_10000000_00000000_10010000
 gba_instruction_is_UMULL:: proc(ins: GBA_Instruction) -> bool {
 	return (u32(ins) & GBA_UMULL_CODE_MASK) == GBA_UMULL_CODE }
+GBA_Undefined_Instruction:: distinct u32 // Undefined //
 
 
 // IDENTIFIED INSTRUCTIONS //
-gba_identify_instruction:: proc(ins: GBA_Instruction) -> (ins_ided: GBA_Instruction_Identified, ok: bool) {
+gba_identify_instruction:: proc(ins: GBA_Instruction) -> (ins_ided: GBA_Instruction_Identified, identified: bool) {
 	class: GBA_Instruction_Class
 	type: GBA_Instruction_Type
 	switch {
-	case gba_instruction_is_ADC(ins):   return GBA_ADC_Instruction(ins),   true
-	case gba_instruction_is_ADD(ins):   return GBA_ADD_Instruction(ins),   true
-	case gba_instruction_is_AND(ins):   return GBA_AND_Instruction(ins),   true
-	case gba_instruction_is_B(ins):     return GBA_B_Instruction(ins),     true
-	case gba_instruction_is_BL(ins):    return GBA_BL_Instruction(ins),    true
-	case gba_instruction_is_BIC(ins):   return GBA_BIC_Instruction(ins),   true
-	case gba_instruction_is_BX(ins):    return GBA_BX_Instruction(ins),    true
-	case gba_instruction_is_CDP(ins):   return GBA_CDP_Instruction(ins),   true
-	case gba_instruction_is_CMN(ins):   return GBA_CMN_Instruction(ins),   true
-	case gba_instruction_is_CMP(ins):   return GBA_CMP_Instruction(ins),   true
-	case gba_instruction_is_EOR(ins):   return GBA_EOR_Instruction(ins),   true
-	case gba_instruction_is_LDC(ins):   return GBA_LDC_Instruction(ins),   true
-	case gba_instruction_is_LDM(ins):   return GBA_LDM_Instruction(ins),   true
-	case gba_instruction_is_LDR(ins):   return GBA_LDR_Instruction(ins),   true
-	case gba_instruction_is_LDRB(ins):  return GBA_LDRB_Instruction(ins),  true
-	case gba_instruction_is_LDRBT(ins): return GBA_LDRBT_Instruction(ins), true
-	case gba_instruction_is_LDRH(ins):  return GBA_LDRH_Instruction(ins),  true
-	case gba_instruction_is_LDRSB(ins): return GBA_LDRSB_Instruction(ins), true
-	case gba_instruction_is_LDRSH(ins): return GBA_LDRSH_Instruction(ins), true
-	case gba_instruction_is_LDRT(ins):  return GBA_LDRT_Instruction(ins),  true
-	case gba_instruction_is_MCR(ins):   return GBA_MCR_Instruction(ins),   true
-	case gba_instruction_is_MLA(ins):   return GBA_MLA_Instruction(ins),   true
-	case gba_instruction_is_MOV(ins):   return GBA_MOV_Instruction(ins),   true
-	case gba_instruction_is_MRC(ins):   return GBA_MRC_Instruction(ins),   true
-	case gba_instruction_is_MRS(ins):   return GBA_MRS_Instruction(ins),   true
-	case gba_instruction_is_MSR(ins):   return GBA_MSR_Instruction(ins),   true
-	case gba_instruction_is_MUL(ins):   return GBA_MUL_Instruction(ins),   true
-	case gba_instruction_is_MVN(ins):   return GBA_MVN_Instruction(ins),   true
-	case gba_instruction_is_ORR(ins):   return GBA_ORR_Instruction(ins),   true
-	case gba_instruction_is_RSB(ins):   return GBA_RSB_Instruction(ins),   true
-	case gba_instruction_is_RSC(ins):   return GBA_RSC_Instruction(ins),   true
-	case gba_instruction_is_SBC(ins):   return GBA_SBC_Instruction(ins),   true
-	case gba_instruction_is_SMLAL(ins): return GBA_SMLAL_Instruction(ins), true
-	case gba_instruction_is_SMULL(ins): return GBA_SMULL_Instruction(ins), true
-	case gba_instruction_is_STM(ins):   return GBA_STM_Instruction(ins),   true
-	case gba_instruction_is_STR(ins):   return GBA_STR_Instruction(ins),   true
-	case gba_instruction_is_STRB(ins):  return GBA_STRB_Instruction(ins),  true
-	case gba_instruction_is_STRBT(ins): return GBA_STRBT_Instruction(ins), true
-	case gba_instruction_is_STRH(ins):  return GBA_STRH_Instruction(ins),  true
-	case gba_instruction_is_STRT(ins):  return GBA_STRT_Instruction(ins),  true
-	case gba_instruction_is_SUB(ins):   return GBA_SUB_Instruction(ins),   true
-	case gba_instruction_is_SWI(ins):   return GBA_SWI_Instruction(ins),   true
-	case gba_instruction_is_SWP(ins):   return GBA_SWP_Instruction(ins),   true
-	case gba_instruction_is_SWPB(ins):  return GBA_SWPB_Instruction(ins),  true
-	case gba_instruction_is_TEQ(ins):   return GBA_TEQ_Instruction(ins),   true
-	case gba_instruction_is_TST(ins):   return GBA_TST_Instruction(ins),   true
-	case gba_instruction_is_UMLAL(ins): return GBA_UMLAL_Instruction(ins), true
-	case gba_instruction_is_UMULL(ins): return GBA_UMULL_Instruction(ins), true
-	case: return {}, true }
-	return {}, true }
+	case gba_instruction_is_ADC(ins):   return GBA_ADC_Instruction(ins),       true
+	case gba_instruction_is_ADD(ins):   return GBA_ADD_Instruction(ins),       true
+	case gba_instruction_is_AND(ins):   return GBA_AND_Instruction(ins),       true
+	case gba_instruction_is_B(ins):     return GBA_B_Instruction(ins),         true
+	case gba_instruction_is_BL(ins):    return GBA_BL_Instruction(ins),        true
+	case gba_instruction_is_BIC(ins):   return GBA_BIC_Instruction(ins),       true
+	case gba_instruction_is_BX(ins):    return GBA_BX_Instruction(ins),        true
+	case gba_instruction_is_CDP(ins):   return GBA_CDP_Instruction(ins),       true
+	case gba_instruction_is_CMN(ins):   return GBA_CMN_Instruction(ins),       true
+	case gba_instruction_is_CMP(ins):   return GBA_CMP_Instruction(ins),       true
+	case gba_instruction_is_EOR(ins):   return GBA_EOR_Instruction(ins),       true
+	case gba_instruction_is_LDC(ins):   return GBA_LDC_Instruction(ins),       true
+	case gba_instruction_is_LDM(ins):   return GBA_LDM_Instruction(ins),       true
+	case gba_instruction_is_LDR(ins):   return GBA_LDR_Instruction(ins),       true
+	case gba_instruction_is_LDRB(ins):  return GBA_LDRB_Instruction(ins),      true
+	case gba_instruction_is_LDRBT(ins): return GBA_LDRBT_Instruction(ins),     true
+	case gba_instruction_is_LDRH(ins):  return GBA_LDRH_Instruction(ins),      true
+	case gba_instruction_is_LDRSB(ins): return GBA_LDRSB_Instruction(ins),     true
+	case gba_instruction_is_LDRSH(ins): return GBA_LDRSH_Instruction(ins),     true
+	case gba_instruction_is_LDRT(ins):  return GBA_LDRT_Instruction(ins),      true
+	case gba_instruction_is_MCR(ins):   return GBA_MCR_Instruction(ins),       true
+	case gba_instruction_is_MLA(ins):   return GBA_MLA_Instruction(ins),       true
+	case gba_instruction_is_MOV(ins):   return GBA_MOV_Instruction(ins),       true
+	case gba_instruction_is_MRC(ins):   return GBA_MRC_Instruction(ins),       true
+	case gba_instruction_is_MRS(ins):   return GBA_MRS_Instruction(ins),       true
+	case gba_instruction_is_MSR(ins):   return GBA_MSR_Instruction(ins),       true
+	case gba_instruction_is_MUL(ins):   return GBA_MUL_Instruction(ins),       true
+	case gba_instruction_is_MVN(ins):   return GBA_MVN_Instruction(ins),       true
+	case gba_instruction_is_ORR(ins):   return GBA_ORR_Instruction(ins),       true
+	case gba_instruction_is_RSB(ins):   return GBA_RSB_Instruction(ins),       true
+	case gba_instruction_is_RSC(ins):   return GBA_RSC_Instruction(ins),       true
+	case gba_instruction_is_SBC(ins):   return GBA_SBC_Instruction(ins),       true
+	case gba_instruction_is_SMLAL(ins): return GBA_SMLAL_Instruction(ins),     true
+	case gba_instruction_is_SMULL(ins): return GBA_SMULL_Instruction(ins),     true
+	case gba_instruction_is_STM(ins):   return GBA_STM_Instruction(ins),       true
+	case gba_instruction_is_STR(ins):   return GBA_STR_Instruction(ins),       true
+	case gba_instruction_is_STRB(ins):  return GBA_STRB_Instruction(ins),      true
+	case gba_instruction_is_STRBT(ins): return GBA_STRBT_Instruction(ins),     true
+	case gba_instruction_is_STRH(ins):  return GBA_STRH_Instruction(ins),      true
+	case gba_instruction_is_STRT(ins):  return GBA_STRT_Instruction(ins),      true
+	case gba_instruction_is_SUB(ins):   return GBA_SUB_Instruction(ins),       true
+	case gba_instruction_is_SWI(ins):   return GBA_SWI_Instruction(ins),       true
+	case gba_instruction_is_SWP(ins):   return GBA_SWP_Instruction(ins),       true
+	case gba_instruction_is_SWPB(ins):  return GBA_SWPB_Instruction(ins),      true
+	case gba_instruction_is_TEQ(ins):   return GBA_TEQ_Instruction(ins),       true
+	case gba_instruction_is_TST(ins):   return GBA_TST_Instruction(ins),       true
+	case gba_instruction_is_UMLAL(ins): return GBA_UMLAL_Instruction(ins),     true
+	case gba_instruction_is_UMULL(ins): return GBA_UMULL_Instruction(ins),     true
+	case:                               return GBA_Undefined_Instruction(ins), false } }
 
 
 // DECODED INSTRUCTIONS //
@@ -2180,7 +2185,57 @@ GBA_Instruction_Decoded:: union {
 	GBA_TEQ_Instruction_Decoded,
 	GBA_TST_Instruction_Decoded,
 	GBA_UMLAL_Instruction_Decoded,
-	GBA_UMULL_Instruction_Decoded }
+	GBA_UMULL_Instruction_Decoded,
+	GBA_Undefined_Instruction_Decoded }
+gba_instruction_name:: proc(ins_decoded: GBA_Instruction_Decoded) -> string {
+	switch ins in ins_decoded {
+	case GBA_ADC_Instruction_Decoded:       return "ADC"
+	case GBA_ADD_Instruction_Decoded:       return "ADD"
+	case GBA_AND_Instruction_Decoded:       return "AND"
+	case GBA_B_Instruction_Decoded:         return "B"
+	case GBA_BL_Instruction_Decoded:        return "BL"
+	case GBA_BIC_Instruction_Decoded:       return "BIC"
+	case GBA_BX_Instruction_Decoded:        return "BX"
+	case GBA_CMN_Instruction_Decoded:       return "CMN"
+	case GBA_CMP_Instruction_Decoded:       return "CMP"
+	case GBA_EOR_Instruction_Decoded:       return "EOR"
+	case GBA_LDM_Instruction_Decoded:       return "LDM"
+	case GBA_LDR_Instruction_Decoded:       return "LDR"
+	case GBA_LDRB_Instruction_Decoded:      return "LDRB"
+	case GBA_LDRBT_Instruction_Decoded:     return "LDRBT"
+	case GBA_LDRH_Instruction_Decoded:      return "LDRH"
+	case GBA_LDRSB_Instruction_Decoded:     return "LDRSB"
+	case GBA_LDRSH_Instruction_Decoded:     return "LDRSH"
+	case GBA_LDRT_Instruction_Decoded:      return "LDRT"
+	case GBA_MLA_Instruction_Decoded:       return "MLA"
+	case GBA_MOV_Instruction_Decoded:       return "MOV"
+	case GBA_MRS_Instruction_Decoded:       return "MRS"
+	case GBA_MSR_Instruction_Decoded:       return "MSR"
+	case GBA_MUL_Instruction_Decoded:       return "MUL"
+	case GBA_MVN_Instruction_Decoded:       return "MVN"
+	case GBA_ORR_Instruction_Decoded:       return "ORR"
+	case GBA_RSB_Instruction_Decoded:       return "RSB"
+	case GBA_RSC_Instruction_Decoded:       return "RSC"
+	case GBA_SBC_Instruction_Decoded:       return "SBC"
+	case GBA_SMLAL_Instruction_Decoded:     return "SMLAL"
+	case GBA_SMULL_Instruction_Decoded:     return "SMULL"
+	case GBA_STM_Instruction_Decoded:       return "STM"
+	case GBA_STR_Instruction_Decoded:       return "STR"
+	case GBA_STRB_Instruction_Decoded:      return "STRB"
+	case GBA_STRBT_Instruction_Decoded:     return "STRBT"
+	case GBA_STRH_Instruction_Decoded:      return "STRH"
+	case GBA_STRT_Instruction_Decoded:      return "STRT"
+	case GBA_SUB_Instruction_Decoded:       return "SUB"
+	case GBA_SWI_Instruction_Decoded:       return "SWI"
+	case GBA_SWP_Instruction_Decoded:       return "SWP"
+	case GBA_SWPB_Instruction_Decoded:      return "SWPB"
+	case GBA_TEQ_Instruction_Decoded:       return "TEQ"
+	case GBA_TST_Instruction_Decoded:       return "TST"
+	case GBA_UMLAL_Instruction_Decoded:     return "UMLAL"
+	case GBA_UMULL_Instruction_Decoded:     return "UMULL"
+	case GBA_Undefined_Instruction_Decoded: return "UNDEF"
+	case nil:                               log.panic("instruction badly decoded") }
+	return "" }
 GBA_Branch_and_Link_Instruction_Decoded:: union {
 	GBA_B_Instruction_Decoded,
 	GBA_BL_Instruction_Decoded }
@@ -2283,51 +2338,52 @@ gba_decode_instruction:: proc {
 	gba_decode_UMULL }
 gba_decode_identified:: proc(ins_union: GBA_Instruction_Identified, instruction_address: u32) -> (ins_decoded: GBA_Instruction_Decoded, defined: bool) {
 	#partial switch ins in ins_union {
-	case GBA_ADC_Instruction:   return gba_decode_ADC(ins, instruction_address),   true
-	case GBA_ADD_Instruction:   return gba_decode_ADD(ins, instruction_address),   true
-	case GBA_AND_Instruction:   return gba_decode_AND(ins, instruction_address),   true
-	case GBA_B_Instruction:     return gba_decode_B(ins, instruction_address),     true
-	case GBA_BL_Instruction:    return gba_decode_BL(ins, instruction_address),    true
-	case GBA_BIC_Instruction:   return gba_decode_BIC(ins, instruction_address),   true
-	case GBA_BX_Instruction:    return gba_decode_BX(ins, instruction_address),    true
-	case GBA_CMN_Instruction:   return gba_decode_CMN(ins, instruction_address),   true
-	case GBA_CMP_Instruction:   return gba_decode_CMP(ins, instruction_address),   true
-	case GBA_EOR_Instruction:   return gba_decode_EOR(ins, instruction_address),   true
-	case GBA_LDM_Instruction:   return gba_decode_LDM(ins, instruction_address),   true
-	case GBA_LDR_Instruction:   return gba_decode_LDR(ins, instruction_address),   true
-	case GBA_LDRB_Instruction:  return gba_decode_LDRB(ins, instruction_address),  true
-	case GBA_LDRBT_Instruction: return gba_decode_LDRBT(ins, instruction_address), true
-	case GBA_LDRH_Instruction:  return gba_decode_LDRH(ins, instruction_address),  true
-	case GBA_LDRSB_Instruction: return gba_decode_LDRSB(ins, instruction_address), true
-	case GBA_LDRSH_Instruction: return gba_decode_LDRSH(ins, instruction_address), true
-	case GBA_LDRT_Instruction:  return gba_decode_LDRT(ins, instruction_address),  true
-	case GBA_MLA_Instruction:   return gba_decode_MLA(ins, instruction_address),   true
-	case GBA_MOV_Instruction:   return gba_decode_MOV(ins, instruction_address),   true
-	case GBA_MRS_Instruction:   return gba_decode_MRS(ins, instruction_address),   true
-	case GBA_MSR_Instruction:   return gba_decode_MSR(ins, instruction_address),   true
-	case GBA_MUL_Instruction:   return gba_decode_MUL(ins, instruction_address),   true
-	case GBA_MVN_Instruction:   return gba_decode_MVN(ins, instruction_address),   true
-	case GBA_ORR_Instruction:   return gba_decode_ORR(ins, instruction_address),   true
-	case GBA_RSB_Instruction:   return gba_decode_RSB(ins, instruction_address),   true
-	case GBA_RSC_Instruction:   return gba_decode_RSC(ins, instruction_address),   true
-	case GBA_SBC_Instruction:   return gba_decode_SBC(ins, instruction_address),   true
-	case GBA_SMLAL_Instruction: return gba_decode_SMLAL(ins, instruction_address), true
-	case GBA_SMULL_Instruction: return gba_decode_SMULL(ins, instruction_address), true
-	case GBA_STM_Instruction:   return gba_decode_STM(ins, instruction_address),   true
-	case GBA_STR_Instruction:   return gba_decode_STR(ins, instruction_address),   true
-	case GBA_STRB_Instruction:  return gba_decode_STRB(ins, instruction_address),  true
-	case GBA_STRBT_Instruction: return gba_decode_STRBT(ins, instruction_address), true
-	case GBA_STRH_Instruction:  return gba_decode_STRH(ins, instruction_address),  true
-	case GBA_STRT_Instruction:  return gba_decode_STRT(ins, instruction_address),  true
-	case GBA_SUB_Instruction:   return gba_decode_SUB(ins, instruction_address),   true
-	case GBA_SWI_Instruction:   return gba_decode_SWI(ins, instruction_address),   true
-	case GBA_SWP_Instruction:   return gba_decode_SWP(ins, instruction_address),   true
-	case GBA_SWPB_Instruction:  return gba_decode_SWPB(ins, instruction_address),  true
-	case GBA_TEQ_Instruction:   return gba_decode_TEQ(ins, instruction_address),   true
-	case GBA_TST_Instruction:   return gba_decode_TST(ins, instruction_address),   true
-	case GBA_UMLAL_Instruction: return gba_decode_UMLAL(ins, instruction_address), true
-	case GBA_UMULL_Instruction: return gba_decode_UMULL(ins, instruction_address), true
-	case:                       return {}, false } }
+	case GBA_ADC_Instruction:       return gba_decode_ADC(ins, instruction_address),   true
+	case GBA_ADD_Instruction:       return gba_decode_ADD(ins, instruction_address),   true
+	case GBA_AND_Instruction:       return gba_decode_AND(ins, instruction_address),   true
+	case GBA_B_Instruction:         return gba_decode_B(ins, instruction_address),     true
+	case GBA_BL_Instruction:        return gba_decode_BL(ins, instruction_address),    true
+	case GBA_BIC_Instruction:       return gba_decode_BIC(ins, instruction_address),   true
+	case GBA_BX_Instruction:        return gba_decode_BX(ins, instruction_address),    true
+	case GBA_CMN_Instruction:       return gba_decode_CMN(ins, instruction_address),   true
+	case GBA_CMP_Instruction:       return gba_decode_CMP(ins, instruction_address),   true
+	case GBA_EOR_Instruction:       return gba_decode_EOR(ins, instruction_address),   true
+	case GBA_LDM_Instruction:       return gba_decode_LDM(ins, instruction_address),   true
+	case GBA_LDR_Instruction:       return gba_decode_LDR(ins, instruction_address),   true
+	case GBA_LDRB_Instruction:      return gba_decode_LDRB(ins, instruction_address),  true
+	case GBA_LDRBT_Instruction:     return gba_decode_LDRBT(ins, instruction_address), true
+	case GBA_LDRH_Instruction:      return gba_decode_LDRH(ins, instruction_address),  true
+	case GBA_LDRSB_Instruction:     return gba_decode_LDRSB(ins, instruction_address), true
+	case GBA_LDRSH_Instruction:     return gba_decode_LDRSH(ins, instruction_address), true
+	case GBA_LDRT_Instruction:      return gba_decode_LDRT(ins, instruction_address),  true
+	case GBA_MLA_Instruction:       return gba_decode_MLA(ins, instruction_address),   true
+	case GBA_MOV_Instruction:       return gba_decode_MOV(ins, instruction_address),   true
+	case GBA_MRS_Instruction:       return gba_decode_MRS(ins, instruction_address),   true
+	case GBA_MSR_Instruction:       return gba_decode_MSR(ins, instruction_address),   true
+	case GBA_MUL_Instruction:       return gba_decode_MUL(ins, instruction_address),   true
+	case GBA_MVN_Instruction:       return gba_decode_MVN(ins, instruction_address),   true
+	case GBA_ORR_Instruction:       return gba_decode_ORR(ins, instruction_address),   true
+	case GBA_RSB_Instruction:       return gba_decode_RSB(ins, instruction_address),   true
+	case GBA_RSC_Instruction:       return gba_decode_RSC(ins, instruction_address),   true
+	case GBA_SBC_Instruction:       return gba_decode_SBC(ins, instruction_address),   true
+	case GBA_SMLAL_Instruction:     return gba_decode_SMLAL(ins, instruction_address), true
+	case GBA_SMULL_Instruction:     return gba_decode_SMULL(ins, instruction_address), true
+	case GBA_STM_Instruction:       return gba_decode_STM(ins, instruction_address),   true
+	case GBA_STR_Instruction:       return gba_decode_STR(ins, instruction_address),   true
+	case GBA_STRB_Instruction:      return gba_decode_STRB(ins, instruction_address),  true
+	case GBA_STRBT_Instruction:     return gba_decode_STRBT(ins, instruction_address), true
+	case GBA_STRH_Instruction:      return gba_decode_STRH(ins, instruction_address),  true
+	case GBA_STRT_Instruction:      return gba_decode_STRT(ins, instruction_address),  true
+	case GBA_SUB_Instruction:       return gba_decode_SUB(ins, instruction_address),   true
+	case GBA_SWI_Instruction:       return gba_decode_SWI(ins, instruction_address),   true
+	case GBA_SWP_Instruction:       return gba_decode_SWP(ins, instruction_address),   true
+	case GBA_SWPB_Instruction:      return gba_decode_SWPB(ins, instruction_address),  true
+	case GBA_TEQ_Instruction:       return gba_decode_TEQ(ins, instruction_address),   true
+	case GBA_TST_Instruction:       return gba_decode_TST(ins, instruction_address),   true
+	case GBA_UMLAL_Instruction:     return gba_decode_UMLAL(ins, instruction_address), true
+	case GBA_UMULL_Instruction:     return gba_decode_UMULL(ins, instruction_address), true
+	case GBA_Undefined_Instruction: return GBA_Undefined_Instruction_Decoded{instruction_address = instruction_address, code = transmute(u32)ins}, false
+	case:                           log.panic("instruction badly decoded") } }
 GBA_ADC_Instruction_Decoded:: struct {
 	instruction_address: u32,
 	// NOTE There is no need to preserve the condition field, because it can be checked before identifying the instruction.
@@ -3005,6 +3061,9 @@ gba_decode_UMULL:: proc(ins: GBA_UMULL_Instruction, instruction_address: u32) ->
 	decoded.set_condition_codes = bool(bits.bitfield_extract(u32(ins), 20, 1))
 	decoded.cond = ins.cond
 	return decoded }
+GBA_Undefined_Instruction_Decoded:: struct {
+	instruction_address: u32,
+	code:                u32 }
 
 
 // UTIL //

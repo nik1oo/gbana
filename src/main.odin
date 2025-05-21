@@ -97,10 +97,6 @@ tick:: proc(n: uint = 0, times: int = 1) -> bool {
 	tick_index += 1
 	signals_tick(current_tick_index, current_cycle_index, current_phase_index)
 	return true }
-execute_next:: proc() {
-	// gba_request_memory_sequence()
-	// x: = 4 / 3
-}
 main:: proc() {
 	using state: State
 	context = initialize_context(&state)
@@ -136,13 +132,16 @@ main:: proc() {
 	thread.start(speaker_thread)
 	thread.start(display_thread)
 	thread.start(buttons_thread)
-	for tick(n = 8) {
-		zero_and_start_timer(&frame_timer)
-		for i in 0 ..< CYCLES_PER_FRAME do execute_next()
-		elapsed_time: f32 = read_timer(&frame_timer)
-		utilization: f32 = elapsed_time / SECONDS_PER_FRAME
-		fmt.println("utilization:", utilization)
-		time.sleep(time.Duration(max(SECONDS_PER_FRAME - elapsed_time, 0) * f32(time.Second))) }
+	for i in 0 ..< 32 do gba_execute_next()
+	// TODO Stop when PC becomes an address outside of the BIOS memory range.
+
+	// for tick(n = 8) {
+	// 	zero_and_start_timer(&frame_timer)
+	// 	for i in 0 ..< CYCLES_PER_FRAME do gba_execute_next()
+	// 	elapsed_time: f32 = read_timer(&frame_timer)
+	// 	utilization: f32 = elapsed_time / SECONDS_PER_FRAME
+	// 	fmt.println("utilization:", utilization)
+	// 	time.sleep(time.Duration(max(SECONDS_PER_FRAME - elapsed_time, 0) * f32(time.Second))) }
 	thread.join(memory_thread)
 	thread.join(gba_core_thread)
 	thread.join(gb_core_thread)

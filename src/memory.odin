@@ -789,7 +789,7 @@ Instruction_Set:: enum {
 	if ! success do return false
 	n: = len(bios)
 	assert(n <= len(memory.bios_region) * 4)
-	// fmt.println("bios loaded | ", fmt_units(n), "/", fmt_units(len(memory.bios_region)))
+	fmt.println("loaded bios |", fmt_units(n), "/", fmt_units(len(memory.bios_region)))
 	copy_slice(memory.bios_region[0:n], bios[0:n])
 	return true }
 

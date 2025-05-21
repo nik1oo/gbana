@@ -619,6 +619,47 @@ initialize_gba_core:: proc() {
 	sync.recursive_mutex_lock(&gba_core.mutex); defer sync.recursive_mutex_unlock(&gba_core.mutex)
 	gba_set_mode_initial()
 	initialize_gba_core_interface() }
+gba_register_name:: proc(register_address: rawptr) -> string {
+	using state: ^State = cast(^State)context.user_ptr
+	switch register_address {
+	case &gba_core.physical_registers.r0:         return "R0"
+	case &gba_core.physical_registers.r1:         return "R1"
+	case &gba_core.physical_registers.r2:         return "R2"
+	case &gba_core.physical_registers.r3:         return "R3"
+	case &gba_core.physical_registers.r4:         return "R4"
+	case &gba_core.physical_registers.r5:         return "R5"
+	case &gba_core.physical_registers.r6:         return "R6"
+	case &gba_core.physical_registers.r7:         return "R7"
+	case &gba_core.physical_registers.r8:         return "R8"
+	case &gba_core.physical_registers.r9:         return "R9"
+	case &gba_core.physical_registers.r10:        return "R10"
+	case &gba_core.physical_registers.r11:        return "R11"
+	case &gba_core.physical_registers.r12:        return "R12"
+	case &gba_core.physical_registers.r13:        return "R13"
+	case &gba_core.physical_registers.r14:        return "R14"
+	case &gba_core.physical_registers.r13_svc:    return "R13_SVC"
+	case &gba_core.physical_registers.r14_svc:    return "R14_SVC"
+	case &gba_core.physical_registers.r13_abort:  return "R13_ABORT"
+	case &gba_core.physical_registers.r14_abort:  return "R14_ABORT"
+	case &gba_core.physical_registers.r13_undef:  return "R13_UNDEF"
+	case &gba_core.physical_registers.r14_undef:  return "R14_UNDEF"
+	case &gba_core.physical_registers.r13_irq:    return "R13_IRQ"
+	case &gba_core.physical_registers.r14_irq:    return "R14_IRQ"
+	case &gba_core.physical_registers.r8_fiq:     return "R8_FIQ"
+	case &gba_core.physical_registers.r9_fiq:     return "R9_FIQ"
+	case &gba_core.physical_registers.r10_fiq:    return "R10_FIQ"
+	case &gba_core.physical_registers.r11_fiq:    return "R11_FIQ"
+	case &gba_core.physical_registers.r12_fiq:    return "R12_FIQ"
+	case &gba_core.physical_registers.r13_fiq:    return "R13_FIQ"
+	case &gba_core.physical_registers.r14_fiq:    return "R14_FIQ"
+	case &gba_core.physical_registers.cpsr:       return "CPSR"
+	case &gba_core.physical_registers.spsr_svc:   return "SPSR_SVC"
+	case &gba_core.physical_registers.spsr_abort: return "SPSR_ABORT"
+	case &gba_core.physical_registers.spsr_undef: return "SPSR_UNDEF"
+	case &gba_core.physical_registers.spsr_irq:   return "SPSR_IRQ"
+	case &gba_core.physical_registers.spsr_fiq:   return "SPSR_FIQ"
+	case &gba_core.physical_registers.pc:         return "PC"
+	case:                                         log.panic("invalid register address") } }
 Hardware_Interrupt:: enum {
 	V_BLANK,
 	H_BLANK,
@@ -673,16 +714,84 @@ Software_Interrupt:: enum {
 
 // PROGRAM COUNTER //
 // NOTE These depend on how I emulate and syncronize instruction pipelining. //
-// gba_address_of_current_instruction:: proc() -> u32 {
-// 	return gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^
-// }
-// gba_address_of_next_instruction:: proc() -> u32 {
-// }
+@(private="file") gba_address_of_current_instruction:: proc() -> u32 {
+	using state: ^State = cast(^State)context.user_ptr
+	return gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^ }
+// gba_address_of_next_instruction:: proc() -> u32 { return 0 }
+@(private="file") gba_increment_pc:: proc() {
+	using state: ^State = cast(^State)context.user_ptr
+	gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^ += 4 }
+@(private="file") gba_get_pc:: proc() -> u32 {
+	using state: ^State = cast(^State)context.user_ptr
+	return gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^ }
+@(private="file") gba_set_pc:: proc(value: u32) {
+	using state: ^State = cast(^State)context.user_ptr
+	gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^ = value }
 
 
 // INSTRUCTIONS //
+gba_execute_next:: proc() {
+	using state: ^State = cast(^State)context.user_ptr
+	sync.recursive_mutex_lock(&gba_core.mutex); defer sync.recursive_mutex_unlock(&gba_core.mutex)
+	pc: ^u32 = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]
+	fmt.println("fetching instruction from", pc^)
+	ins: GBA_Instruction = cast(GBA_Instruction)memory_read_u32(pc^)
+	ins_identified, _: = gba_identify_instruction(ins)
+	ins_decoded: GBA_Instruction_Decoded
+	defined: bool
+	ins_decoded, defined = gba_decode_identified(ins_identified, pc^)
+	fmt.println("executing instruction", aprint_instruction(ins_decoded), ins)
+	gba_execute(ins_decoded) }
+@(private="file") gba_execute:: proc(ins_decoded: GBA_Instruction_Decoded) {
+	switch ins in ins_decoded {
+	case GBA_ADC_Instruction_Decoded:   gba_execute_ADC(ins)
+	case GBA_ADD_Instruction_Decoded:   gba_execute_ADD(ins)
+	case GBA_AND_Instruction_Decoded:   gba_execute_AND(ins)
+	case GBA_B_Instruction_Decoded:     gba_execute_B(ins)
+	case GBA_BL_Instruction_Decoded:    gba_execute_BL(ins)
+	case GBA_BIC_Instruction_Decoded:   gba_execute_BIC(ins)
+	case GBA_BX_Instruction_Decoded:    gba_execute_BX(ins)
+	case GBA_CMN_Instruction_Decoded:   gba_execute_CMN(ins)
+	case GBA_CMP_Instruction_Decoded:   gba_execute_CMP(ins)
+	case GBA_EOR_Instruction_Decoded:   gba_execute_EOR(ins)
+	case GBA_LDM_Instruction_Decoded:   gba_execute_LDM(ins)
+	case GBA_LDR_Instruction_Decoded:   gba_execute_LDR(ins)
+	case GBA_LDRB_Instruction_Decoded:  gba_execute_LDRB(ins)
+	case GBA_LDRBT_Instruction_Decoded: gba_execute_LDRBT(ins)
+	case GBA_LDRH_Instruction_Decoded:  gba_execute_LDRH(ins)
+	case GBA_LDRSB_Instruction_Decoded: gba_execute_LDRSB(ins)
+	case GBA_LDRSH_Instruction_Decoded: gba_execute_LDRSH(ins)
+	case GBA_LDRT_Instruction_Decoded:  gba_execute_LDRT(ins)
+	case GBA_MLA_Instruction_Decoded:   gba_execute_MLA(ins)
+	case GBA_MOV_Instruction_Decoded:   gba_execute_MOV(ins)
+	case GBA_MRS_Instruction_Decoded:   gba_execute_MRS(ins)
+	case GBA_MSR_Instruction_Decoded:   gba_execute_MSR(ins)
+	case GBA_MUL_Instruction_Decoded:   gba_execute_MUL(ins)
+	case GBA_MVN_Instruction_Decoded:   gba_execute_MVN(ins)
+	case GBA_ORR_Instruction_Decoded:   gba_execute_ORR(ins)
+	case GBA_RSB_Instruction_Decoded:   gba_execute_RSB(ins)
+	case GBA_RSC_Instruction_Decoded:   gba_execute_RSC(ins)
+	case GBA_SBC_Instruction_Decoded:   gba_execute_SBC(ins)
+	case GBA_SMLAL_Instruction_Decoded: gba_execute_SMLAL(ins)
+	case GBA_SMULL_Instruction_Decoded: gba_execute_SMULL(ins)
+	case GBA_STM_Instruction_Decoded:   gba_execute_STM(ins)
+	case GBA_STR_Instruction_Decoded:   gba_execute_STR(ins)
+	case GBA_STRB_Instruction_Decoded:  gba_execute_STRB(ins)
+	case GBA_STRBT_Instruction_Decoded: gba_execute_STRBT(ins)
+	case GBA_STRH_Instruction_Decoded:  gba_execute_STRH(ins)
+	case GBA_STRT_Instruction_Decoded:  gba_execute_STRT(ins)
+	case GBA_SUB_Instruction_Decoded:   gba_execute_SUB(ins)
+	case GBA_SWI_Instruction_Decoded:   gba_execute_SWI(ins)
+	case GBA_SWP_Instruction_Decoded:   gba_execute_SWP(ins)
+	case GBA_SWPB_Instruction_Decoded:  gba_execute_SWPB(ins)
+	case GBA_TEQ_Instruction_Decoded:   gba_execute_TEQ(ins)
+	case GBA_TST_Instruction_Decoded:   gba_execute_TST(ins)
+	case GBA_UMLAL_Instruction_Decoded: gba_execute_UMLAL(ins)
+	case GBA_UMULL_Instruction_Decoded: gba_execute_UMULL(ins)
+	case GBA_Undefined_Instruction_Decoded: } }
 @(private="file") gba_execute_ADC:: proc(ins: GBA_ADC_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = transmute(u32)(ins.operand + ins.shifter_operand + i32(cpsr.carry))
@@ -695,6 +804,7 @@ Software_Interrupt:: enum {
 		cpsr.overflow = gba_overflow_from_add(ins.operand, ins.shifter_operand, u32(cpsr.carry)) } }
 @(private="file") gba_execute_ADD:: proc(ins: GBA_ADD_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = transmute(u32)(ins.operand + ins.shifter_operand)
@@ -707,6 +817,7 @@ Software_Interrupt:: enum {
 		cpsr.overflow = gba_overflow_from_add(ins.operand, ins.shifter_operand) } }
 @(private="file") gba_execute_AND:: proc(ins: GBA_AND_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = ins.operand & ins.shifter_operand
@@ -719,14 +830,15 @@ Software_Interrupt:: enum {
 @(private="file") gba_execute_B:: proc(ins: GBA_B_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
-	gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^ = ins.target_address }
+	gba_set_pc(ins.target_address) }
 @(private="file") gba_execute_BL:: proc(ins: GBA_BL_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	gba_core.logical_registers.array[GBA_Logical_Register_Name.LR]^ = ins.instruction_address + 4
-	gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^ = ins.target_address }
+	gba_set_pc(ins.target_address) }
 @(private="file") gba_execute_BIC:: proc(ins: GBA_BIC_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = ins.operand & (~ ins.shifter_operand)
@@ -740,10 +852,11 @@ Software_Interrupt:: enum {
 	using state: ^State = cast(^State)context.user_ptr
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
-	gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^ = ins.target_address
+	gba_set_pc(ins.target_address)
 	cpsr.thumb_state = true }
 @(private="file") gba_execute_CMN:: proc(ins: GBA_CMN_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	alu_out: i32 = ins.operand + ins.shifter_operand
@@ -753,6 +866,7 @@ Software_Interrupt:: enum {
 	cpsr.overflow = gba_overflow_from_add(ins.operand, ins.shifter_operand) }
 @(private="file") gba_execute_CMP:: proc(ins: GBA_CMP_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	alu_out: i32 = ins.operand - ins.shifter_operand
@@ -762,6 +876,7 @@ Software_Interrupt:: enum {
 	cpsr.overflow = gba_overflow_from_sub(ins.operand, ins.shifter_operand) }
 @(private="file") gba_execute_EOR:: proc(ins: GBA_EOR_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = ins.operand ~ ins.shifter_operand
@@ -773,6 +888,7 @@ Software_Interrupt:: enum {
 		cpsr.carry = ins.shifter_carry_out } }
 @(private="file") gba_execute_LDM:: proc(ins: GBA_LDM_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	address: = ins.start_address
 	for register in GBA_Logical_Register_Name(0) ..< GBA_Logical_Register_Name(15) {
@@ -782,6 +898,7 @@ Software_Interrupt:: enum {
 	if ins.restore_status_register do gba_pop_psr() }
 @(private="file") gba_execute_LDR:: proc(ins: GBA_LDR_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	tail_bits: = bits.bitfield_extract(ins.address, 0, 2)
 	switch tail_bits {
@@ -791,27 +908,33 @@ Software_Interrupt:: enum {
 	case 0b11: ins.destination^ = rotate_right(memory_read_u32(ins.address), 24) } }
 @(private="file") gba_execute_LDRB:: proc(ins: GBA_LDRB_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	ins.destination^ = cast(u32)memory_read_u8(ins.address) }
 @(private="file") gba_execute_LDRBT:: proc(ins: GBA_LDRBT_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	// TODO Do the write-back on all instructions. //
 	if ! gba_condition_passed(ins.cond) do return
 	ins.destination^ = cast(u32)memory_read_u8(ins.address) }
 @(private="file") gba_execute_LDRH:: proc(ins: GBA_LDRH_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	ins.destination^ = cast(u32)memory_read_u16(ins.address) }
 @(private="file") gba_execute_LDRSB:: proc(ins: GBA_LDRSB_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	ins.destination^ = transmute(u32)gba_sign_extend(cast(u32)memory_read_u8(ins.address), 8) }
 @(private="file") gba_execute_LDRSH:: proc(ins: GBA_LDRSH_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	ins.destination^ = transmute(u32)gba_sign_extend(cast(u32)memory_read_u16(ins.address), 16) }
 @(private="file") gba_execute_LDRT:: proc(ins: GBA_LDRT_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	tail_bits: = bits.bitfield_extract(ins.address, 0, 2)
 	switch tail_bits {
@@ -821,6 +944,7 @@ Software_Interrupt:: enum {
 	case 0b11: ins.destination^ = rotate_right(memory_read_u32(ins.address), 24) } }
 @(private="file") gba_execute_MLA:: proc(ins: GBA_MLA_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = transmute(u32)(ins.operand * ins.multiplicand + ins.addend)
@@ -830,6 +954,7 @@ Software_Interrupt:: enum {
 		cpsr.carry = bool(rand.int_max(2)) } }
 @(private="file") gba_execute_MOV:: proc(ins: GBA_MOV_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	if ins.set_condition_codes && ins.destination == gba_core.logical_registers.array[GBA_Logical_Register_Name.PC] {
@@ -841,10 +966,12 @@ Software_Interrupt:: enum {
 		cpsr.carry = ins.shifter_carry_out } }
 @(private="file") gba_execute_MRS:: proc(ins: GBA_MRS_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	ins.source^ = ins.destination^ }
 @(private="file") gba_execute_MSR:: proc(ins: GBA_MSR_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr, spsr: = gba_get_cpsr(), gba_get_spsr()
 	#partial switch ins.destination {
@@ -868,6 +995,7 @@ Software_Interrupt:: enum {
 			spsr^ = auto_cast bits.bitfield_insert(cast(u32)spsr^, bits.bitfield_extract(ins.operand, 24, 8), 24, 8) } } }
 @(private="file") gba_execute_MUL:: proc(ins: GBA_MUL_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = transmute(u32)(ins.operand * ins.multiplicand)
@@ -877,6 +1005,7 @@ Software_Interrupt:: enum {
 		cpsr.carry = bool(rand.int_max(2)) } }
 @(private="file") gba_execute_MVN:: proc(ins: GBA_MVN_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = ~ ins.shifter_operand
@@ -888,6 +1017,7 @@ Software_Interrupt:: enum {
 		cpsr.carry = ins.shifter_carry_out } }
 @(private="file") gba_execute_ORR:: proc(ins: GBA_ORR_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = ins.operand | ins.shifter_operand
@@ -899,6 +1029,7 @@ Software_Interrupt:: enum {
 		cpsr.carry = ins.shifter_carry_out } }
 @(private="file") gba_execute_RSB:: proc(ins: GBA_RSB_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = transmute(u32)(ins.shifter_operand - ins.operand)
@@ -911,6 +1042,7 @@ Software_Interrupt:: enum {
 		cpsr.overflow = gba_overflow_from_sub(ins.shifter_operand, ins.operand) } }
 @(private="file") gba_execute_RSC:: proc(ins: GBA_RSC_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = transmute(u32)(ins.shifter_operand - (ins.operand + i32(! cpsr.carry)))
@@ -923,6 +1055,7 @@ Software_Interrupt:: enum {
 		cpsr.overflow = gba_overflow_from_sub(ins.shifter_operand, (ins.operand + i32(! cpsr.carry))) } }
 @(private="file") gba_execute_SBC:: proc(ins: GBA_SBC_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = transmute(u32)(ins.operand - (ins.shifter_operand + i32(! cpsr.carry)))
@@ -935,6 +1068,7 @@ Software_Interrupt:: enum {
 		cpsr.overflow = gba_overflow_from_sub(ins.operand, (ins.shifter_operand + i32(! cpsr.carry))) } }
 @(private="file") gba_execute_SMLAL:: proc(ins: GBA_SMLAL_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	accumulator: i64 = transmute(i64)(u64(ins.destinations[0]^) | (u64(ins.destinations[1]^) << 32))
@@ -949,6 +1083,7 @@ Software_Interrupt:: enum {
 		cpsr.overflow = bool(rand.int_max(2)) } }
 @(private="file") gba_execute_SMULL:: proc(ins: GBA_SMULL_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	product: i64 = i64(ins.multiplicands[0]) * i64(ins.multiplicands[1])
@@ -961,6 +1096,7 @@ Software_Interrupt:: enum {
 		cpsr.overflow = bool(rand.int_max(2)) } }
 @(private="file") gba_execute_STM:: proc(ins: GBA_STM_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	address: = ins.start_address
 	for register in GBA_Logical_Register_Name(0) ..< GBA_Logical_Register_Name(15) {
@@ -970,26 +1106,32 @@ Software_Interrupt:: enum {
 	if ins.restore_status_register do gba_pop_psr() }
 @(private="file") gba_execute_STR:: proc(ins: GBA_STR_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	memory_write_u32(ins.address, ins.source^) }
 @(private="file") gba_execute_STRB:: proc(ins: GBA_STRB_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	memory_write_u8(ins.address, cast(u8)(ins.source^ & 0xFF)) }
 @(private="file") gba_execute_STRBT:: proc(ins: GBA_STRBT_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	memory_write_u8(ins.address, cast(u8)(ins.source^ & 0xFF)) }
 @(private="file") gba_execute_STRH:: proc(ins: GBA_STRH_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	memory_write_u16(ins.address, cast(u16)(ins.source^ & 0xFFFF)) }
 @(private="file") gba_execute_STRT:: proc(ins: GBA_STRT_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	memory_write_u32(ins.address, ins.source^) }
 @(private="file") gba_execute_SUB:: proc(ins: GBA_SUB_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	ins.destination^ = transmute(u32)(ins.operand - ins.shifter_operand)
@@ -1002,6 +1144,7 @@ Software_Interrupt:: enum {
 		cpsr.overflow = gba_overflow_from_sub(ins.operand, ins.shifter_operand) } }
 @(private="file") gba_execute_SWI:: proc(ins: GBA_SWI_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	gba_core.physical_registers.array[GBA_Physical_Register_Name.R14_SVC] = ins.instruction_address + 4
@@ -1011,18 +1154,21 @@ Software_Interrupt:: enum {
 	gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^ = 0x08 }
 @(private="file") gba_execute_SWP:: proc(ins: GBA_SWP_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	temp: u32 = memory_read_u32(ins.address)
 	memory_write_u32(ins.address, ins.source_register^)
 	ins.destination_register^ = temp }
 @(private="file") gba_execute_SWPB:: proc(ins: GBA_SWPB_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	temp: u8 = memory_read_u8(ins.address)
 	memory_write_u8(ins.address, cast(u8)(ins.source_register^ & 0xFF))
 	ins.destination_register^ = u32(temp) }
 @(private="file") gba_execute_TEQ:: proc(ins: GBA_TEQ_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	alu_out: u32 = ins.operand ~ ins.shifter_operand
@@ -1031,6 +1177,7 @@ Software_Interrupt:: enum {
 	cpsr.carry = ins.shifter_carry_out }
 @(private="file") gba_execute_TST:: proc(ins: GBA_TST_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	alu_out: u32 = ins.operand & ins.shifter_operand
@@ -1039,6 +1186,7 @@ Software_Interrupt:: enum {
 	cpsr.carry = ins.shifter_carry_out }
 @(private="file") gba_execute_UMLAL:: proc(ins: GBA_UMLAL_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	accumulator: u64 = u64(ins.destinations[0]^) | (u64(ins.destinations[1]^) << 32)
@@ -1053,6 +1201,7 @@ Software_Interrupt:: enum {
 		cpsr.overflow = bool(rand.int_max(2)) } }
 @(private="file") gba_execute_UMULL:: proc(ins: GBA_UMULL_Instruction_Decoded) {
 	using state: ^State = cast(^State)context.user_ptr
+	defer gba_increment_pc()
 	if ! gba_condition_passed(ins.cond) do return
 	cpsr: = gba_get_cpsr()
 	product: u64 = u64(ins.multiplicands[0]) * u64(ins.multiplicands[1])
