@@ -750,9 +750,9 @@ print_memory_regions::proc() {
 	when align == 4 do return x & 0b_11 == 0b_00 }
 @(private="file") align_byte:: proc(addr: uintptr)-> uintptr {
 	return bool(0b1&addr) ? addr+1 : addr }
-@(private="file") le_to_be:: proc(le: u32) -> u32 {
+le_to_be:: proc(le: u32) -> u32 {
 	return transmute(u32)cast(u32be)transmute(u32le)le }
-@(private="file") be_to_le:: proc(be: u32) -> u32 {
+be_to_le:: proc(be: u32) -> u32 {
 	return transmute(u32)cast(u32le)transmute(u32be)be }
 
 

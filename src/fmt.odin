@@ -188,6 +188,6 @@ aprint_UNDEF:: proc(ins: GBA_Undefined_Instruction_Decoded, allocator: = context
 	return fmt.aprintf("%sUNDEF%s [ ]", ANSI_GREEN, ANSI_RESET) }
 DIVLINE:: "-----------------------------------------------------------------------------------------------"
 aprint_instruction_info_header:: proc() -> string {
-	return fmt.aprint(DIVLINE, "\n  ADDR   RAW                               INS   OP\n", DIVLINE, sep = "") }
+	return fmt.aprint(DIVLINE, "\n  ADDR       RAW                               INS   OP\n", DIVLINE, sep = "") }
 aprint_instruction_info:: proc(ins_address: u32, ins_raw: u32, ins_decoded: GBA_Instruction_Decoded, allocator: = context.allocator) -> string {
-	return fmt.aprintf("  %4d   %32b  %s", ins_address, ins_raw, aprint_instruction(ins_decoded)) }
+	return fmt.aprintf("  %8x   %32b  %s", ins_address, ins_raw, aprint_instruction(ins_decoded)) }

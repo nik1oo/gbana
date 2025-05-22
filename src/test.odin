@@ -4,8 +4,11 @@ import "core:fmt"
 import "core:testing"
 import "core:math/rand"
 import "core:os"
+import "core:strings"
+import "core:strconv"
 import "core:log"
 import "core:container/queue"
+import "core:c/libc"
 
 
 PRINT_ALL_TEST_TIMELINES:: #config(PRINT_ALL_TEST_TIMELINES, false)
@@ -2096,3 +2099,501 @@ test_aprint_instruction:: proc(test_runner: ^testing.T) {
 	log.info(aprint_instruction_info(0, 0, GBA_UMLAL_Instruction_Decoded{ cond = .PLUS, operand = 14, multiplicands = { 53, 19 }, destinations = { gba_core.logical_registers.r4, gba_core.logical_registers.r5 } }))
 	log.info(aprint_instruction_info(0, 0, GBA_UMULL_Instruction_Decoded{ cond = .PLUS, operand = 14, multiplicands = { 53, 19 }, destinations = { gba_core.logical_registers.r4, gba_core.logical_registers.r5 } }))
 	log.info(aprint_instruction_info(0, 0, GBA_Undefined_Instruction_Decoded{ })) }
+
+
+@(test)
+test_decoder:: proc(test_runner: ^testing.T) {
+	// 1. Write an ARMv4T assembly instruction.
+	// 2. Compile to ARMv4T machine code using GNU ARM compiler arm-none-eabi-as.
+	// 3. Decode instruction.
+	// 4. Assert that the decoded instruction corresponds to the assembly code.
+	using state: State
+	context = initialize_context(&state)
+	allocate()
+	initialize()
+	context.logger.options = { /*.Level*/ }
+
+	assembly_instructions: [dynamic]string = make([dynamic]string)
+	decoded_instructions_expect: [dynamic]GBA_Instruction_Decoded = make([dynamic]GBA_Instruction_Decoded)
+	decoded_instructions_target: [dynamic]GBA_Instruction_Decoded = make([dynamic]GBA_Instruction_Decoded)
+
+	// branch unconditionally to 16 //
+	append(&assembly_instructions, "B 16")
+	append(&decoded_instructions_expect, GBA_B_Instruction_Decoded {
+		target_address =      16,
+		cond =                .ALWAYS })
+
+	// branch to 16 if carry flag is clear //
+	append(&assembly_instructions, "BCC 16")
+	append(&decoded_instructions_expect, GBA_B_Instruction_Decoded {
+		target_address =      16,
+		cond =                .CARRY_CLEAR })
+
+	// branch to 16 if zero flag is set //
+	append(&assembly_instructions, "BEQ 16")
+	append(&decoded_instructions_expect, GBA_B_Instruction_Decoded {
+		target_address =      16,
+		cond =                .EQUAL })
+
+	// R15 = 0, branch to location zero //
+	append(&assembly_instructions, "MOV PC, #0")
+	append(&decoded_instructions_expect, GBA_MOV_Instruction_Decoded {
+		shifter_operand =     0,
+		destination =         gba_core.logical_registers.array[GBA_Logical_Register_Name.PC],
+		cond =                .ALWAYS })
+
+	// subroutine call to function //
+	append(&assembly_instructions, "BL 16")
+	append(&decoded_instructions_expect, GBA_BL_Instruction_Decoded {
+		target_address =      16,
+		cond =                .ALWAYS })
+
+	// R15=R14, return to instruction after the BL //
+	append(&assembly_instructions, "MOV PC, LR")
+	append(&decoded_instructions_expect, GBA_MOV_Instruction_Decoded {
+		shifter_operand =     gba_core.logical_registers.array[GBA_Logical_Register_Name.LR]^,
+		destination =         gba_core.logical_registers.array[GBA_Logical_Register_Name.PC],
+		cond =                .ALWAYS })
+
+	// store the address of the instruction after the next one into R14 ready to return //
+	append(&assembly_instructions, "MOV LR, PC")
+	append(&decoded_instructions_expect, GBA_MOV_Instruction_Decoded {
+		shifter_operand =     gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]^,
+		destination =         gba_core.logical_registers.array[GBA_Logical_Register_Name.LR],
+		cond =                .ALWAYS })
+
+	// load a 32 bit value into the program counter //
+	append(&assembly_instructions, "LDR PC, [R0]")
+	append(&decoded_instructions_expect, GBA_LDR_Instruction_Decoded {
+		address =             18,
+		destination =         gba_core.logical_registers.array[GBA_Logical_Register_Name.PC],
+		cond =                .ALWAYS })
+
+	// Set R4 to value of R2 multiplied by R1
+	append(&assembly_instructions, "MUL R4, R2, R1")
+	append(&decoded_instructions_expect, GBA_MUL_Instruction_Decoded {
+		operand =             transmute(i32)gba_core.logical_registers.r2^,
+		multiplicand =        transmute(i32)gba_core.logical_registers.r1^,
+		destination =         gba_core.logical_registers.r4,
+		cond =                .ALWAYS })
+
+	// R4 = R2 x R1, set N and Z flags //
+	append(&assembly_instructions, "MULS R4, R2, R1")
+	append(&decoded_instructions_expect, GBA_MUL_Instruction_Decoded {
+		operand =             transmute(i32)gba_core.logical_registers.r2^,
+		multiplicand =        transmute(i32)gba_core.logical_registers.r1^,
+		destination =         gba_core.logical_registers.r4,
+		set_condition_codes = true,
+		cond =                .ALWAYS })
+
+	// R7 = R8 x R9 + R3 //
+	append(&assembly_instructions, "MLA R7, R8, R9, R3")
+	append(&decoded_instructions_expect, GBA_MLA_Instruction_Decoded {
+		operand =             transmute(i32)gba_core.logical_registers.r8^,
+		multiplicand =        transmute(i32)gba_core.logical_registers.r9^,
+		addend =              transmute(i32)gba_core.logical_registers.r3^,
+		destination =         gba_core.logical_registers.r4,
+		cond =                .ALWAYS })
+
+	// R4 = bits 0 to 31 of R2 x R3, R8 = bits 32 to 63 of R2 x R3 //
+	append(&assembly_instructions, "SMULL R4, R8, R2, R3")
+	append(&decoded_instructions_expect, GBA_SMULL_Instruction_Decoded {
+		operand =             transmute(i32)gba_core.logical_registers.r2^,
+		// TODO There should be only 1 multiplicand, not 2. //
+		multiplicands =       { transmute(i32)gba_core.logical_registers.r3^, transmute(i32)gba_core.logical_registers.r3^ },
+		destinations =        { gba_core.logical_registers.r4, gba_core.logical_registers.r8 },
+		cond =                .ALWAYS })
+
+	// R6, R8 = R0 x R1 //
+	append(&assembly_instructions, "UMULL R6, R8, R0, R1")
+	append(&decoded_instructions_expect, GBA_UMULL_Instruction_Decoded {
+		operand =             gba_core.logical_registers.r0^,
+		multiplicands =       { gba_core.logical_registers.r1^, gba_core.logical_registers.r1^ },
+		destinations =        { gba_core.logical_registers.r6, gba_core.logical_registers.r8 },
+		cond =                .ALWAYS })
+
+	// R5, R8 = R0 x R1 + R5, R8 //
+	append(&assembly_instructions, "UMLAL R5, R8, R0, R1")
+	append(&decoded_instructions_expect, GBA_UMLAL_Instruction_Decoded {
+		operand =             gba_core.logical_registers.r0^,
+		// TODO Where is the addend? Why isn't it decoded? //
+		cond =                .ALWAYS })
+
+	// Read the CPSR //
+	append(&assembly_instructions, "MRS R0, CPSR")
+	append(&decoded_instructions_expect, GBA_MRS_Instruction_Decoded {
+		source =              gba_core.logical_registers.cpsr,
+		destination =         gba_core.logical_registers.r0,
+		cond =                .ALWAYS })
+
+	// Clear the N, Z, C and V bits //
+	append(&assembly_instructions, "BIC R0, R0, #0xf0000000")
+	append(&decoded_instructions_expect, GBA_BIC_Instruction_Decoded {
+		operand =             gba_core.logical_registers.r0^,
+		shifter_operand =     0xf0000000,
+		destination =         gba_core.logical_registers.r0,
+		cond =                .ALWAYS })
+
+	// update the flag bits in the CPSR, N, Z, C and V flags now all clear //
+	append(&assembly_instructions, "MSR CPSR_f, R0")
+	append(&decoded_instructions_expect, GBA_MSR_Instruction_Decoded {
+		operand =             gba_core.logical_registers.r0^,
+		destination =         .CPSR,
+		field_mask =          { 3 }, // TODO Does CPSR_f refer to the lowest 8 or 4 bytes? Should the field mask have byte or bit precision? //
+		cond =                .ALWAYS })
+
+	// Read the CPSR //
+	append(&assembly_instructions, "MRS R0, CPSR")
+	append(&decoded_instructions_expect, GBA_MRS_Instruction_Decoded {
+		source =              gba_core.logical_registers.cpsr,
+		destination =         gba_core.logical_registers.r0,
+		cond =                .ALWAYS })
+
+	// Set the interrupt disable bit //
+	append(&assembly_instructions, "ORR R0, R0, #0x80")
+	append(&decoded_instructions_expect, GBA_ORR_Instruction_Decoded {
+		operand =             gba_core.logical_registers.r0^,
+		shifter_operand =     0x80,
+		destination =         gba_core.logical_registers.r0,
+		cond =                .ALWAYS })
+
+	// Update the control bits in the CPSR, interrupts (IRQ) now disabled //
+	append(&assembly_instructions, "MSR CPSR_c, R0")
+	append(&decoded_instructions_expect, GBA_MSR_Instruction_Decoded {
+		operand =             gba_core.logical_registers.r0^,
+		destination =         .CPSR,
+		field_mask =          { 0 },
+		cond =                .ALWAYS })
+
+	// Read the CPSR //
+	append(&assembly_instructions, "MRS R0, CPSR")
+	append(&decoded_instructions_expect, GBA_MRS_Instruction_Decoded {
+		source =              gba_core.logical_registers.cpsr,
+		destination =         gba_core.logical_registers.r0,
+		cond =                .ALWAYS })
+
+	// Clear the mode bits //
+	append(&assembly_instructions, "BIC R0, R0, #0x1f")
+	append(&decoded_instructions_expect, GBA_BIC_Instruction_Decoded {
+		operand =             gba_core.logical_registers.r0^,
+		shifter_operand =     0x1f,
+		destination =         gba_core.logical_registers.r0,
+		cond =                .ALWAYS })
+
+	// Set the mode bits to FIQ mode //
+	append(&assembly_instructions, "ORR R0, R0, #0x11")
+	append(&decoded_instructions_expect, GBA_ORR_Instruction_Decoded {
+		operand =             gba_core.logical_registers.r0^,
+		shifter_operand =     0x11,
+		destination =         gba_core.logical_registers.r0,
+		cond =                .ALWAYS })
+
+	// Update the control bits in the CPSR, now in FIQ mode //
+	append(&assembly_instructions, "MSR CPSR_c, R0")
+	append(&decoded_instructions_expect, GBA_MSR_Instruction_Decoded {
+		operand =             gba_core.logical_registers.r0^,
+		destination =         .CPSR,
+		field_mask =          { 0 },
+		cond =                .ALWAYS })
+
+	// Load register 1 from the address in register 0 //
+	append(&assembly_instructions, "LDR R1, [R0]")
+	append(&decoded_instructions_expect, GBA_LDR_Instruction_Decoded {
+		address =             gba_core.logical_registers.r0^,
+		destination =         gba_core.logical_registers.r1,
+		cond =                .ALWAYS })
+
+	// Load R8 from the address in R3 + 4 //
+	append(&assembly_instructions, "LDR R8, [R3, #4]")
+	append(&decoded_instructions_expect, GBA_LDR_Instruction_Decoded {
+		address =             gba_core.logical_registers.r3^ + 4,
+		destination =         gba_core.logical_registers.r8,
+		cond =                .ALWAYS })
+
+	// Load R12 from R13 - 4 //
+	append(&assembly_instructions, "LDR R12, [R13, #-4]")
+	append(&decoded_instructions_expect, GBA_LDR_Instruction_Decoded {
+		address =             gba_core.logical_registers.r13^ - 4,
+		destination =         gba_core.logical_registers.r12,
+		cond =                .ALWAYS })
+
+	// Store R2 to the address in R1 + 0x100 //
+	append(&assembly_instructions, "STR R2, [R1, #0x100]")
+	append(&decoded_instructions_expect, GBA_STR_Instruction_Decoded {
+		address =             gba_core.logical_registers.r1^ + 0x100,
+		source =              gba_core.logical_registers.r2,
+		cond =                .ALWAYS })
+
+	// Load a byte into R5 from R9 (zero top 3 bytes) //
+	append(&assembly_instructions, "LDRB R5, [R9]")
+	append(&decoded_instructions_expect, GBA_LDR_Instruction_Decoded {
+		address =             gba_core.logical_registers.r9^,
+		destination =         gba_core.logical_registers.r5,
+		unsigned_byte =       true,
+		cond =                .ALWAYS })
+
+	// Load byte to R3 from R8 + 3 (zero top 3 bytes) //
+	append(&assembly_instructions, "LDRB R3, [R8, #3]")
+	append(&decoded_instructions_expect, GBA_LDR_Instruction_Decoded {
+		address =             gba_core.logical_registers.r8^ + 3,
+		destination =         gba_core.logical_registers.r3,
+		unsigned_byte =       true,
+		cond =                .ALWAYS })
+
+	// Store byte from R4 to R10 + 0x200 //
+	append(&assembly_instructions, "STRB R4, [R10, #0x200]")
+	append(&decoded_instructions_expect, GBA_STR_Instruction_Decoded {
+		address =             gba_core.logical_registers.r10^ + 0x200,
+		source =              gba_core.logical_registers.r4,
+		unsigned_byte =       true,
+		cond =                .ALWAYS })
+
+	// Load R11 from the address in R1 + R2 //
+	append(&assembly_instructions, "LDR R11, [R1, R2]")
+	append(&decoded_instructions_expect, GBA_LDR_Instruction_Decoded {
+		address =             gba_core.logical_registers.r1^ + gba_core.logical_registers.r2^,
+		destination =         gba_core.logical_registers.r11,
+		cond =                .ALWAYS })
+
+	// Store byte from R10 to the address in R7 - R4 //
+	append(&assembly_instructions, "STRB R10, [R7, -R4]")
+	append(&decoded_instructions_expect, GBA_STR_Instruction_Decoded {
+		address =             gba_core.logical_registers.r7^ - gba_core.logical_registers.r4^,
+		source =              gba_core.logical_registers.r10,
+		unsigned_byte =       true,
+		cond =                .ALWAYS })
+
+	// Load R11 from R3 + (R5 x 4) //
+	append(&assembly_instructions, "LDR R11,[R3,R5,LSL #2]")
+	append(&decoded_instructions_expect, GBA_LDR_Instruction_Decoded {
+		address =             gba_core.logical_registers.r3^ + gba_core.logical_registers.r5^ * 4,
+		destination =         gba_core.logical_registers.r11,
+		cond =                .ALWAYS })
+
+	// Load R1 from R0 + 4, then R0 = R0 + 4 //
+	append(&assembly_instructions, "LDR R1, [R0, #4]!")
+	append(&decoded_instructions_expect, GBA_LDR_Instruction_Decoded {
+		address =             gba_core.logical_registers.r0^ + 4,
+		destination =         gba_core.logical_registers.r1,
+		cond =                .ALWAYS })
+
+	// Store byte from R7 to R6 - 1, then R6 = R6 - 1 //
+	append(&assembly_instructions, "STRB R7, [R6, #-1]!")
+	append(&decoded_instructions_expect, GBA_STR_Instruction_Decoded {
+		address =             gba_core.logical_registers.r6^ - 1,
+		source =              gba_core.logical_registers.r7,
+		unsigned_byte =       true,
+		cond =                .ALWAYS })
+
+	// Load R3 from R9, then R9 = R9 + 4 //
+	append(&assembly_instructions, "LDR R3, [R9], #4")
+	append(&decoded_instructions_expect, GBA_LDR_Instruction_Decoded {
+		address =             gba_core.logical_registers.r9^ + 4,
+		destination =         gba_core.logical_registers.r3,
+		cond =                .ALWAYS })
+
+	// Store word from R2 to R5, then R5 = R5 + 8 //
+	append(&assembly_instructions, "STR R2, [R5], #8")
+	append(&decoded_instructions_expect, GBA_STR_Instruction_Decoded {
+		address =             gba_core.logical_registers.r5^ + 8,
+		source =              gba_core.logical_registers.r2,
+		cond =                .ALWAYS })
+
+	// Load R0 from PC + 8 + 0x40 //
+	append(&assembly_instructions, "LDR R0, [PC, #40]")
+	append(&decoded_instructions_expect, GBA_LDR_Instruction_Decoded {
+		address =             gba_core.logical_registers.pc^ + 8 + 0x40,
+		destination =         gba_core.logical_registers.r0,
+		cond =                .ALWAYS })
+
+	// Load R0 from R1, then R1 = R1 + R2 //
+	append(&assembly_instructions, "LDR R0, [R1], R2")
+	append(&decoded_instructions_expect, GBA_LDR_Instruction_Decoded {
+		address =             gba_core.logical_registers.r1^ + gba_core.logical_registers.r2^,
+		destination =         gba_core.logical_registers.r1,
+		cond =                .ALWAYS })
+
+	// Load a halfword to R1 from R0 (zero top bytes) //
+	append(&assembly_instructions, "LDRH R1, [R0]")
+	append(&decoded_instructions_expect, GBA_LDRH_Instruction_Decoded {
+		address =             gba_core.logical_registers.r0^,
+		destination =         gba_core.logical_registers.r1,
+		cond =                .ALWAYS })
+
+	// Load a halfword into R8 from R3 + 2 //
+	append(&assembly_instructions, "LDRH R8, [R3, #2]")
+	append(&decoded_instructions_expect, GBA_LDRH_Instruction_Decoded {
+		address =             gba_core.logical_registers.r3^ + 2,
+		destination =         gba_core.logical_registers.r8,
+		cond =                .ALWAYS })
+
+	// Load a halfword R12 from R13 - 6 //
+	append(&assembly_instructions, "LDRH R12, [R13, #-6]")
+	append(&decoded_instructions_expect, GBA_LDRH_Instruction_Decoded {
+		address =             gba_core.logical_registers.r13^ - 6,
+		destination =         gba_core.logical_registers.r12,
+		cond =                .ALWAYS })
+
+	// Store halfword from R2 to R1 + 0x80 //
+	append(&assembly_instructions, "STRH R2, [R1, #0x80]")
+	append(&decoded_instructions_expect, GBA_STRH_Instruction_Decoded {
+		address =             gba_core.logical_registers.r1^ + 0x80,
+		source =              gba_core.logical_registers.r2,
+		cond =                .ALWAYS })
+
+	// Load signed halfword to R5 from R9 //
+	append(&assembly_instructions, "LDRSH R5, [R9]")
+	append(&decoded_instructions_expect, GBA_LDRSH_Instruction_Decoded {
+		address =             gba_core.logical_registers.r9^,
+		destination =         gba_core.logical_registers.r5,
+		cond =                .ALWAYS })
+
+	// Load signed byte to R3 from R8 + 3 //
+	append(&assembly_instructions, "LDRSB R3, [R8, #3]")
+	append(&decoded_instructions_expect, GBA_LDRSB_Instruction_Decoded {
+		address =             gba_core.logical_registers.r8^ + 3,
+		destination =         gba_core.logical_registers.r3,
+		cond =                .ALWAYS })
+
+	// Load signed byte to R4 from R10 + 0xc1 //
+	append(&assembly_instructions, "LDRSB R4, [R10, #0xc1]")
+	append(&decoded_instructions_expect, GBA_LDRSB_Instruction_Decoded {
+		address =             gba_core.logical_registers.r10^ + 0xc1,
+		destination =         gba_core.logical_registers.r4,
+		cond =                .ALWAYS })
+
+	// Load halfword R11 from the address in R1 + R2 //
+	append(&assembly_instructions, "LDRH R11, [R1, R2]")
+	append(&decoded_instructions_expect, GBA_LDRH_Instruction_Decoded {
+		address =             gba_core.logical_registers.r1^ + gba_core.logical_registers.r2^,
+		destination =         gba_core.logical_registers.r11,
+		cond =                .ALWAYS })
+
+	// Store halfword from R10 to R7 - R4 //
+	append(&assembly_instructions, "STRH R10, [R7, -R4]")
+	append(&decoded_instructions_expect, GBA_STRH_Instruction_Decoded {
+		address =             gba_core.logical_registers.r7^ - gba_core.logical_registers.r4^,
+		source =              gba_core.logical_registers.r10,
+		cond =                .ALWAYS })
+
+	// Load signed halfword R1 from R0+2,then R0=R0+2 //
+	append(&assembly_instructions, "LDRSH R1, [R0, #2]!")
+	append(&decoded_instructions_expect, GBA_LDRSH_Instruction_Decoded {
+		address =             gba_core.logical_registers.r0^ + 2,
+		destination =         gba_core.logical_registers.r1,
+		cond =                .ALWAYS })
+
+	// Load signed byte to R7 from R6-1, then R6=R6-1 //
+	append(&assembly_instructions, "LDRSB R7, [R6, #-1]!")
+	append(&decoded_instructions_expect, GBA_LDRSB_Instruction_Decoded {
+		address =             gba_core.logical_registers.r6^ - 1,
+		destination =         gba_core.logical_registers.r7,
+		cond =                .ALWAYS })
+
+	// Load halfword to R3 from R9, then R9 = R9 + 2 //
+	append(&assembly_instructions, "LDRH R3, [R9], #2")
+	append(&decoded_instructions_expect, GBA_LDRH_Instruction_Decoded {
+		address =             gba_core.logical_registers.r9^ + 2,
+		destination =         gba_core.logical_registers.r3,
+		cond =                .ALWAYS })
+
+	// Store halfword from R2 to R5, then R5 = R5 + 8 //
+	append(&assembly_instructions, "STRH R2, [R5], #8")
+	append(&decoded_instructions_expect, GBA_STRH_Instruction_Decoded {
+		address =             gba_core.logical_registers.r5^ + 8,
+		source =              gba_core.logical_registers.r2,
+		cond =                .ALWAYS })
+
+	// Stor multiple decrement before //
+	append(&assembly_instructions, "STMFD R13!, {R0 - R12, LR}")
+	append(&decoded_instructions_expect, GBA_STM_Instruction_Decoded {
+		source_registers =    { .R0, .R1, .R2, .R3, .R4, .R5, .R6, .R7, .R8, .R9, .R10, .R11, .R12, .LR },
+		start_address =       gba_core.logical_registers.r13^,
+		cond =                .ALWAYS })
+
+	// Load multiple decrement before //
+	append(&assembly_instructions, "LDMFD R13!, {R0 - R12, PC}")
+	append(&decoded_instructions_expect, GBA_LDM_Instruction_Decoded {
+		destination_registers = { .R0, .R1, .R2, .R3, .R4, .R5, .R6, .R7, .R8, .R9, .R10, .R11, .R12, .PC },
+		start_address =         gba_core.logical_registers.r13^,
+		cond =                  .ALWAYS })
+
+	// Load multiple increment after //
+	append(&assembly_instructions, "LDMIA R0, {R5 - R8}")
+	append(&decoded_instructions_expect, GBA_LDM_Instruction_Decoded {
+		destination_registers = { .R5, .R6, .R7, .R8 },
+		start_address =         gba_core.logical_registers.r0^,
+		cond =                  .ALWAYS })
+
+	// Store multiple decrement after //
+	append(&assembly_instructions, "STMDA R1!, {R2, R5, R7 - R9, R11}")
+	append(&decoded_instructions_expect, GBA_STM_Instruction_Decoded {
+		source_registers =    { .R2, .R5, .R7, .R8, .R9, .R11 },
+		start_address =       gba_core.logical_registers.r1^,
+		cond =                .ALWAYS })
+
+	// load R12 from address R9 and store R10 to address R9 //
+	append(&assembly_instructions, "SWP R12, R10, [R9]")
+	append(&decoded_instructions_expect, GBA_SWP_Instruction_Decoded {
+		destination_register = gba_core.logical_registers.r10,
+		source_register =      gba_core.logical_registers.r12,
+		address =              gba_core.logical_registers.r9^,
+		cond =                 .ALWAYS })
+
+	// load byte to R3 from address R8 and store byte from R4 to address R8 //
+	append(&assembly_instructions, "SWPB R3, R4, [R8]")
+	append(&decoded_instructions_expect, GBA_SWPB_Instruction_Decoded {
+		destination_register = gba_core.logical_registers.r3,
+		source_register =      gba_core.logical_registers.r4,
+		address =              gba_core.logical_registers.r8^,
+		cond =                 .ALWAYS })
+
+	// Exchange value in R1 and address in R2 //
+	append(&assembly_instructions, "SWP R1, R1, [R2]")
+	append(&decoded_instructions_expect, GBA_SWP_Instruction_Decoded {
+		destination_register = gba_core.logical_registers.r1,
+		source_register =      gba_core.logical_registers.r1,
+		address =              gba_core.logical_registers.r2^,
+		cond =                 .ALWAYS })
+
+	asm_string: = strings.join(assembly_instructions[:], sep = "\n")
+	os.write_entire_file("arm4_test.s", transmute([]u8)asm_string)
+	libc.system("arm-none-eabi-as -march=armv4t -o arm4_test.o arm4_test.s")
+	libc.system("arm-none-eabi-objdump --no-addresses -d arm4_test.o > arm4_test.dis")
+
+	obj_bytes, ok: = os.read_entire_file("arm4_test.dis")
+	testing.expect(test_runner, ok, "could not find disassembly file")
+	if !ok do return
+	obj_string: = string(obj_bytes)
+	obj_string = strings.trim_right(obj_string, " \n\r\t")
+	i: int = strings.index(obj_string, "<.text>:")
+	lines: = strings.split_lines(obj_string[i + 10:])
+	for &line, i in lines {
+		line = strings.trim_left(line, "\t")
+		line = line[0:strings.index_rune(line, ' ')] }
+	// lines = lines[0:len(lines)-1]
+	testing.expect(test_runner, len(lines) == len(assembly_instructions), "incorrect number of instructions in objdump")
+	testing.expect(test_runner, len(lines) == len(decoded_instructions_expect), "incorrect number of instructions in objdump")
+
+	for line, i in lines[0:8] {
+		code, _: = strconv.parse_uint(line, 16)
+		ins: GBA_Instruction = cast(GBA_Instruction)code
+		ins_identified, _: = gba_identify_instruction(ins)
+		ins_decoded: GBA_Instruction_Decoded
+		defined: bool
+		ins_decoded, defined = gba_decode_identified(ins_identified, 0)
+		ins_decoded_expect: = decoded_instructions_expect[i]
+		if ins_decoded_expect == ins_decoded {
+			log.info(fmt.aprintf("%scorrect%s   %s", ANSI_GREEN, ANSI_RESET, aprint_instruction_info(0, ins, ins_decoded))) }
+		else {
+			log.info(fmt.aprintf("%sincorrect%s %s", ANSI_RED, ANSI_RESET, aprint_instruction_info(0, ins, ins_decoded)))
+			log.info(fmt.aprintf("%sexpected%s  %s", ANSI_RED, ANSI_RESET, aprint_instruction_info(0, ins, ins_decoded_expect))) } }
+
+	// i = strings.index(obj_string[])
+	// ALT:
+	// 1. Select machine code.
+	// 2. decode machine code.
+	// 3. Produce assembly from decoded OP-code.
+	// 4. Compile to ARMv4T machine code using the GNU ARM compiler arm-none-eabi-as.
+	// 5. Assert that the machine codes are identical.
+}

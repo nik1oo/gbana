@@ -823,26 +823,26 @@ gba_decode_address_mode_4_decrement_before:: proc(ins: GBA_Instruction) -> (star
 
 // CONDITION //
 GBA_Condition:: enum u8 {
-EQUAL                     = 0b0000,  // Z set
-NOT_EQUAL                 = 0b0001,  // Z clear
-CARRY_SET                 = 0b0010,  // C set
-UNSIGNED_GREATER_OR_EQUAL = 0b0010,  // C set
-CARRY_CLEAR               = 0b0011,  // C clear
-UNSIGNED_LESSER           = 0b0011,  // C clear
-MINUS                     = 0b0100,  // N set
-NEGATIVE                  = 0b0100,  // N set
-PLUS                      = 0b0101,  // N clear
-POSITIVE_OR_ZERO          = 0b0101,  // N clear
-OVERFLOW                  = 0b0110,  // V set
-NO_OVERFLOW               = 0b0111,  // V clear
-UNSIGNED_GREATER          = 0b1000,  // C set and Z clear
-UNSIGNED_LESSER_OR_EQUAL  = 0b1001,  // C clear or Z set
-SIGNED_GREATER_OR_EQUAL   = 0b1010,  // N set and V set, or N clear and V clear (N = V)
-SIGNED_LESSER             = 0b1011,  // N set and V clear, or N clear and V set (N != V)
-SIGNED_GREATER            = 0b1100,  // Z clear, and either N set and V set, or N clear and V clear (Z = 0, N = V)
-SIGNED_LESSER_OR_EQUAL    = 0b1101,  // Z set, or N set and V clear, or N clear and V set (Z = 1, N != V)
-ALWAYS                    = 0b1110,  // true
-NEVER                     = 0b1111 } // false
+	EQUAL                     = 0b0000,  // Z set
+	NOT_EQUAL                 = 0b0001,  // Z clear
+	CARRY_SET                 = 0b0010,  // C set
+	UNSIGNED_GREATER_OR_EQUAL = 0b0010,  // C set
+	CARRY_CLEAR               = 0b0011,  // C clear
+	UNSIGNED_LESSER           = 0b0011,  // C clear
+	MINUS                     = 0b0100,  // N set
+	NEGATIVE                  = 0b0100,  // N set
+	PLUS                      = 0b0101,  // N clear
+	POSITIVE_OR_ZERO          = 0b0101,  // N clear
+	OVERFLOW                  = 0b0110,  // V set
+	NO_OVERFLOW               = 0b0111,  // V clear
+	UNSIGNED_GREATER          = 0b1000,  // C set and Z clear
+	UNSIGNED_LESSER_OR_EQUAL  = 0b1001,  // C clear or Z set
+	SIGNED_GREATER_OR_EQUAL   = 0b1010,  // N set and V set, or N clear and V clear (N = V)
+	SIGNED_LESSER             = 0b1011,  // N set and V clear, or N clear and V set (N != V)
+	SIGNED_GREATER            = 0b1100,  // Z clear, and either N set and V set, or N clear and V clear (Z = 0, N = V)
+	SIGNED_LESSER_OR_EQUAL    = 0b1101,  // Z set, or N set and V clear, or N clear and V set (Z = 1, N != V)
+	ALWAYS                    = 0b1110,  // true
+	NEVER                     = 0b1111 } // false
 gba_condition_passed:: proc(condition: GBA_Condition) -> bool {
 	switch condition {
 	case .EQUAL:                     return gba_condition_passed_equal()

@@ -735,7 +735,7 @@ gba_execute_next:: proc() {
 	sync.recursive_mutex_lock(&gba_core.mutex); defer sync.recursive_mutex_unlock(&gba_core.mutex)
 	pc: ^u32 = gba_core.logical_registers.array[GBA_Logical_Register_Name.PC]
 	ins_address: = pc^
-	ins: GBA_Instruction = cast(GBA_Instruction)memory_read_u32(ins_address)
+	ins: GBA_Instruction = le_to_be(cast(GBA_Instruction)memory_read_u32(ins_address))
 	ins_identified, _: = gba_identify_instruction(ins)
 	ins_decoded: GBA_Instruction_Decoded
 	defined: bool

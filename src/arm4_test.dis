@@ -1,0 +1,67 @@
+
+arm4_test.o:     file format elf32-littlearm
+
+
+Disassembly of section .text:
+
+<.text>:
+	eafffffe 	b	<.text+0x10>
+	3afffffe 	bcc	<.text+0x10>
+	0afffffe 	beq	<.text+0x10>
+	e3a0f000 	mov	pc, #0
+	ebfffffe 	bl	<.text+0x10>
+	e1a0f00e 	mov	pc, lr
+	e1a0e00f 	mov	lr, pc
+	e590f000 	ldr	pc, [r0]
+	e0040192 	mul	r4, r2, r1
+	e0140192 	muls	r4, r2, r1
+	e0273998 	mla	r7, r8, r9, r3
+	e0c84392 	smull	r4, r8, r2, r3
+	e0886190 	umull	r6, r8, r0, r1
+	e0a85190 	umlal	r5, r8, r0, r1
+	e10f0000 	mrs	r0, CPSR
+	e3c0020f 	bic	r0, r0, #-268435456	@ 0xf0000000
+	e128f000 	msr	CPSR_f, r0
+	e10f0000 	mrs	r0, CPSR
+	e3800080 	orr	r0, r0, #128	@ 0x80
+	e121f000 	msr	CPSR_c, r0
+	e10f0000 	mrs	r0, CPSR
+	e3c0001f 	bic	r0, r0, #31
+	e3800011 	orr	r0, r0, #17
+	e121f000 	msr	CPSR_c, r0
+	e5901000 	ldr	r1, [r0]
+	e5938004 	ldr	r8, [r3, #4]
+	e51dc004 	ldr	ip, [sp, #-4]
+	e5812100 	str	r2, [r1, #256]	@ 0x100
+	e5d95000 	ldrb	r5, [r9]
+	e5d83003 	ldrb	r3, [r8, #3]
+	e5ca4200 	strb	r4, [sl, #512]	@ 0x200
+	e791b002 	ldr	fp, [r1, r2]
+	e747a004 	strb	sl, [r7, -r4]
+	e793b105 	ldr	fp, [r3, r5, lsl #2]
+	e5b01004 	ldr	r1, [r0, #4]!
+	e5667001 	strb	r7, [r6, #-1]!
+	e4993004 	ldr	r3, [r9], #4
+	e4852008 	str	r2, [r5], #8
+	e59f0028 	ldr	r0, [pc, #40]	@ <.text+0xc8>
+	e6910002 	ldr	r0, [r1], r2
+	e1d010b0 	ldrh	r1, [r0]
+	e1d380b2 	ldrh	r8, [r3, #2]
+	e15dc0b6 	ldrh	ip, [sp, #-6]
+	e1c128b0 	strh	r2, [r1, #128]	@ 0x80
+	e1d950f0 	ldrsh	r5, [r9]
+	e1d830d3 	ldrsb	r3, [r8, #3]
+	e1da4cd1 	ldrsb	r4, [sl, #193]	@ 0xc1
+	e191b0b2 	ldrh	fp, [r1, r2]
+	e107a0b4 	strh	sl, [r7, -r4]
+	e1f010f2 	ldrsh	r1, [r0, #2]!
+	e17670d1 	ldrsb	r7, [r6, #-1]!
+	e0d930b2 	ldrh	r3, [r9], #2
+	e0c520b8 	strh	r2, [r5], #8
+	e92d5fff 	push	{r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, sl, fp, ip, lr}
+	e8bd9fff 	pop	{r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, sl, fp, ip, pc}
+	e89001e0 	ldm	r0, {r5, r6, r7, r8}
+	e8210ba4 	stmda	r1!, {r2, r5, r7, r8, r9, fp}
+	e109c09a 	swp	ip, sl, [r9]
+	e1483094 	swpb	r3, r4, [r8]
+	e1021091 	swp	r1, r1, [r2]
